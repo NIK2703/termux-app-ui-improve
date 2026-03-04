@@ -548,6 +548,11 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
         setTerminalToolbarHeight();
 
+        // Load extra keys buttons - needed after activity recreate (theme change)
+        if (mTermuxTerminalExtraKeys.getExtraKeysInfo() != null) {
+            extraKeysView.reload(mTermuxTerminalExtraKeys.getExtraKeysInfo(), mTerminalToolbarDefaultHeight);
+        }
+
         // Setup text input
         final EditText editText = findViewById(R.id.terminal_toolbar_text_input);
         String savedTextInput = null;
