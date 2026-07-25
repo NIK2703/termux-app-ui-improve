@@ -278,6 +278,10 @@ public final class TermuxPreferenceConstants {
         public static final String KEY_EXTRA_KEYS_DYNAMIC_FONT_SIZE = "extra-keys-dynamic-font-size";
         public static final boolean DEFAULT_VALUE_EXTRA_KEYS_DYNAMIC_FONT_SIZE = true;
 
+        // Whether swipe-direction edge indicators are shown on extra keys
+        public static final String KEY_EXTRA_KEYS_EDGE_INDICATORS = "extra-keys-edge-indicators";
+        public static final boolean DEFAULT_VALUE_EXTRA_KEYS_EDGE_INDICATORS = true;
+
         public static final String KEY_HIDE_SOFT_KEYBOARD_ON_STARTUP = "hide-soft-keyboard-on-startup";
         public static final boolean DEFAULT_VALUE_HIDE_SOFT_KEYBOARD_ON_STARTUP = false;
 

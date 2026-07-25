@@ -151,7 +151,7 @@ public class ExtraKeyButton {
             keys = new String[]{keyFromConfig};
             this.macro = false;
         } else if (macroFromConfig != null) {
-            keys = macroFromConfig.split(" ");
+            keys = macroFromConfig.split("\\s+");
             this.macro = true;
         } else if (swipeUp != null || swipeDown != null || swipeLeft != null || swipeRight != null) {
             keys = new String[]{""};

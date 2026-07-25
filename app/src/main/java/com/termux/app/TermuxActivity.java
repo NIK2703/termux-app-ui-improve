@@ -1680,6 +1680,10 @@ public final class TermuxActivity extends AppCompatActivity implements TextInput
             editText.setSelection(message.length());
         }
 
+        // Promote the picked message to the front of history (index 0 = newest)
+        // so it appears at the bottom of the history popup on next open.
+        addToMessageHistory(message);
+
         setFocusOnInputForCurrentSession(true);
         saveTextInputForCurrentSession();
 
@@ -2709,6 +2713,7 @@ public final class TermuxActivity extends AppCompatActivity implements TextInput
                     mTermuxTerminalExtraKeys.reloadExtraKeys();
                 mExtraKeysView.setButtonTextAllCaps(mProperties.shouldExtraKeysTextBeAllCaps());
                 mExtraKeysView.setDynamicFontSize(getPreferences().isExtraKeysDynamicFontSizeEnabled(this));
+                mExtraKeysView.setRuntimeEdgeIndicatorsEnabled(getPreferences().isExtraKeysEdgeIndicatorsEnabled());
                 applyExtraKeysSpecialButtonMode();
                 mExtraKeysView.setButtonColors(
                     mColorSchemeManager.getButtonText(),

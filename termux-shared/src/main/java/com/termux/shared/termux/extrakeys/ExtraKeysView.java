@@ -148,6 +148,36 @@ public final class ExtraKeysView extends GridLayout {
         void onExtraKeyButtonClick(View view, ExtraKeyButton buttonInfo, MaterialButton button);
 
         /**
+         * Called when a swipe gesture is first recognised (ACTION_MOVE crosses the swipe threshold).
+         * Equivalent to ACTION_DOWN on a physical key: modifiers become active, regular keys are
+         * dispatched immediately, and macros begin execution.
+         * <p>
+         * The default implementation falls back to {@link #onExtraKeyButtonClick} for backward
+         * compatibility.
+         *
+         * @param view The source view that was swiped.
+         * @param buttonInfo The {@link ExtraKeyButton} for the swipe target button.
+         * @param button The {@link MaterialButton} that was swiped.
+         */
+        default void onExtraKeyButtonGesturePress(View view, ExtraKeyButton buttonInfo, MaterialButton button) {
+            onExtraKeyButtonClick(view, buttonInfo, button);
+        }
+
+        /**
+         * Called when the finger is lifted after a swipe gesture (ACTION_UP).
+         * Equivalent to ACTION_UP on a physical key: gesture-activated modifiers are deactivated.
+         * Regular keys are no-ops (already dispatched on press). Macros may be cancelled.
+         * <p>
+         * The default implementation is a no-op for backward compatibility.
+         *
+         * @param view The source view that was swiped.
+         * @param buttonInfo The {@link ExtraKeyButton} for the swipe target button.
+         * @param button The {@link MaterialButton} that was swiped.
+         */
+        default void onExtraKeyButtonGestureRelease(View view, ExtraKeyButton buttonInfo, MaterialButton button) {
+        }
+
+        /**
          * This is called by {@link ExtraKeysView} when a button is clicked so that the client
          * can perform any hepatic feedback. This is only called in the {@link MaterialButton.OnClickListener}
          * and not for every repeat. Its also called for {@link #mSpecialButtons}.
@@ -201,6 +231,37 @@ public final class ExtraKeysView extends GridLayout {
     private int mEditorEdgeColor = 0xFF888888;
     private final Paint mEditorEdgePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private static final float EDITOR_EDGE_THICKNESS_DP = 2f;
+
+    // ── Runtime swipe-direction edge indicators ──
+    private boolean mRuntimeEdgeIndicatorsEnabled = true;
+    private final Paint mRuntimeEdgePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private static final float RUNTIME_EDGE_THICKNESS_DP = 2f;
+
+    private static final class RuntimeEdgeInfo {
+        final int flags;                    // bitmask: 1=UP 2=DOWN 4=LEFT 8=RIGHT
+        @Nullable final ExtraKeyButton up;
+        @Nullable final ExtraKeyButton down;
+        @Nullable final ExtraKeyButton left;
+        @Nullable final ExtraKeyButton right;
+
+        RuntimeEdgeInfo(int flags,
+                        @Nullable ExtraKeyButton up, @Nullable ExtraKeyButton down,
+                        @Nullable ExtraKeyButton left, @Nullable ExtraKeyButton right) {
+            this.flags = flags;
+            this.up = up; this.down = down; this.left = left; this.right = right;
+        }
+
+        @Nullable
+        ExtraKeyButton target(SwipeDirection dir) {
+            switch (dir) {
+                case UP:    return up;
+                case DOWN:  return down;
+                case LEFT:  return left;
+                case RIGHT: return right;
+            }
+            return null;
+        }
+    }
 
 
     /** Defines the minimum allowed duration in milliseconds for {@link #mLongPressTimeout}. */
@@ -322,6 +383,16 @@ public final class ExtraKeysView extends GridLayout {
     /** Runtime swipe detection: non-null when a swipe has been detected during the current touch sequence. */
     @Nullable
     private SwipeDirection mRuntimeSwipeDirection;
+
+    /** Gesture press/release tracking: the ExtraKeyButton currently held by an active swipe gesture. */
+    @Nullable
+    private ExtraKeyButton mGestureActiveButton;
+    /** Gesture press/release tracking: the MaterialButton of the active gesture. */
+    @Nullable
+    private MaterialButton mGestureActiveMaterialButton;
+    /** Gesture press/release tracking: the source view of the active gesture. */
+    @Nullable
+    private View mGestureActiveView;
 
     protected final ScheduledExecutorService mScheduledExecutor = Executors.newSingleThreadScheduledExecutor();
     protected ScheduledFuture<?> mRepetitiveFuture;
@@ -753,25 +824,28 @@ public final class ExtraKeysView extends GridLayout {
                             SwipeDirection swipeDir = detectDirection(dx, dy);
                             if (swipeDir != null && getSwipeExtraKeyButton(buttonInfo, swipeDir) != null) {
                                 mRuntimeSwipeDirection = swipeDir;
+                                invalidate();
                                 stopScheduledExecutors();
                                 button.setBackgroundTintList(mButtonBgTint);
                                 // If in HOLD mode, end the hold since the swipe takes priority
                                 if (mSpecialButtonMode == SpecialButtonMode.HOLD && isSpecialButton(buttonInfo)) {
                                     endSpecialButtonHold(buttonInfo);
                                 }
-                                // Execute the swipe action immediately with haptic feedback,
-                                // bypassing onAnyExtraKeyButtonClick to avoid modifier toggle
+                                // Fire action — identical to button tap (onClick)
                                 ExtraKeyButton swipeBtn = getSwipeExtraKeyButton(buttonInfo, swipeDir);
-                                if (isSpecialButton(swipeBtn)) {
-                                    // Single modifier as swipe → activate in ExtraKeysView sticky state
-                                    // so the next tap can consume it via readSpecialButton(autoSetInActive=true)
-                                    SpecialButtonState state = mSpecialButtons.get(SpecialButton.valueOf(swipeBtn.getKey()));
-                                    if (state != null) state.setIsActive(true);
-                                } else {
-                                    // Regular key or macro → send directly to terminal
-                                    onExtraKeyButtonClick(view, swipeBtn, button);
-                                }
+                                mGestureActiveButton = swipeBtn;
+                                mGestureActiveMaterialButton = button;
+                                mGestureActiveView = view;
+                                onAnyExtraKeyButtonClick(view, swipeBtn, button);
                                 performExtraKeyButtonHapticFeedback(view, swipeBtn, button, true);
+                                // Start repeat for swipe target if it's a repetitive key (UP/DOWN/LEFT/RIGHT/etc)
+                                if (mRepetitiveKeys.contains(swipeBtn.getKey())) {
+                                    mLongPressCount = 0;
+                                    mRepetitiveFuture = mScheduledExecutor.scheduleWithFixedDelay(() -> {
+                                        mLongPressCount++;
+                                        onExtraKeyButtonClick(view, swipeBtn, button);
+                                    }, mLongPressTimeout, mLongPressRepeatDelay, TimeUnit.MILLISECONDS);
+                                }
                                 return true;
                             }
 
@@ -779,9 +853,20 @@ public final class ExtraKeysView extends GridLayout {
 
                         case MotionEvent.ACTION_CANCEL:
                             mRuntimeSwipeDirection = null;
+                            invalidate();
                             button.setBackgroundTintList(mButtonBgTint);
                             stopScheduledExecutors();
-                            // In HOLD mode a cancelled touch ends the hold
+                            // Gesture cleanup on cancel (e.g. parent stole the touch)
+                            if (mGestureActiveButton != null && mExtraKeysViewClient != null) {
+                                mExtraKeysViewClient.onExtraKeyButtonGestureRelease(
+                                        mGestureActiveView != null ? mGestureActiveView : view,
+                                        mGestureActiveButton,
+                                        mGestureActiveMaterialButton != null ? mGestureActiveMaterialButton : button);
+                            }
+                            mGestureActiveButton = null;
+                            mGestureActiveMaterialButton = null;
+                            mGestureActiveView = null;
+                            // Handle HOLD mode for base button after gesture cleanup
                             if (mSpecialButtonMode == SpecialButtonMode.HOLD && isSpecialButton(buttonInfo)) {
                                 endSpecialButtonHold(buttonInfo);
                             }
@@ -791,15 +876,27 @@ public final class ExtraKeysView extends GridLayout {
                             button.setBackgroundTintList(mButtonBgTint);
                             stopScheduledExecutors();
 
-                            // In HOLD mode a special button deactivates on release
-                            if (mSpecialButtonMode == SpecialButtonMode.HOLD && isSpecialButton(buttonInfo)) {
-                                endSpecialButtonHold(buttonInfo);
+                            // Swipe has priority over HOLD mode: release gesture first,
+                            // then handle HOLD for the base button if needed.
+                            if (mRuntimeSwipeDirection != null) {
+                                mRuntimeSwipeDirection = null;
+                                invalidate();
+                                if (mGestureActiveButton != null && mExtraKeysViewClient != null) {
+                                    mExtraKeysViewClient.onExtraKeyButtonGestureRelease(
+                                            mGestureActiveView, mGestureActiveButton, mGestureActiveMaterialButton);
+                                }
+                                mGestureActiveButton = null;
+                                mGestureActiveMaterialButton = null;
+                                mGestureActiveView = null;
+                                if (mSpecialButtonMode == SpecialButtonMode.HOLD && isSpecialButton(buttonInfo)) {
+                                    endSpecialButtonHold(buttonInfo);
+                                }
                                 return true;
                             }
 
-                            // If a swipe was already executed in ACTION_MOVE, just suppress the tap
-                            if (mRuntimeSwipeDirection != null) {
-                                mRuntimeSwipeDirection = null;
+                            // In HOLD mode a special button deactivates on release (no swipe)
+                            if (mSpecialButtonMode == SpecialButtonMode.HOLD && isSpecialButton(buttonInfo)) {
+                                endSpecialButtonHold(buttonInfo);
                                 return true;
                             }
 
@@ -812,15 +909,13 @@ public final class ExtraKeysView extends GridLayout {
                                     ExtraKeyButton swipeBtn = getSwipeExtraKeyButton(buttonInfo, upSwipe);
                                     if (swipeBtn != null) {
                                         mRuntimeSwipeDirection = upSwipe;
-                                        // Execute swipe action with haptic feedback
                                         if (mSpecialButtonMode == SpecialButtonMode.HOLD && isSpecialButton(buttonInfo)) {
                                             endSpecialButtonHold(buttonInfo);
                                         }
-                                        if (isSpecialButton(swipeBtn)) {
-                                            SpecialButtonState state = mSpecialButtons.get(SpecialButton.valueOf(swipeBtn.getKey()));
-                                            if (state != null) state.setIsActive(true);
-                                        } else {
-                                            onExtraKeyButtonClick(view, swipeBtn, button);
+                                        // Finger already up — fire action then release immediately
+                                        onAnyExtraKeyButtonClick(view, swipeBtn, button);
+                                        if (mExtraKeysViewClient != null) {
+                                            mExtraKeysViewClient.onExtraKeyButtonGestureRelease(view, swipeBtn, button);
                                         }
                                         performExtraKeyButtonHapticFeedback(view, swipeBtn, button, true);
                                         return true;
@@ -838,6 +933,24 @@ public final class ExtraKeysView extends GridLayout {
                             return true;
                     }
                 });
+
+                                // ── Runtime swipe edge indicator tag ──
+                                // Store swipe-target info so dispatchDraw can draw direction indicators
+                                // and check modifier lock state without re-parsing the ExtraKeyButton tree.
+                                {
+                                    ExtraKeyButton su = buttonInfo.getSwipeUp();
+                                    ExtraKeyButton sd = buttonInfo.getSwipeDown();
+                                    ExtraKeyButton sl = buttonInfo.getSwipeLeft();
+                                    ExtraKeyButton sr = buttonInfo.getSwipeRight();
+                                    int sf = 0;
+                                    if (su != null) sf |= 1;
+                                    if (sd != null) sf |= 2;
+                                    if (sl != null) sf |= 4;
+                                    if (sr != null) sf |= 8;
+                                    if (sf != 0) {
+                                        button.setTag(new RuntimeEdgeInfo(sf, su, sd, sl, sr));
+                                    }
+                                }
 
                 LayoutParams param = new GridLayout.LayoutParams();
                 param.width = 0;
@@ -1120,6 +1233,18 @@ public final class ExtraKeysView extends GridLayout {
         mEditorEdgeIndicatorsEnabled = true;
     }
 
+    /** Enable or disable editor (tag-based) edge indicators. */
+    public void setEditorEdgeIndicatorsEnabled(boolean enabled) {
+        mEditorEdgeIndicatorsEnabled = enabled;
+        invalidate();
+    }
+
+    /** Enable or disable runtime swipe-direction edge indicators. */
+    public void setRuntimeEdgeIndicatorsEnabled(boolean enabled) {
+        mRuntimeEdgeIndicatorsEnabled = enabled;
+        invalidate();
+    }
+
     /** Set the editor interaction mode. */
     public void setEditorMode(@NonNull EditorMode mode) {
         mEditorMode = mode;
@@ -1168,7 +1293,7 @@ public final class ExtraKeysView extends GridLayout {
     @Override
     public void dispatchDraw(Canvas canvas) {
         super.dispatchDraw(canvas);
-        if (!mEditorEdgeIndicatorsEnabled || mEditorListener == null) return;
+        if (mEditorEdgeIndicatorsEnabled && mEditorListener != null) {
 
         float thickness = EDITOR_EDGE_THICKNESS_DP * mDensity;
         float halfThick = thickness / 2f;
@@ -1228,45 +1353,206 @@ public final class ExtraKeysView extends GridLayout {
                 mEditorPath.reset();
                 mEditorOval.set(l + effectiveCornerPx - effectiveCenterRadius, t + effectiveCornerPx - effectiveCenterRadius,
                          l + effectiveCornerPx + effectiveCenterRadius, t + effectiveCornerPx + effectiveCenterRadius);
-                mEditorPath.arcTo(mEditorOval, 240f, 30f, true);
+                mEditorPath.arcTo(mEditorOval, 230f, 40f, true);
                 mEditorOval.set(r - effectiveCornerPx - effectiveCenterRadius, t + effectiveCornerPx - effectiveCenterRadius,
                          r - effectiveCornerPx + effectiveCenterRadius, t + effectiveCornerPx + effectiveCenterRadius);
-                mEditorPath.arcTo(mEditorOval, 270f, 30f, false);
+                mEditorPath.arcTo(mEditorOval, 270f, 40f, false);
                 canvas.drawPath(mEditorPath, mEditorEdgePaint);
             }
             if ((flags & 2) != 0) {
                 mEditorPath.reset();
                 mEditorOval.set(r - effectiveCornerPx - effectiveCenterRadius, b - effectiveCornerPx - effectiveCenterRadius,
                          r - effectiveCornerPx + effectiveCenterRadius, b - effectiveCornerPx + effectiveCenterRadius);
-                mEditorPath.arcTo(mEditorOval, 60f, 30f, true);
+                mEditorPath.arcTo(mEditorOval, 50f, 40f, true);
                 mEditorOval.set(l + effectiveCornerPx - effectiveCenterRadius, b - effectiveCornerPx - effectiveCenterRadius,
                          l + effectiveCornerPx + effectiveCenterRadius, b - effectiveCornerPx + effectiveCenterRadius);
-                mEditorPath.arcTo(mEditorOval, 90f, 30f, false);
+                mEditorPath.arcTo(mEditorOval, 90f, 40f, false);
                 canvas.drawPath(mEditorPath, mEditorEdgePaint);
             }
             if ((flags & 4) != 0) {
                 mEditorPath.reset();
                 mEditorOval.set(l + effectiveCornerPx - effectiveCenterRadius, t + effectiveCornerPx - effectiveCenterRadius,
                          l + effectiveCornerPx + effectiveCenterRadius, t + effectiveCornerPx + effectiveCenterRadius);
-                mEditorPath.arcTo(mEditorOval, 210f, -30f, true);
+                mEditorPath.arcTo(mEditorOval, 220f, -40f, true);
                 mEditorOval.set(l + effectiveCornerPx - effectiveCenterRadius, b - effectiveCornerPx - effectiveCenterRadius,
                          l + effectiveCornerPx + effectiveCenterRadius, b - effectiveCornerPx + effectiveCenterRadius);
-                mEditorPath.arcTo(mEditorOval, 180f, -30f, false);
+                mEditorPath.arcTo(mEditorOval, 180f, -40f, false);
                 canvas.drawPath(mEditorPath, mEditorEdgePaint);
             }
             if ((flags & 8) != 0) {
                 mEditorPath.reset();
                 mEditorOval.set(r - effectiveCornerPx - effectiveCenterRadius, b - effectiveCornerPx - effectiveCenterRadius,
                          r - effectiveCornerPx + effectiveCenterRadius, b - effectiveCornerPx + effectiveCenterRadius);
-                mEditorPath.arcTo(mEditorOval, 30f, -30f, true);
+                mEditorPath.arcTo(mEditorOval, 40f, -40f, true);
                 mEditorOval.set(r - effectiveCornerPx - effectiveCenterRadius, t + effectiveCornerPx - effectiveCenterRadius,
                          r - effectiveCornerPx + effectiveCenterRadius, t + effectiveCornerPx + effectiveCenterRadius);
-                mEditorPath.arcTo(mEditorOval, 360f, -30f, false);
+                mEditorPath.arcTo(mEditorOval, 360f, -40f, false);
                 canvas.drawPath(mEditorPath, mEditorEdgePaint);
             }
+            }
+        }
+        drawRuntimeEdgeIndicators(canvas);
+    }
+
+    /**
+     * Draw swipe-direction edge indicators in runtime mode.
+     * <p>
+     * Each indicator is a thin STROKE path inset from the child's edge by
+     * {@code halfThick}, so the outer edge of the stroke exactly aligns with
+     * the child boundary (no protrusion into the margin gap). Uses the same
+     * arc-path geometry as the editor dispatchDraw code.
+     * <p>
+     * Color per edge:
+     *   inactive → luminance-shifted variant of {@link #mButtonBackgroundColor}
+     *              (subtle contrast, always visible on the button face)
+     *   active   → {@link #mButtonActiveBackgroundColor}
+     *              (prominent highlight when the gesture fires)
+     * <p>
+     * Active when: the gesture swiped on THIS button matches this direction,
+     * OR the swipe target is a modifier in active/locked state.
+     */
+    private void drawRuntimeEdgeIndicators(Canvas canvas) {
+        if (!mRuntimeEdgeIndicatorsEnabled) return;
+        float thickness = RUNTIME_EDGE_THICKNESS_DP * mDensity;
+        float halfThick = thickness / 2f;
+        float cornerPx = mButtonCornerRadiusDp * mDensity;
+        if (cornerPx <= 0) cornerPx = 1f;
+
+        mRuntimeEdgePaint.setStyle(Paint.Style.STROKE);
+        mRuntimeEdgePaint.setStrokeWidth(thickness);
+        mRuntimeEdgePaint.setStrokeCap(Paint.Cap.BUTT);
+        mRuntimeEdgePaint.setAntiAlias(true);
+
+        // Whether a swipe is currently happening and which child is the source
+        boolean swipeActive = (mRuntimeSwipeDirection != null && mGestureActiveView != null);
+
+        for (int i = 0; i < getChildCount(); i++) {
+            View child = getChildAt(i);
+            Object tag = child.getTag();
+            if (!(tag instanceof RuntimeEdgeInfo)) continue;
+            RuntimeEdgeInfo info = (RuntimeEdgeInfo) tag;
+            if (info.flags == 0) continue;
+
+            float l = child.getLeft();
+            float t = child.getTop();
+            float r = child.getRight();
+            float b = child.getBottom();
+            float bw = r - l;
+            float bh = b - t;
+
+            float maxR = Math.min(bw, bh) / 2f;
+            float ecp = Math.min(cornerPx, maxR);
+            if (ecp <= 0) ecp = 1f;
+
+            // INSET: stroke outer edge sits exactly at the child boundary.
+            // Same geometry as the editor's dispatchDraw.
+            float cr = Math.max(0f, ecp - halfThick);
+
+            // Only the button currently being swiped lights up for the swipe direction
+            boolean isSwipeSource = swipeActive && (child == mGestureActiveView);
+
+            if (cr <= 0f) {
+                // Corner too small for arcs — use FILL rects inset from edge
+                mRuntimeEdgePaint.setStyle(Paint.Style.FILL);
+                mRuntimeEdgePaint.setStrokeWidth(0);
+
+                if ((info.flags & 1) != 0) {
+                    mRuntimeEdgePaint.setColor(edgeColor(info, SwipeDirection.UP, isSwipeSource));
+                    canvas.drawRect(l, t, r, t + thickness, mRuntimeEdgePaint);
+                }
+                if ((info.flags & 2) != 0) {
+                    mRuntimeEdgePaint.setColor(edgeColor(info, SwipeDirection.DOWN, isSwipeSource));
+                    canvas.drawRect(l, b - thickness, r, b, mRuntimeEdgePaint);
+                }
+                if ((info.flags & 4) != 0) {
+                    mRuntimeEdgePaint.setColor(edgeColor(info, SwipeDirection.LEFT, isSwipeSource));
+                    canvas.drawRect(l, t, l + thickness, b, mRuntimeEdgePaint);
+                }
+                if ((info.flags & 8) != 0) {
+                    mRuntimeEdgePaint.setColor(edgeColor(info, SwipeDirection.RIGHT, isSwipeSource));
+                    canvas.drawRect(r - thickness, t, r, b, mRuntimeEdgePaint);
+                }
+
+                mRuntimeEdgePaint.setStyle(Paint.Style.STROKE);
+                mRuntimeEdgePaint.setStrokeWidth(thickness);
+                continue;
+            }
+
+            // TOP edge
+            if ((info.flags & 1) != 0) {
+                mRuntimeEdgePaint.setColor(edgeColor(info, SwipeDirection.UP, isSwipeSource));
+                mEditorPath.reset();
+                mEditorOval.set(l + ecp - cr, t + ecp - cr,
+                        l + ecp + cr, t + ecp + cr);
+                mEditorPath.arcTo(mEditorOval, 230f, 40f, true);
+                mEditorOval.set(r - ecp - cr, t + ecp - cr,
+                        r - ecp + cr, t + ecp + cr);
+                mEditorPath.arcTo(mEditorOval, 270f, 40f, false);
+                canvas.drawPath(mEditorPath, mRuntimeEdgePaint);
+            }
+
+            // BOTTOM edge
+            if ((info.flags & 2) != 0) {
+                mRuntimeEdgePaint.setColor(edgeColor(info, SwipeDirection.DOWN, isSwipeSource));
+                mEditorPath.reset();
+                mEditorOval.set(r - ecp - cr, b - ecp - cr,
+                        r - ecp + cr, b - ecp + cr);
+                mEditorPath.arcTo(mEditorOval, 50f, 40f, true);
+                mEditorOval.set(l + ecp - cr, b - ecp - cr,
+                        l + ecp + cr, b - ecp + cr);
+                mEditorPath.arcTo(mEditorOval, 90f, 40f, false);
+                canvas.drawPath(mEditorPath, mRuntimeEdgePaint);
+            }
+
+            // LEFT edge
+            if ((info.flags & 4) != 0) {
+                mRuntimeEdgePaint.setColor(edgeColor(info, SwipeDirection.LEFT, isSwipeSource));
+                mEditorPath.reset();
+                mEditorOval.set(l + ecp - cr, t + ecp - cr,
+                        l + ecp + cr, t + ecp + cr);
+                mEditorPath.arcTo(mEditorOval, 220f, -40f, true);
+                mEditorOval.set(l + ecp - cr, b - ecp - cr,
+                        l + ecp + cr, b - ecp + cr);
+                mEditorPath.arcTo(mEditorOval, 180f, -40f, false);
+                canvas.drawPath(mEditorPath, mRuntimeEdgePaint);
+            }
+
+            // RIGHT edge
+            if ((info.flags & 8) != 0) {
+                mRuntimeEdgePaint.setColor(edgeColor(info, SwipeDirection.RIGHT, isSwipeSource));
+                mEditorPath.reset();
+                mEditorOval.set(r - ecp - cr, b - ecp - cr,
+                        r - ecp + cr, b - ecp + cr);
+                mEditorPath.arcTo(mEditorOval, 40f, -40f, true);
+                mEditorOval.set(r - ecp - cr, t + ecp - cr,
+                        r - ecp + cr, t + ecp + cr);
+                mEditorPath.arcTo(mEditorOval, 360f, -40f, false);
+                canvas.drawPath(mEditorPath, mRuntimeEdgePaint);
+            }
+        }
+    }
+
+    /**
+     * Resolve the color for a single edge indicator.
+     *
+     * @param isSwipeSource whether {@code info} belongs to the button
+     *                       currently being swiped ({@link #mGestureActiveView}).
+     */
+    private int edgeColor(@NonNull RuntimeEdgeInfo info, @NonNull SwipeDirection dir,
+                          boolean isSwipeSource) {
+        // Active swipe on THIS button in THIS direction
+        if (isSwipeSource && mRuntimeSwipeDirection == dir)
+            return mButtonActiveBackgroundColor;
+
+        // Modifier target in active/locked state (applies to all buttons)
+        ExtraKeyButton target = info.target(dir);
+        if (target != null && isSpecialButton(target)) {
+            SpecialButtonState state = mSpecialButtons.get(SpecialButton.valueOf(target.getKey()));
+            if (state != null && state.isActive)
+                return mButtonActiveBackgroundColor;
         }
 
-
+        return mButtonBackgroundColor;
     }
 
     @Nullable

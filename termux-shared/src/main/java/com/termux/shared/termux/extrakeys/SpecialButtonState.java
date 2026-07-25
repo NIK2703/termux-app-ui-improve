@@ -47,6 +47,7 @@ public class SpecialButtonState {
             button.setTextColor(value ? mExtraKeysView.getButtonActiveTextColor() : mExtraKeysView.getButtonTextColor());
             button.setBackgroundTintList(ColorStateList.valueOf(value ? mExtraKeysView.getButtonActiveBackgroundColor() : mExtraKeysView.getButtonBackgroundColor()));
         }
+        mExtraKeysView.invalidate();
     }
 
     /** Set {@link #isLocked}. */

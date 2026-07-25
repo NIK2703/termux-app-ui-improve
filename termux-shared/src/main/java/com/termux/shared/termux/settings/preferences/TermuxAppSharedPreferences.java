@@ -418,6 +418,17 @@ public class TermuxAppSharedPreferences extends AppSharedPreferences {
     }
 
 
+    public boolean isExtraKeysEdgeIndicatorsEnabled() {
+        return SharedPreferenceUtils.getBoolean(mSharedPreferences,
+            TERMUX_APP.KEY_EXTRA_KEYS_EDGE_INDICATORS, TERMUX_APP.DEFAULT_VALUE_EXTRA_KEYS_EDGE_INDICATORS);
+    }
+
+    public void setExtraKeysEdgeIndicatorsEnabled(boolean value) {
+        SharedPreferenceUtils.setBoolean(mSharedPreferences,
+            TERMUX_APP.KEY_EXTRA_KEYS_EDGE_INDICATORS, value, false);
+    }
+
+
     public boolean shouldSoftKeyboardBeHiddenOnStartup() {
         return SharedPreferenceUtils.getBoolean(mSharedPreferences, TERMUX_APP.KEY_HIDE_SOFT_KEYBOARD_ON_STARTUP, TERMUX_APP.DEFAULT_VALUE_HIDE_SOFT_KEYBOARD_ON_STARTUP);
     }

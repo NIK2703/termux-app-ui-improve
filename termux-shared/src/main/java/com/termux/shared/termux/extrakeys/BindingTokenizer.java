@@ -162,6 +162,10 @@ public class BindingTokenizer {
             int ms = parseDelayMs(token);
             if (ms > 0) {
                 pendingDelay += ms;
+                while (pendingDelay >= MAX_DELAY_MS) {
+                    result.add(delayToken(MAX_DELAY_MS));
+                    pendingDelay -= MAX_DELAY_MS;
+                }
             } else {
                 if (pendingDelay > 0) {
                     result.add(delayToken(pendingDelay));
@@ -201,11 +205,13 @@ public class BindingTokenizer {
         if (upper.startsWith(LEGACY_SLEEP_PREFIX)) {
             String suffix = upper.substring(LEGACY_SLEEP_PREFIX.length());
             int ms = parseUnsignedIntSuffix(suffix, 0);
+            if (ms < 0) return token;
             return delayToken(ms);
         }
         if (upper.startsWith(DELAY_PREFIX)) {
             String suffix = upper.substring(DELAY_PREFIX.length());
             int ms = parseUnsignedIntSuffix(suffix, 0);
+            if (ms < 0) return token;
             return delayToken(ms);
         }
         return token;
@@ -222,7 +228,9 @@ public class BindingTokenizer {
             char c = s.charAt(i);
             int digit = Character.digit(c, PARSE_BASE);
             if (digit < 0) return -1;
-            value = value * PARSE_BASE + digit;
+            int next = value * PARSE_BASE + digit;
+            if (next < value) return -1;
+            value = next;
         }
         return value;
     }

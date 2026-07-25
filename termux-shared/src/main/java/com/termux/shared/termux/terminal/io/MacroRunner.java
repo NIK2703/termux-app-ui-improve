@@ -79,6 +79,16 @@ public class MacroRunner {
         mIndex = 0;
     }
 
+    /**
+     * Tear down the runner. Cancels any running macro and removes all pending
+     * callbacks from the handler. Must be called when the owning component is
+     * destroyed (e.g. Activity.onDestroy()) to prevent Handler leaks.
+     */
+    public void destroy() {
+        cancel();
+        mHandler.removeCallbacksAndMessages(null);
+    }
+
     /** @return true if a macro is currently executing or has pending delayed steps */
     public boolean isRunning() {
         return mRunning;

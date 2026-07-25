@@ -10,6 +10,7 @@ import com.google.android.material.button.MaterialButton;
 import com.termux.shared.termux.extrakeys.ExtraKeyButton;
 import com.termux.shared.termux.extrakeys.ExtraKeysView;
 import com.termux.shared.termux.extrakeys.SpecialButton;
+
 import com.termux.terminal.TerminalSession;
 import com.termux.shared.termux.extrakeys.BindingTokenizer;
 import com.termux.view.TerminalView;
@@ -89,7 +90,13 @@ public class TerminalExtraKeys implements ExtraKeysView.IExtraKeysView {
                 }
             }
         } else {
-            onTerminalExtraKeyButtonClick(view, buttonInfo.getKey(), false, false, false, false);
+            String k = buttonInfo.getKey();
+            // Guard: simple-key modifiers (e.g. {key: "CTRL"}) must not be sent
+            // as literal text — they are handled by ExtraKeysView's sticky/hold toggle.
+            if (SpecialButton.CTRL.getKey().equals(k) || SpecialButton.ALT.getKey().equals(k)
+                    || SpecialButton.SHIFT.getKey().equals(k) || SpecialButton.FN.getKey().equals(k))
+                return;
+            onTerminalExtraKeyButtonClick(view, k, false, false, false, false);
         }
     }
 
@@ -146,6 +153,22 @@ public class TerminalExtraKeys implements ExtraKeysView.IExtraKeysView {
     @Override
     public boolean performExtraKeyButtonHapticFeedback(View view, ExtraKeyButton buttonInfo, MaterialButton button) {
         return false;
+    }
+
+    // ---- Gesture press/release lifecycle ----
+
+    @Override
+    public void onExtraKeyButtonGesturePress(View view, ExtraKeyButton buttonInfo, MaterialButton button) {
+        // Gesture press is identical to a tap — delegate to onClick
+        onExtraKeyButtonClick(view, buttonInfo, button);
+    }
+
+    @Override
+    public void onExtraKeyButtonGestureRelease(View view, ExtraKeyButton buttonInfo, MaterialButton button) {
+        // Cancel any in-flight macro with delays
+        if (mMacroRunner != null && mMacroRunner.isRunning()) {
+            mMacroRunner.cancel();
+        }
     }
 
 }

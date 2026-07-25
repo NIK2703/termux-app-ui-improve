@@ -6,6 +6,7 @@ import android.view.View;
 import androidx.annotation.NonNull;
 
 import com.termux.app.TermuxActivity;
+
 import com.termux.app.terminal.TermuxTerminalSessionActivityClient;
 import com.termux.app.terminal.TermuxTerminalViewClient;
 import com.termux.shared.logger.Logger;

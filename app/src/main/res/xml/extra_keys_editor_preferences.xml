@@ -94,4 +94,11 @@
         app:summary="@string/extra_keys_dynamic_font_size_summary"
         app:iconSpaceReserved="false" />
 
+    <SwitchPreferenceCompat
+        app:key="extra-keys-edge-indicators"
+        app:defaultValue="true"
+        app:title="Edge indicators"
+        app:summary="Show swipe direction borders on extra keys"
+        app:iconSpaceReserved="false" />
+
 </PreferenceScreen>
