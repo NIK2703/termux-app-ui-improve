@@ -66,4 +66,18 @@
     <string name="title_open_url_with">Buka URL Dengan</string>
     <string name="title_report_text">Teks Laporan</string>
     <string name="title_share_with">Bagikan Dengan</string>
+    <!-- FontUtils -->
+    <string name="title_select_font">Pilih fonta</string>
+
+    <!-- TextIOActivity -->
+    <string name="title_text_input">Input Teks</string>
+
+    <!-- TermuxCrashUtils -->
+    <string name="title_crash_report">%1$s Laporan Kerusakan</string>
+
+    <!-- TermuxPluginUtils -->
+    <string name="title_plugin_execution_command_error">%1$s Error Perintah Eksekusi Plugin</string>
+
+    <!-- SharedProperties -->
+    <string name="error_could_not_open_properties_file">Tidak dapat membuka file properti \"%1$s\": %2$s</string>
 </resources>

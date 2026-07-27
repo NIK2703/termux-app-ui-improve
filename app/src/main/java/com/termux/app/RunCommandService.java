@@ -79,6 +79,15 @@ public class RunCommandService extends Service {
             return stopService();
         }
 
+        // If bootstrap not installed, redirect caller and stop
+        if (!TermuxInstaller.isBootstrapInstalled()) {
+            errmsg = getString(R.string.run_command_bootstrap_not_installed);
+            Logger.logError(LOG_TAG, errmsg);
+            executionCommand.setStateFailed(Errno.ERRNO_FAILED.getCode(), errmsg);
+            TermuxPluginUtils.processPluginExecutionCommandError(this, LOG_TAG, executionCommand, true);
+            return stopService();
+        }
+
         String executableExtra = executionCommand.executable = IntentUtils.getStringExtraIfSet(intent, RUN_COMMAND_SERVICE.EXTRA_COMMAND_PATH, null);
         executionCommand.arguments = IntentUtils.getStringArrayExtraIfSet(intent, RUN_COMMAND_SERVICE.EXTRA_ARGUMENTS, null);
 

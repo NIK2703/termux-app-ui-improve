@@ -94,4 +94,19 @@
     <string name="title_open_url_with">فتح الرابط باستخدام</string>
     <string name="title_report_text">نص التقرير</string>
     <string name="title_share_with">مشاركة مع</string>
+
+    <!-- FontUtils.java -->
+    <string name="title_select_font">اختيار خط</string>
+
+    <!-- TextIOActivity.java -->
+    <string name="title_text_input">إدخال النص</string>
+
+    <!-- TermuxCrashUtils.java -->
+    <string name="title_crash_report">تقرير تعطل %1$s</string>
+
+    <!-- TermuxPluginUtils.java -->
+    <string name="title_plugin_execution_command_error">خطأ أمر تنفيذ الإضافة %1$s</string>
+
+    <!-- SharedProperties.java -->
+    <string name="error_could_not_open_properties_file">تعذر فتح ملف الخصائص \"%1$s\": %2$s</string>
 </resources>

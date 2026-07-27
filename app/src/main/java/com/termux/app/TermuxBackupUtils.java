@@ -98,10 +98,10 @@ public final class TermuxBackupUtils {
             pb.directory(new File(TermuxConstants.TERMUX_PREFIX_DIR_PATH));
             int code = pb.start().waitFor();
             if (code != 0) {
-                return new Error("tar binary health check failed (exit " + code + ")");
+                return new Error(context.getString(com.termux.R.string.error_tar_health_check_exit, code));
             }
         } catch (IOException | InterruptedException e) {
-            return new Error("tar binary health check failed: " + e.getMessage());
+            return new Error(context.getString(com.termux.R.string.error_tar_health_check, e.getMessage()));
         }
         return null;
     }
@@ -113,7 +113,8 @@ public final class TermuxBackupUtils {
     public static void backup(@NonNull Context context, @NonNull OutputStream out,
                               @NonNull ResultListener listener,
                               @Nullable ProgressCallback progress,
-                              @Nullable java.util.concurrent.atomic.AtomicBoolean cancelled) {
+                              @Nullable java.util.concurrent.atomic.AtomicBoolean cancelled,
+                              boolean excludeTmp) {
         Error health = checkTarHealth(context);
         if (health != null) {
             listener.onResult(health);
@@ -122,12 +123,16 @@ public final class TermuxBackupUtils {
         final String filesDir = TermuxConstants.TERMUX_FILES_DIR_PATH;
         final String parentDir = TermuxConstants.TERMUX_INTERNAL_PRIVATE_APP_DATA_DIR_PATH;
 
-        // totalBytes=0 → progress callback always gets (copied, 0), so the poll
-        // loop falls back to mBackupEstimated (also 0 for backup) → indeterminate
-        // spinner. No size estimation needed — archiving starts immediately.
-        runTar(context,
-            new String[]{TAR_BINARY, "-cpf", "-", "--numeric-owner",
-                "--warning=no-file-changed", "-C", filesDir, "."},
+        String[] cmd;
+        if (excludeTmp) {
+            cmd = new String[]{TAR_BINARY, "-cpf", "-", "--numeric-owner",
+                "--warning=no-file-changed", "--exclude=usr/tmp",
+                "-C", filesDir, "."};
+        } else {
+            cmd = new String[]{TAR_BINARY, "-cpf", "-", "--numeric-owner",
+                "--warning=no-file-changed", "-C", filesDir, "."};
+        }
+        runTar(context, cmd,
             null, out, listener, progress,
             new File(parentDir), 0L, cancelled);
     }
@@ -237,7 +242,7 @@ public final class TermuxBackupUtils {
             File fd = new File(filesDir);
             if (!fd.exists() && !fd.mkdirs()) {
                 process.destroy();
-                listener.onResult(new Error("Failed to recreate " + filesDir));
+                listener.onResult(new Error(context.getString(com.termux.R.string.error_backup_recreate_dir, filesDir)));
                 return;
             }
 
@@ -306,7 +311,7 @@ public final class TermuxBackupUtils {
             IOException pErr = pumpError.get();
             if (pErr != null) {
                 rollbackRestore(filesDir);
-                listener.onResult(new Error("Restore I/O error: " + pErr.getMessage(), pErr));
+                listener.onResult(new Error(context.getString(com.termux.R.string.error_restore_io, pErr.getMessage()), pErr));
             } else if (cancelled != null && cancelled.get()) {
                 // Cancelled mid-pump (process.destroy() above): report a clean cancel and roll
                 // back the partially-extracted files, exactly like the pre-pump cancel branch.
@@ -317,7 +322,7 @@ public final class TermuxBackupUtils {
             } else {
                 rollbackRestore(filesDir);
                 String msg = stderr.toString().trim();
-                if (msg.isEmpty()) msg = "tar exited with code " + exitCode;
+                if (msg.isEmpty()) msg = context.getString(com.termux.R.string.error_tar_exit_code, exitCode);
                 listener.onResult(new Error(msg));
             }
         } catch (Exception e) {
@@ -454,7 +459,7 @@ public final class TermuxBackupUtils {
 
             IOException pErr = pumpError.get();
             if (pErr != null) {
-                listener.onResult(new Error("I/O error: " + pErr.getMessage(), pErr));
+                listener.onResult(new Error(context.getString(com.termux.R.string.error_backup_io, pErr.getMessage()), pErr));
             } else if (cancelled != null && cancelled.get()) {
                 process.destroy();
                 listener.onResult(CANCELLED_ERROR);
@@ -462,7 +467,7 @@ public final class TermuxBackupUtils {
                 listener.onResult(null);
             } else {
                 String msg = stderr.toString().trim();
-                if (msg.isEmpty()) msg = "tar exited with code " + exitCode;
+                if (msg.isEmpty()) msg = context.getString(com.termux.R.string.error_tar_exit_code, exitCode);
                 listener.onResult(new Error(msg));
             }
         } catch (Exception e) {

@@ -21,6 +21,7 @@ import com.termux.shared.termux.interact.TextInputDialogUtils;
 import com.termux.shared.termux.TermuxConstants;
 import com.termux.shared.termux.TermuxConstants.TERMUX_APP;
 import com.termux.shared.termux.TermuxConstants.TERMUX_APP.TERMUX_SERVICE;
+import com.termux.app.TermuxInstaller;
 import com.termux.app.TermuxService;
 import com.termux.shared.logger.Logger;
 import com.termux.shared.termux.settings.properties.TermuxAppSharedProperties;
@@ -64,6 +65,11 @@ public class FileReceiverActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+
+        if (!TermuxInstaller.isBootstrapInstalled()) {
+            showErrorDialogAndQuit(getString(R.string.file_receiver_bootstrap_not_installed));
+            return;
+        }
 
         final Intent intent = getIntent();
         final String action = intent.getAction();

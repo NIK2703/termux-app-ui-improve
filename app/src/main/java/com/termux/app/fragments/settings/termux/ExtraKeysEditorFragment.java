@@ -186,6 +186,16 @@ public class ExtraKeysEditorFragment extends TermuxPreferenceFragmentBase {
                 return true;
             });
         }
+
+        SwitchPreferenceCompat edgePref = findPreference("extra-keys-edge-indicators");
+        if (edgePref != null) {
+            edgePref.setOnPreferenceChangeListener((preference, newValue) -> {
+                boolean enabled = (Boolean) newValue;
+                if (mPreviewView != null) mPreviewView.setRuntimeEdgeIndicatorsEnabled(enabled);
+                TermuxActivity.updateTermuxActivityStyling(requireContext(), true);
+                return true;
+            });
+        }
     }
 
     @Override

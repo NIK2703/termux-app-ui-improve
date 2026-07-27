@@ -23,6 +23,7 @@
         android:label="@string/permission_run_command_label"
         android:protectionLevel="dangerous" />
 
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
@@ -125,6 +126,13 @@
             android:documentLaunchMode="intoExisting" />
 
         <activity
+            android:name=".installer.BootstrapSelectorActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:theme="@style/Theme.TermuxApp.DayNight.DarkActionBar"
+            android:configChanges="orientation|screenSize|screenLayout|keyboard|keyboardHidden|navigation" />
+
+        <activity
             android:name=".app.api.file.FileReceiverActivity"
             android:excludeFromRecents="true"
             android:exported="false"
@@ -216,6 +224,11 @@
 
         <service
             android:name=".app.TermuxBackupService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
+        <service
+            android:name=".services.BootstrapDownloadService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 

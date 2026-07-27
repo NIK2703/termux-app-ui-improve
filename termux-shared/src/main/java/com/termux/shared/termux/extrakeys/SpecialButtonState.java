@@ -10,7 +10,7 @@ import java.util.List;
 /** The {@link Class} that maintains a state of a {@link SpecialButton} */
 public class SpecialButtonState {
 
-    /** If special button has been created for the {@link ExtraKeysView}. */
+    /** If special button has been created for the view. */
     boolean isCreated = false;
     /** If special button is active. */
     boolean isActive = false;
@@ -23,16 +23,15 @@ public class SpecialButtonState {
 
     List<MaterialButton> buttons = new ArrayList<>();
 
-    ExtraKeysView mExtraKeysView;
+    SpecialButtonStateOwner mOwner;
 
     /**
      * Initialize a {@link SpecialButtonState} to maintain state of a {@link SpecialButton}.
      *
-     * @param extraKeysView The {@link ExtraKeysView} instance in which the {@link SpecialButton}
-     *                      is to be registered.
+     * @param owner The {@link SpecialButtonStateOwner} that owns this state and provides colors.
      */
-    public SpecialButtonState(ExtraKeysView extraKeysView) {
-        mExtraKeysView = extraKeysView;
+    public SpecialButtonState(SpecialButtonStateOwner owner) {
+        mOwner = owner;
     }
 
     /** Set {@link #isCreated}. */
@@ -44,10 +43,10 @@ public class SpecialButtonState {
     public void setIsActive(boolean value) {
         isActive = value;
         for (MaterialButton button : buttons) {
-            button.setTextColor(value ? mExtraKeysView.getButtonActiveTextColor() : mExtraKeysView.getButtonTextColor());
-            button.setBackgroundTintList(ColorStateList.valueOf(value ? mExtraKeysView.getButtonActiveBackgroundColor() : mExtraKeysView.getButtonBackgroundColor()));
+            button.setTextColor(value ? mOwner.getButtonActiveTextColor() : mOwner.getButtonTextColor());
+            button.setBackgroundTintList(ColorStateList.valueOf(value ? mOwner.getButtonActiveBackgroundColor() : mOwner.getButtonBackgroundColor()));
         }
-        mExtraKeysView.invalidate();
+        mOwner.invalidateView();
     }
 
     /** Set {@link #isLocked}. */

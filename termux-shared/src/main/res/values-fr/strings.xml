@@ -69,4 +69,19 @@
     <string name="notification_channel_run_command">Service RunCommand de Termux</string>
     <string name="notification_channel_plugin_errors">Erreurs des commandes de plugin Termux</string>
     <string name="font_picker_title">Sélectionnez une police (.ttf)</string>
+
+    <!-- FontUtils.java -->
+    <string name="title_select_font">Sélectionner une police</string>
+
+    <!-- TextIOActivity.java -->
+    <string name="title_text_input">Saisie de texte</string>
+
+    <!-- TermuxCrashUtils.java -->
+    <string name="title_crash_report">%1$s Rapport de crash</string>
+
+    <!-- TermuxPluginUtils.java -->
+    <string name="title_plugin_execution_command_error">%1$s Erreur de commande d\'exécution du plugin</string>
+
+    <!-- SharedProperties.java -->
+    <string name="error_could_not_open_properties_file">Impossible d\'ouvrir le fichier de propriétés « %1$s » : %2$s</string>
 </resources>

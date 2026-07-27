@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "updated": "2026-07-26",
+  "sources": [
+    {
+      "id": "apt-android-7",
+      "name": "Termux (apt) — Android 7+",
+      "description": "Recommended bootstrap for Android 7+",
+      "variant": "apt-android-7",
+      "urlTemplate": "https://github.com/termux/termux-packages/releases/download/bootstrap-2026.02.12-r1%2Bapt.android-7/bootstrap-{arch}.zip",
+      "sha256ByArch": {
+        "aarch64": "ea2aeba8819e517db711f8c32369e89e7c52cee73e07930ff91185e1ab93f4f3",
+        "arm": "a38f4d3b2f735f83be2bf54eff463e86dc32a3e2f9f861c1557c4378d249c018",
+        "i686": "f5bc0b025b9f3b420b5fcaeefc064f888f5f22a0d6fd7090f4aac0c33eb3555b",
+        "x86_64": "b7fd0f2e3a4de534be3144f9f91acc768630fc463eaf134ab2e64c545e834f7a"
+      },
+      "size": 30000000
+    },
+    {
+      "id": "apt-android-5",
+      "name": "Termux (apt) — Android 5+",
+      "description": "Legacy bootstrap for Android 5+",
+      "variant": "apt-android-5",
+      "urlTemplate": "https://github.com/termux/termux-packages/releases/download/bootstrap-2022.04.28-r6+apt-android-5/bootstrap-{arch}.zip",
+      "sha256ByArch": {
+        "aarch64": "913609d439415c828c5640be1b0561467e539cb1c7080662decaaca2fb4820e7",
+        "arm": "26bfb45304c946170db69108e5eb6e3641aad751406ce106c80df80cad2eccf8",
+        "i686": "46dcfeb5eef67ba765498db9fe4c50dc4690805139aa0dd141a9d8ee0693cd27",
+        "x86_64": "615b590679ee6cd885b7fd2ff9473c845e920f9b422f790bb158c63fe42b8481"
+      },
+      "size": 28000000
+    }
+  ]
+}

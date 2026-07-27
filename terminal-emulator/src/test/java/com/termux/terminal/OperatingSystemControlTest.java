@@ -183,7 +183,7 @@ public class OperatingSystemControlTest extends TerminalTestCase {
 
 	public void testReportSpecialColors() {
 		// "${OSC}${DYNAMIC};?${BEL}" => Terminal responds with the control sequence which would set the current color.
-		// Both xterm and libvte (gnome-terminal and others) use the longest color representation, which means that
+		// The longest color representation is used, which means that
 		// the response is "${OSC}rgb:RRRR/GGGG/BBBB"
 		withTerminalSized(3, 3).enterString("\033]10;#ABCD00\007").assertColor(TextStyle.COLOR_INDEX_FOREGROUND, 0xFFABCD00);
 		assertEnteringStringGivesResponse("\033]10;?\007", "\033]10;rgb:abab/cdcd/0000\007");

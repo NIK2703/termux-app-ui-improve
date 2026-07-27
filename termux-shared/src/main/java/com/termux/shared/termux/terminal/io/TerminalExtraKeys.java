@@ -165,10 +165,10 @@ public class TerminalExtraKeys implements ExtraKeysView.IExtraKeysView {
 
     @Override
     public void onExtraKeyButtonGestureRelease(View view, ExtraKeyButton buttonInfo, MaterialButton button) {
-        // Cancel any in-flight macro with delays
-        if (mMacroRunner != null && mMacroRunner.isRunning()) {
-            mMacroRunner.cancel();
-        }
+        // Macros with DELAY tokens execute asynchronously and must not be cancelled
+        // by finger release — the user should not have to hold the screen for the
+        // entire macro sequence. A new macro press will cancel any running one via
+        // MacroRunner.start() → cancel().
     }
 
 }

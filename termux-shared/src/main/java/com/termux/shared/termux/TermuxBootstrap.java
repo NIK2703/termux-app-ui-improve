@@ -1,12 +1,15 @@
 package com.termux.shared.termux;
 
 import android.content.Context;
+import android.os.Build;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.termux.shared.logger.Logger;
 import com.termux.shared.termux.TermuxConstants.TERMUX_APP;
+
+import java.io.File;
 
 public class TermuxBootstrap {
 
@@ -41,6 +44,45 @@ public class TermuxBootstrap {
         }
 
         Logger.logVerbose(LOG_TAG, "Set TERMUX_APP_PACKAGE_MANAGER to \"" + TERMUX_APP_PACKAGE_MANAGER + "\"");
+    }
+
+    /**
+     * Initialize variant from runtime state (SharedPreferences), falling back to the given
+     * {@code defaultVariantName}. Call this from {@code TermuxApplication.onCreate()} instead of
+     * {@link #setTermuxPackageManagerAndVariant(String)} after bootstrap download support was added.
+     *
+     * @param context Application context.
+     * @param defaultVariantName The variant name from BuildConfig (fallback).
+     */
+    public static void initializeFromRuntime(@NonNull Context context, @Nullable String defaultVariantName) {
+        String variant = null;
+        try {
+            variant = context.getSharedPreferences("termux_bootstrap_state", Context.MODE_PRIVATE)
+                .getString("installed_package_variant", null);
+        } catch (Exception e) {
+            Logger.logError(LOG_TAG, "Failed to read runtime variant: " + e.getMessage());
+        }
+
+        if (variant == null || variant.isEmpty()) {
+            // Old install without marker: detect from filesystem.
+            File prefixBin = new File(context.getFilesDir(), "usr/bin");
+            if (prefixBin.isDirectory()) {
+                String[] children = prefixBin.list();
+                if (children != null && children.length > 0) {
+                    variant = Build.VERSION.SDK_INT >= 26 ? "apt-android-7" : "apt-android-5";
+                }
+            }
+        }
+
+        if (variant == null || variant.isEmpty()) {
+            variant = defaultVariantName;
+        }
+
+        if (variant != null) {
+            setTermuxPackageManagerAndVariant(variant);
+        } else {
+            Logger.logError(LOG_TAG, "No variant available (neither runtime nor default)");
+        }
     }
 
     /**

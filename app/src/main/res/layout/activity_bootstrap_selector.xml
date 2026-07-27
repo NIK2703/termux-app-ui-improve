@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Termux Bootstrap Installation"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp" />
+
+        <TextView
+            android:id="@+id/status_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Choose a bootstrap source to install:"
+            android:textSize="14sp"
+            android:layout_marginBottom="16dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Source:"
+            android:textSize="13sp"
+            android:layout_marginBottom="4dp" />
+
+        <Spinner
+            android:id="@+id/source_spinner"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginBottom="16dp" />
+
+        <Button
+            android:id="@+id/download_button"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:text="Download Recommended Bootstrap"
+            android:layout_marginBottom="8dp" />
+
+        <Button
+            android:id="@+id/pick_zip_button"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:text="Choose Local .zip File"
+            android:layout_marginBottom="8dp" />
+
+        <Button
+            android:id="@+id/restore_backup_button"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:text="Restore from Backup (.tar.gz)"
+            android:layout_marginBottom="16dp" />
+
+        <Button
+            android:id="@+id/offline_button"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:text="Install Minimal Offline (Basic Shell)"
+            android:layout_marginBottom="16dp"
+            android:visibility="gone" />
+
+        <ProgressBar
+            android:id="@+id/progress_bar"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="32dp"
+            android:layout_marginBottom="4dp"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/progress_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="13sp"
+            android:gravity="center"
+            android:visibility="gone" />
+
+        <Button
+            android:id="@+id/retry_button"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:text="Retry"
+            android:visibility="gone" />
+
+    </LinearLayout>
+
+</ScrollView>

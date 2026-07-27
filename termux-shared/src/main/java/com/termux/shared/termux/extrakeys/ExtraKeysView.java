@@ -9,12 +9,14 @@ import android.os.Looper;
 import android.provider.Settings;
 import android.util.AttributeSet;
 import android.util.ArrayMap;
+import android.util.DisplayMetrics;
 import android.util.TypedValue;
 
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.RectF;
+import android.graphics.Typeface;
 
 import android.text.Layout;
 import android.text.StaticLayout;
@@ -88,7 +90,7 @@ import com.termux.shared.theme.ThemeUtils;
  * {@link TerminalExtraKeys } to handle Termux app specific logic and
  * leave the rest to the super class.
  */
-public final class ExtraKeysView extends GridLayout {
+public final class ExtraKeysView extends GridLayout implements SpecialButtonStateOwner {
 
     /** Direction for swipe gestures detected in editor mode. */
     public enum SwipeDirection {
@@ -284,7 +286,7 @@ public final class ExtraKeysView extends GridLayout {
     protected IExtraKeysView mExtraKeysViewClient;
 
     /** The map for the {@link SpecialButton} and their {@link SpecialButtonState}. Defaults to
-     * the one returned by {@link #getDefaultSpecialButtons(ExtraKeysView)}. */
+     * the one returned by {@link #getDefaultSpecialButtons(SpecialButtonStateOwner)}. */
     protected ArrayMap<SpecialButton, SpecialButtonState> mSpecialButtons;
 
     /** The keys for the {@link SpecialButton} added to {@link #mSpecialButtons}. This is automatically
@@ -638,12 +640,12 @@ public final class ExtraKeysView extends GridLayout {
 
     /** Get the default map that can be used for {@link #mSpecialButtons}. */
     @NonNull
-    public ArrayMap<SpecialButton, SpecialButtonState> getDefaultSpecialButtons(ExtraKeysView extraKeysView) {
+    public ArrayMap<SpecialButton, SpecialButtonState> getDefaultSpecialButtons(SpecialButtonStateOwner owner) {
         ArrayMap<SpecialButton, SpecialButtonState> map = new ArrayMap<>(4);
-        map.put(SpecialButton.CTRL, new SpecialButtonState(extraKeysView));
-        map.put(SpecialButton.ALT, new SpecialButtonState(extraKeysView));
-        map.put(SpecialButton.SHIFT, new SpecialButtonState(extraKeysView));
-        map.put(SpecialButton.FN, new SpecialButtonState(extraKeysView));
+        map.put(SpecialButton.CTRL, new SpecialButtonState(owner));
+        map.put(SpecialButton.ALT, new SpecialButtonState(owner));
+        map.put(SpecialButton.SHIFT, new SpecialButtonState(owner));
+        map.put(SpecialButton.FN, new SpecialButtonState(owner));
         return map;
     }
 
@@ -703,82 +705,37 @@ public final class ExtraKeysView extends GridLayout {
                     button.setTag(null);
                     button.setPressed(false);
                 } else {
-                    button = createDefaultMaterialButton();
+                    button = createDefaultMaterialButton(getContext());
                 }
                 button.setText(buttonInfo.getDisplay());
+                button.setAllCaps(mButtonTextAllCaps);
+                // Initial font size — will be refined by applyDynamicFontAfterLayout() post-layout
+                button.setTextSize(TypedValue.COMPLEX_UNIT_SP, mBaseFontSizeSp);
 
-                // Font size based on column count: base for <=7 columns, -1sp per extra column
-                float fontSizeSp = mBaseFontSizeSp;
-                // Single-character labels keep full base regardless of columns
                 String displayText = buttonInfo.getDisplay();
                 boolean isSingleChar = displayText != null && displayText.codePointCount(0, displayText.length()) == 1;
-                if (!isSingleChar) {
-                    if (mDynamicFontSize) {
-                        int totalCols = buttons[row].length;
-                        fontSizeSp = mBaseFontSizeSp - Math.max(0, totalCols - 7);
-                        // Macro keys (multiple sequential binds) get an additional -2sp
-                        if (buttonInfo.isMacro()) fontSizeSp -= 2f;
-                        fontSizeSp = Math.max(fontSizeSp, 8f);
-                    } else {
-                        fontSizeSp = mBaseFontSizeSp;
-                    }
-                }
-
-                button.setAllCaps(mButtonTextAllCaps);
-                button.setTextSize(TypedValue.COMPLEX_UNIT_SP, fontSizeSp);
-
                 if (isSingleChar) {
                     button.setMaxLines(1);
                     button.setSingleLine(true);
                 } else {
-                    // Multi-line with ellipsize
+                    // Multi-line with ellipsize (font size refined post-layout)
                     button.setSingleLine(false);
                     button.setHorizontallyScrolling(false);
 
-                    // Calculate max lines from available height
+                    // Calculate max lines from available height using base font size
                     int vMarginPx = (int) (mButtonMarginVerticalDp * mDensity);
                     int buttonH = (int) (heightPx + 0.5f) - 2 * vMarginPx;
-                    int textAreaH = buttonH;  // padding already zeroed
+                    int textAreaH = buttonH;
 
                     mMeasPaint.setTypeface(button.getPaint().getTypeface());
-                    mMeasPaint.setTextSize(TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, fontSizeSp, getResources().getDisplayMetrics()));
+                    mMeasPaint.setTextSize(TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, mBaseFontSizeSp, getResources().getDisplayMetrics()));
                     int lineHeight = mMeasPaint.getFontMetricsInt(null);
                     float lineSpacing = button.getLineSpacingMultiplier();
                     if (lineSpacing > 0f) lineHeight = (int) (lineHeight * lineSpacing);
                     lineHeight += (int) button.getLineSpacingExtra();
                     int maxLines = Math.max(1, (int) Math.floor(textAreaH / (float) Math.max(1, lineHeight)));
-
-                    // For macro buttons: custom truncation at bind boundaries.
-                    // If layout hasn't happened yet (getWidth() == 0), defer truncation
-                    // to a post-layout callback.
-                    if (buttonInfo.isMacro() && displayText != null && displayText.contains(" ")) {
-                        int totalCols = maxCols;
-                        if (totalCols > 0 && getWidth() > 0) {
-                            int marginHPx = (int) (mButtonMarginHorizontalDp * mDensity);
-                            int cellW = getWidth() / totalCols;
-                            int buttonW = cellW - 2 * marginHPx;
-                            int textAreaW = buttonW;
-                            if (textAreaW > 0) {
-                                String truncated = truncateMacroText(displayText, mMeasPaint, textAreaW, maxLines);
-                                if (truncated != null) {
-                                    button.setText(truncated);
-                                    button.setMaxLines(maxLines);
-                                    button.setEllipsize(null);
-                                } else {
-                                    button.setMaxLines(maxLines);
-                                    button.setEllipsize(TextUtils.TruncateAt.END);
-                                }
-                            } else {
-                                button.setMaxLines(maxLines);
-                            }
-                        } else {
-                            button.setMaxLines(maxLines);
-                            button.setEllipsize(TextUtils.TruncateAt.END);
-                        }
-                    } else {
-                        button.setMaxLines(maxLines);
-                        button.setEllipsize(TextUtils.TruncateAt.END);
-                    }
+                    button.setMaxLines(maxLines);
+                    button.setEllipsize(TextUtils.TruncateAt.END);
                 }
                 button.setTextColor(mButtonTextColor);
                 button.setBackgroundTintList(mButtonBgTint);
@@ -965,8 +922,8 @@ public final class ExtraKeysView extends GridLayout {
                 addView(button);
             }
         }
-        // Defer macro text truncation to after layout since getWidth() may be 0 during reload()
-        post(this::applyMacroTruncationAfterLayout);
+        // Defer font sizing and macro text truncation to after layout
+        post(this::applyDynamicFontAfterLayout);
     }
 
 
@@ -1122,7 +1079,7 @@ public final class ExtraKeysView extends GridLayout {
             button = createSpecialButton(extraButton.getKey(), false);
             if (button == null) return;
         } else {
-            button = createDefaultMaterialButton();
+            button = createDefaultMaterialButton(getContext());
             button.setTextColor(mButtonTextColor);
         }
         button.setText(extraButton.getDisplay());
@@ -1183,11 +1140,13 @@ public final class ExtraKeysView extends GridLayout {
      * This ensures the text area equals the button area for accurate multi-line
      * measurement. Boilerplate is defined once here instead of at every creation site.
      */
-    private MaterialButton createDefaultMaterialButton() {
-        MaterialButton button = new MaterialButton(getContext(), null, android.R.attr.buttonBarButtonStyle);
+    static MaterialButton createDefaultMaterialButton(Context context) {
+        MaterialButton button = new MaterialButton(context, null, android.R.attr.buttonBarButtonStyle);
         button.setPadding(0, 0, 0, 0);
         button.setInsetTop(0);
         button.setInsetBottom(0);
+        button.setMinWidth(0);
+        button.setMinimumWidth(0);
         button.setMinHeight(0);
         button.setMinimumHeight(0);
         button.setIncludeFontPadding(false);
@@ -1198,7 +1157,7 @@ public final class ExtraKeysView extends GridLayout {
         SpecialButtonState state = mSpecialButtons.get(SpecialButton.valueOf(buttonKey));
         if (state == null) return null;
         state.setIsCreated(true);
-        MaterialButton button = createDefaultMaterialButton();
+        MaterialButton button = createDefaultMaterialButton(getContext());
         button.setTextColor(state.isActive ? mButtonActiveTextColor : mButtonTextColor);
         button.setBackgroundTintList(state.isActive ? mButtonActiveBgTint : mButtonBgTint);
         button.setCornerRadius((int) (mButtonCornerRadiusDp * mDensity));
@@ -1220,6 +1179,13 @@ public final class ExtraKeysView extends GridLayout {
             case RIGHT: return buttonInfo.getSwipeRight();
         }
         return null;
+    }
+
+    // ── SpecialButtonStateOwner implementation ──
+
+    @Override
+    public void invalidateView() {
+        invalidate();
     }
 
     /** Set the editor gesture listener. Non-null activates editor mode. */
@@ -1258,6 +1224,132 @@ public final class ExtraKeysView extends GridLayout {
     /** Cancel any ongoing editor gesture and reset touch state. */
     public void cancelEditorGesture() {
         resetTouchState();
+    }
+
+    /**
+     * Binary search to find the largest font size (in sp, rounded to int) where
+     * {@code testString} fits within {@code maxWidthPx}.
+     */
+    static float findFittingFontSizeSp(
+            @NonNull TextPaint paint,
+            @NonNull String testString,
+            float maxWidthPx,
+            float maxSp,
+            float minSp,
+            @NonNull DisplayMetrics metrics
+    ) {
+        if (maxWidthPx <= 0 || minSp >= maxSp) return minSp;
+
+        int lo = (int) minSp;
+        int hi = (int) maxSp;
+
+        while (lo < hi) {
+            int mid = (lo + hi + 1) / 2;
+            float midPx = TypedValue.applyDimension(
+                    TypedValue.COMPLEX_UNIT_SP, mid, metrics);
+            paint.setTextSize(midPx);
+            if (paint.measureText(testString) <= maxWidthPx) {
+                lo = mid;
+            } else {
+                hi = mid - 1;
+            }
+        }
+
+        return lo;
+    }
+
+    /**
+     * Called via {@code post()} after {@link #reload(ExtraKeysInfo, float)}.
+     * Measures the actual button width and picks a font size so that "WWWW"
+     * (four uppercase letters) fits in every multi-character button.
+     * Afterwards runs macro-text truncation.
+     */
+    private void applyDynamicFontAfterLayout() {
+        if (getWidth() <= 0 || getColumnCount() <= 0) {
+            post(this::applyDynamicFontAfterLayout);
+            return;
+        }
+
+        if (!mDynamicFontSize) {
+            applyMacroTruncationAfterLayout();
+            return;
+        }
+
+        int cellW = getWidth() / getColumnCount();
+        int marginHPx = (int) (mButtonMarginHorizontalDp * mDensity);
+        int buttonW = cellW - 2 * marginHPx;
+        if (buttonW <= 0) {
+            applyMacroTruncationAfterLayout();
+            return;
+        }
+
+        DisplayMetrics metrics = getResources().getDisplayMetrics();
+        float maxFontSp = mBaseFontSizeSp;
+        float minFontSp = 8f;
+        String testString = "WWWW";
+
+        // Pick a representative typeface from the first button
+        Typeface typeface = Typeface.DEFAULT;
+        for (int i = 0; i < getChildCount(); i++) {
+            View child = getChildAt(i);
+            if (child instanceof MaterialButton) {
+                typeface = ((MaterialButton) child).getPaint().getTypeface();
+                break;
+            }
+        }
+        mMeasPaint.setTypeface(typeface);
+
+        float fittedFontSp = findFittingFontSizeSp(
+                mMeasPaint, testString, buttonW,
+                maxFontSp, minFontSp, metrics);
+
+        // Button height for maxLines recalculation
+        int cellH = getRowCount() > 0 ? getHeight() / getRowCount() : 0;
+        int marginVPx = (int) (mButtonMarginVerticalDp * mDensity);
+        int buttonH = cellH - 2 * marginVPx;
+        if (buttonH < 1) buttonH = 1;
+
+        for (int i = 0; i < getChildCount(); i++) {
+            View child = getChildAt(i);
+            if (!(child instanceof MaterialButton)) continue;
+            MaterialButton button = (MaterialButton) child;
+            CharSequence text = button.getText();
+            if (text == null || text.length() == 0) continue;
+
+            String display = text.toString();
+            int codePointCount = display.codePointCount(0, display.length());
+
+            if (codePointCount <= 1) {
+                // Single-char: keep full base font size
+                button.setTextSize(TypedValue.COMPLEX_UNIT_SP, mBaseFontSizeSp);
+                button.setMaxLines(1);
+                button.setSingleLine(true);
+                continue;
+            }
+
+            // Multi-char: apply fitted font size
+            float actualFontSp = fittedFontSp;
+
+            // Additional margin for macro buttons (more text to fit)
+            if (display.contains(" ")) {
+                actualFontSp = Math.max(actualFontSp - 2f, minFontSp);
+            }
+
+            button.setTextSize(TypedValue.COMPLEX_UNIT_SP, actualFontSp);
+
+            // Recalculate maxLines based on actual font size
+            mMeasPaint.setTypeface(button.getPaint().getTypeface());
+            mMeasPaint.setTextSize(button.getTextSize());
+            int lineHeight = mMeasPaint.getFontMetricsInt(null);
+            float lineSpacing = button.getLineSpacingMultiplier();
+            if (lineSpacing > 0f) lineHeight = (int) (lineHeight * lineSpacing);
+            lineHeight += (int) button.getLineSpacingExtra();
+            int maxLines = Math.max(1, buttonH / Math.max(1, lineHeight));
+            button.setMaxLines(maxLines);
+        }
+
+        // Macro-text truncation uses the newly set font sizes
+        applyMacroTruncationAfterLayout();
     }
 
     private void applyMacroTruncationAfterLayout() {

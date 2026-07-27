@@ -241,6 +241,8 @@ public final class TermuxPreferenceConstants {
         public static final String KEY_BUTTON_BG_ACTIVE_ALPHA = "button_bg_active_alpha";
         public static final int DEFAULT_BUTTON_BG_ACTIVE_ALPHA = 12;
 
+        /**
+
 
 
         /* ###################################################################
@@ -392,6 +394,7 @@ public final class TermuxPreferenceConstants {
 
         public static final String KEY_EXTRA_KEYS = "extra-keys";
         public static final String DEFAULT_VALUE_EXTRA_KEYS = TermuxPropertyConstants.DEFAULT_IVALUE_EXTRA_KEYS;
+
 
         public static final String KEY_EXTRA_KEYS_STYLE = "extra-keys-style";
         public static final String DEFAULT_VALUE_EXTRA_KEYS_STYLE = TermuxPropertyConstants.DEFAULT_IVALUE_EXTRA_KEYS_STYLE;

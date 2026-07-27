@@ -124,4 +124,19 @@
     <!-- Выбор шрифта -->
     <string name="font_picker_title">Выберите шрифт (.ttf)</string>
 
+    <!-- FontUtils.java -->
+    <string name="title_select_font">Выберите шрифт</string>
+
+    <!-- TextIOActivity.java -->
+    <string name="title_text_input">Ввод текста</string>
+
+    <!-- TermuxCrashUtils.java -->
+    <string name="title_crash_report">%1$s — Отчёт о сбое</string>
+
+    <!-- TermuxPluginUtils.java -->
+    <string name="title_plugin_execution_command_error">%1$s — Ошибка выполнения команды плагина</string>
+
+    <!-- SharedProperties.java -->
+    <string name="error_could_not_open_properties_file">Не удалось открыть файл свойств \"%1$s\": %2$s</string>
+
 </resources>

@@ -48,7 +48,7 @@ public class ControlSequenceIntroducerTest extends TerminalTestCase {
 		withTerminalSized(5, 2).enterString("abcde\033[2G\033[2b\n").assertLinesAre("aeede", "     ");
 	}
 
-	/** CSI 3 J  Clear scrollback (xterm, libvte; non-standard). */
+	/** CSI 3 J  Clear scrollback (xterm; non-standard). */
 	public void testCsi3J() {
 		withTerminalSized(3, 2).enterString("a\r\nb\r\nc\r\nd");
 		assertEquals("a\nb\nc\nd", mTerminal.getScreen().getTranscriptText());

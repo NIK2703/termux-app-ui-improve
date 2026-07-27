@@ -2,16 +2,40 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:title="@string/backup_restore_preferences_title">
 
-    <Preference
-        app:key="backup_container"
-        app:title="@string/backup_preference_title"
-        app:summary="@string/backup_preference_summary"
-        app:iconSpaceReserved="false" />
+    <PreferenceCategory
+        app:key="backup_restore_full_data"
+        app:title="@string/backup_restore_full_data_category_title">
 
-    <Preference
-        app:key="restore_container"
-        app:title="@string/restore_preference_title"
-        app:summary="@string/restore_preference_summary"
-        app:iconSpaceReserved="false" />
+        <Preference
+            app:key="backup_container"
+            app:title="@string/backup_preference_title"
+            app:summary="@string/backup_preference_summary"
+            app:iconSpaceReserved="false" />
+
+        <Preference
+            app:key="restore_container"
+            app:title="@string/restore_preference_title"
+            app:summary="@string/restore_preference_summary"
+            app:iconSpaceReserved="false" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        app:key="backup_restore_settings"
+        app:title="@string/backup_restore_settings_category_title">
+
+        <Preference
+            app:key="backup_settings_container"
+            app:title="@string/backup_settings_title"
+            app:summary="@string/backup_settings_summary"
+            app:iconSpaceReserved="false" />
+
+        <Preference
+            app:key="restore_settings_container"
+            app:title="@string/restore_settings_title"
+            app:summary="@string/restore_settings_summary"
+            app:iconSpaceReserved="false" />
+
+    </PreferenceCategory>
 
 </PreferenceScreen>

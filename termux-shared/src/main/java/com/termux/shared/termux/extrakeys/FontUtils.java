@@ -124,7 +124,7 @@ public final class FontUtils {
             labels[i] = fontDisplayName(fonts[i]);
 
         AlertDialog d = new MaterialAlertDialogBuilder(dialogContext)
-            .setTitle("Select a font")
+            .setTitle(dialogContext.getString(com.termux.shared.R.string.title_select_font))
             .setItems(labels, (dialog, which) -> {
                 applyStylingFont(context, fonts[which]);
                 if (onApplied != null) onApplied.run();

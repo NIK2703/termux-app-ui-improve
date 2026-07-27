@@ -682,6 +682,9 @@ public class TermuxAppSharedPreferences extends AppSharedPreferences {
     }
 
 
+
+
+
     public String getExtraKeysStyle() {
         return SharedPreferenceUtils.getString(mSharedPreferences, TERMUX_APP.KEY_EXTRA_KEYS_STYLE, TERMUX_APP.DEFAULT_VALUE_EXTRA_KEYS_STYLE, true);
     }

@@ -44,9 +44,11 @@ import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.core.content.ContextCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 import com.termux.R;
 import com.termux.app.TermuxActivityUtils;
+import com.termux.app.TermuxInstaller;
 import com.termux.app.api.file.FileReceiverActivity;
 import com.termux.app.terminal.TermuxActivityRootView;
 import com.termux.app.terminal.TermuxServiceConnectionManager;
@@ -83,6 +85,7 @@ import com.termux.app.terminal.io.TextInputSessionStateManager;
 import com.termux.app.terminal.io.autocomplete.MessageHistoryController;
 import com.termux.app.terminal.io.TextInputSessionStateManager;
 import com.termux.app.terminal.io.FullScreenWorkAround;
+import com.termux.shared.termux.extrakeys.ExtraKeysInfo;
 import com.termux.shared.termux.extrakeys.ExtraKeysView;
 import com.termux.shared.termux.extrakeys.ColorSchemeUtils;
 import com.termux.shared.termux.extrakeys.FontUtils;
@@ -95,6 +98,7 @@ import com.termux.shared.termux.theme.TermuxThemeUtils;
 import com.termux.shared.theme.NightMode;
 import com.termux.shared.theme.ThemeUtils;
 import com.termux.shared.view.ImeVisibilityDetector;
+import com.termux.shared.view.KeyboardUtils;
 import com.termux.shared.view.ViewUtils;
 import com.termux.terminal.TerminalColors;
 import com.termux.terminal.TerminalSession;
@@ -281,6 +285,15 @@ public final class TermuxActivity extends AppCompatActivity implements TextInput
     // being hidden while the text input panel is open.
     private boolean mSoftKeyboardVisible = false;
 
+    /** IME visibility as reported by {@link WindowInsetsCompat.Type#ime()} (insets method).
+     *  Combined with {@link ImeVisibilityDetector} (visible-frame method) via OR logic:
+     *  IME is considered visible if EITHER method reports visible. This handles three
+     *  fallback situations:
+     *  1) API < 30 without ADJUST_RESIZE → insets always returns 0, frame works
+     *  2) Floating/undocked keyboard → frame may miss it, insets catches it (API 30+)
+     *  3) Startup/recreate race → whichever fires first sets state, second confirms */
+    private boolean mImeVisibleFromInsets = false;
+
     /** True while the terminal toolbar is temporarily shown just for the text input panel. */
     private boolean mToolbarTemporarilyShownForTextInput = false;
 
@@ -461,7 +474,20 @@ public final class TermuxActivity extends AppCompatActivity implements TextInput
 
         super.onCreate(savedInstanceState);
 
+        if (!TermuxInstaller.isBootstrapInstalled()) {
+            TermuxInstaller.cleanupInterruptedInstall();
+            Intent selectorIntent = new Intent(this, com.termux.installer.BootstrapSelectorActivity.class);
+            startActivityForResult(selectorIntent, REQUEST_BOOTSTRAP_SETUP);
+            mIsInvalidState = true;
+            return;
+        }
+
         setContentView(R.layout.activity_termux);
+
+        // Must set ADJUST_RESIZE so WindowInsetsCompat.Type.ime() works on API < 30.
+        // When ADJUST_RESIZE is later overwritten (e.g. by setSoftKeyboardAlwaysHiddenFlags),
+        // the ImeVisibilityDetector (visible-frame method) still functions as fallback.
+        KeyboardUtils.setSoftInputModeAdjustResize(this);
 
         // Apply the user's screen-orientation choice (Settings -> Screen orientation).
         TermuxActivityUtils.applyScreenOrientation(this);
@@ -489,20 +515,24 @@ public final class TermuxActivity extends AppCompatActivity implements TextInput
         mTermuxActivityBottomSpaceView = findViewById(R.id.activity_termux_bottom_space_view);
         mTermuxActivityRootView.setOnApplyWindowInsetsListener(new TermuxActivityRootView.WindowInsetsListener());
 
+        // ── Dual IME detection: insets method + visible-frame method ──
+        // Both methods run simultaneously and complement each other via OR logic:
+        //   IME_visible = insets_visible || frame_visible
+        // This handles three fallback situations:
+        //   1) API < 30 without ADJUST_RESIZE → insets always 0, frame works
+        //   2) Floating/undocked keyboard → frame may miss it, insets catches
+        //   3) Startup/recreate race → whichever fires first sets the state
         View content = findViewById(android.R.id.content);
         content.setOnApplyWindowInsetsListener((v, insets) -> {
             mNavBarHeight = insets.getSystemWindowInsetBottom();
-            // IME visibility is tracked by ImeVisibilityDetector below.
-            // On API < 30 WindowInsetsCompat.Type.ime() requires ADJUST_RESIZE
-            // which can be overwritten by setSoftKeyboardAlwaysHiddenFlags(),
-            // so we use getWindowVisibleDisplayFrame() instead.
+            WindowInsetsCompat _compat = WindowInsetsCompat.toWindowInsetsCompat(insets);
+            onImeInsetsChanged(_compat.isVisible(WindowInsetsCompat.Type.ime())
+                || _compat.getInsets(WindowInsetsCompat.Type.ime()).bottom > 0);
             return v.onApplyWindowInsets(insets);
         });
 
-        // ImeVisibilityDetector uses getWindowVisibleDisplayFrame() which is
-        // independent of the soft-input adjust mode and works on all API levels.
         mImeDetector = new ImeVisibilityDetector(this, (visible, heightPx) -> {
-            onImeVisibilityChanged(visible);
+            reevaluateImeVisibility();
         });
         mImeDetector.attach();
 
@@ -567,12 +597,13 @@ public final class TermuxActivity extends AppCompatActivity implements TextInput
 
         mIsVisible = true;
 
-        // Reset the IME-visibility latch on (re)start. It may be left stale as
+        // Reset both IME-visibility latches on (re)start. They may be left stale as
         // true from before the app was backgrounded, when the soft keyboard was
         // dismissed by the system. Without this reset, the first insets after
         // resume (with IME still hidden) would falsely read as "IME just hidden
         // while panel open" and close the text input panel.
         mSoftKeyboardVisible = false;
+        mImeVisibleFromInsets = false;
         if (mImeDetector != null) mImeDetector.refresh();
 
         // Open the "just resumed" window: suppress the IME-hidden auto-close of
@@ -603,7 +634,10 @@ public final class TermuxActivity extends AppCompatActivity implements TextInput
         // When Termux regains focus (e.g. after returning from Settings), apply
         // the screen-orientation choice immediately so the change is visible
         // without restarting the app.
-        if (hasFocus) {
+        // Skip if the activity is in an invalid state (e.g. no bootstrap installed)
+        // to avoid triggering setRequestedOrientation() on MIUI/HyperOS, which can
+        // cause infinite recursion through AppCompatDelegateImpl.onConfigurationChanged().
+        if (hasFocus && !mIsInvalidState) {
             TermuxActivityUtils.applyScreenOrientation(this);
         }
     }
@@ -1052,6 +1086,24 @@ public final class TermuxActivity extends AppCompatActivity implements TextInput
         applyTextInputVisibilityForSession(getCurrentSession(), false);
     }
 
+
+
+
+
+    private boolean isTerminalToolbarVisible() {
+        LinearLayout toolbar = getTerminalToolbarContainer();
+        if (toolbar == null || toolbar.getVisibility() != View.VISIBLE) return false;
+        if (mExtraKeysView != null && mExtraKeysView.getVisibility() != View.VISIBLE
+                && !isTextInputVisible()) return false;
+        return true;
+    }
+
+    private boolean isFullScreenTerminalMode() {
+        return mProperties.isUsingFullScreen()
+            && (getWindow().getAttributes().flags & WindowManager.LayoutParams.FLAG_FULLSCREEN) != 0;
+    }
+
+
     public void setTerminalToolbarHeight() {
         final ExtraKeysView extraKeysView = getExtraKeysView();
         if (extraKeysView == null) return;
@@ -1080,6 +1132,7 @@ public final class TermuxActivity extends AppCompatActivity implements TextInput
 
         // Update the pencil anchor so it stays at the bottom when toolbar is GONE.
         updateTextInputToggleButtonAnchor();
+
     }
 
     private void saveTerminalToolbarTextInput(Bundle savedInstanceState) {
@@ -2148,12 +2201,20 @@ public final class TermuxActivity extends AppCompatActivity implements TextInput
         }
     }
 
+    public static final int REQUEST_BOOTSTRAP_SETUP = 2001;
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         Logger.logVerbose(LOG_TAG, "onActivityResult: requestCode: " + requestCode + ", resultCode: "  + resultCode + ", data: "  + IntentUtils.getIntentString(data));
         if (requestCode == PermissionUtils.REQUEST_GRANT_STORAGE_PERMISSION) {
             requestStoragePermission(true);
+        } else if (requestCode == REQUEST_BOOTSTRAP_SETUP) {
+            if (resultCode == RESULT_OK && TermuxInstaller.isBootstrapInstalled()) {
+                recreate();
+            } else {
+                finish();
+            }
         }
     }
 
@@ -2437,9 +2498,28 @@ public final class TermuxActivity extends AppCompatActivity implements TextInput
     }
 
     /**
-     * Shared reaction to IME visibility changes. Called by the insets listener
-     * (when using "insets" mode) or by {@link ImeVisibilityDetector}
-     * (when using "frame" mode).
+     * Called by the insets-based detection ({@link WindowInsetsCompat.Type#ime()}).
+     * Stores the insets signal and re-evaluates combined visibility.
+     */
+    private void onImeInsetsChanged(boolean imeVisible) {
+        mImeVisibleFromInsets = imeVisible;
+        reevaluateImeVisibility();
+    }
+
+    /**
+     * Combines insets-based and visible-frame-based IME detection via OR logic.
+     * IME is considered visible if EITHER method reports it visible, covering
+     * three fallback situations where one method is unreliable.
+     */
+    private void reevaluateImeVisibility() {
+        boolean imeVisible = mImeVisibleFromInsets
+            || (mImeDetector != null && mImeDetector.isImeVisible());
+        onImeVisibilityChanged(imeVisible);
+    }
+
+    /**
+     * Shared reaction to IME visibility changes. Both detection methods converge
+     * here after combination via {@link #reevaluateImeVisibility()}.
      */
     private void onImeVisibilityChanged(boolean imeVisible) {
         boolean wasVisible = mSoftKeyboardVisible;
@@ -2462,6 +2542,7 @@ public final class TermuxActivity extends AppCompatActivity implements TextInput
                 mExtraKeysView.setVisibility(imeVisible ? View.VISIBLE : View.GONE);
                 Logger.logDebug(LOG_TAG, "Auto-" + (imeVisible ? "showing" : "hiding") + " extra keys with keyboard");
             }
+
         }
     }
 
@@ -2530,6 +2611,10 @@ public final class TermuxActivity extends AppCompatActivity implements TextInput
             // The text input panel and the extra keys share one slot below the tabs:
             // showing one hides the other.
             setTextInputSlotVisible(visible);
+            // Re-anchor the pencil button: when toolbar was GONE (show_extra_keys = never),
+            // the pencil was at ALIGN_PARENT_BOTTOM. After showing the toolbar for text
+            // input, it must move to ABOVE the toolbar so it doesn't overlap the input panel.
+            updateTextInputToggleButtonAnchor();
             // Save state to preferences
             getSharedPreferences("termux_prefs", MODE_PRIVATE).edit().putBoolean(PREF_TEXT_INPUT_VISIBLE, visible).apply();
 
@@ -2538,6 +2623,8 @@ public final class TermuxActivity extends AppCompatActivity implements TextInput
             if (session != null) {
                 mTextInputState.setVisible(session.mHandle, visible);
             }
+
+            // Must come after mTextInputState.setVisible() so isTextInputVisible() is correct.
 
             // Switch focus based on visibility
             if (visible) {
@@ -2724,7 +2811,7 @@ public final class TermuxActivity extends AppCompatActivity implements TextInput
                 mExtraKeysView.reload(mTermuxTerminalExtraKeys.getExtraKeysInfo(), mTerminalToolbarDefaultHeight);
             }
 
-            // Update NightMode.APP_NIGHT_MODE
+// Update NightMode.APP_NIGHT_MODE
             TermuxThemeUtils.setAppNightMode(mProperties.getNightMode());
         }
 
@@ -2742,6 +2829,7 @@ public final class TermuxActivity extends AppCompatActivity implements TextInput
 
         if (mTermuxTerminalViewClient != null)
             mTermuxTerminalViewClient.onReloadActivityStyling();
+
 
         // To change the activity and drawer theme, activity needs to be recreated.
         // It will destroy the activity, including all stored variables and views, and onCreate()

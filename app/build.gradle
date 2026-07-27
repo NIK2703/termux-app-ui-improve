@@ -3,17 +3,13 @@ plugins {
 }
 
 ext {
-    // The packageVariant defines the bootstrap variant that will be included in the app APK.
-    // This must be supported by com.termux.shared.termux.TermuxBootstrap.PackageVariant or app will
-    // crash at startup.
-    // Bootstrap of a different variant must not be manually installed by the user after app installation
-    // by replacing $PREFIX since app code is dependant on the variant used to build the APK.
+    // The packageVariant defines the default bootstrap variant. Used as fallback when
+    // no runtime variant has been downloaded yet. Must be supported by
+    // com.termux.shared.termux.TermuxBootstrap.PackageVariant.
     // Currently supported values are: [ "apt-android-7" "apt-android-5" ]
     packageVariant = System.getenv("TERMUX_PACKAGE_VARIANT") ?: "apt-android-7" // Default: "apt-android-7"
 
     // Target ABIs for this build. arm64-v8a only by default.
-    // Used both to restrict the APK to a single architecture and to download only the
-    // matching bootstrap zip so we don't bloat the build with unused architectures.
     abiList = (System.getenv("TERMUX_ARCH") ?: project.properties.termuxBuildAbis ?: "arm64-v8a").split(',').collect { it.trim() }
 }
 
@@ -73,12 +69,6 @@ android {
         manifestPlaceholders.TERMUX_STYLING_APP_NAME = "Termux:Styling"
         manifestPlaceholders.TERMUX_TASKER_APP_NAME = "Termux:Tasker"
         manifestPlaceholders.TERMUX_WIDGET_APP_NAME = "Termux:Widget"
-
-        externalNativeBuild {
-            ndkBuild {
-                cFlags "-std=c11", "-Wall", "-Wextra", "-Werror", "-Os", "-fno-stack-protector", "-Wl,--gc-sections"
-            }
-        }
     }
 
     splits {
@@ -144,12 +134,6 @@ android {
 
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
-    }
-
-    externalNativeBuild {
-        ndkBuild {
-            path "src/main/cpp/Android.mk"
-        }
     }
 
     lint {
@@ -223,137 +207,9 @@ task versionName {
     }
 }
 
-// Maps a termux bootstrap zip arch to the downloadBootstrap arch token.
-// project.ext.abiList is the NDK ABI name (e.g. arm64-v8a); we only download
-// the bootstrap matching the configured ABIs so the build stays single-arch.
-def abiToBootstrapArch(String abi) {
-    switch (abi) {
-        case 'arm64-v8a': return 'aarch64'
-        case 'armeabi-v7a': return 'arm'
-        case 'x86': return 'i686'
-        case 'x86_64': return 'x86_64'
-        default: throw new GradleException("Unsupported ABI for bootstrap download: " + abi)
-    }
-}
 
-def downloadBootstrap(String arch, String expectedChecksum, String version) {
-    def digest = java.security.MessageDigest.getInstance("SHA-256")
 
-    def localUrl = "src/main/cpp/bootstrap-" + arch + ".zip"
-    def file = new File(projectDir, localUrl)
-    if (file.exists()) {
-        def buffer = new byte[8192]
-        def input = new FileInputStream(file)
-        while (true) {
-            def readBytes = input.read(buffer)
-            if (readBytes < 0) break
-            digest.update(buffer, 0, readBytes)
-        }
-        input.close()
-        def checksum = new BigInteger(1, digest.digest()).toString(16)
-        while (checksum.length() < 64) { checksum = "0" + checksum }
-        if (checksum == expectedChecksum) {
-            return
-        } else {
-            logger.quiet("Deleting old local file with wrong hash: " + localUrl + ": expected: " + expectedChecksum + ", actual: " + checksum)
-            file.delete()
-        }
-    }
 
-    def remoteUrl = "https://github.com/termux/termux-packages/releases/download/bootstrap-" + version + "/bootstrap-" + arch + ".zip"
-    logger.quiet("Downloading " + remoteUrl + " ...")
-
-    file.parentFile.mkdirs()
-    def out = new BufferedOutputStream(new FileOutputStream(file))
-
-    def connection = new URL(remoteUrl).openConnection()
-    connection.setInstanceFollowRedirects(true)
-    def digestStream = new java.security.DigestInputStream(connection.inputStream, digest)
-    out << digestStream
-    out.close()
-
-    def checksum = new BigInteger(1, digest.digest()).toString(16)
-    while (checksum.length() < 64) { checksum = "0" + checksum }
-    if (checksum != expectedChecksum) {
-        file.delete()
-        throw new GradleException("Wrong checksum for " + remoteUrl + ": expected: " + expectedChecksum + ", actual: " + checksum)
-    }
-}
-
-clean {
-    doLast {
-        def tree = fileTree(new File(projectDir, 'src/main/cpp'))
-        tree.include 'bootstrap-*.zip'
-        tree.each { it.delete() }
-    }
-}
-
-task downloadBootstraps() {
-    doLast {
-        def packageVariant = project.ext.packageVariant
-        // Checksums keyed by bootstrap arch token. Only the configured ABIs are fetched.
-        def checksums = [
-            aarch64: "ea2aeba8819e517db711f8c32369e89e7c52cee73e07930ff91185e1ab93f4f3",
-            arm    : "a38f4d3b2f735f83be2bf54eff463e86dc32a3e2f9f861c1557c4378d249c018",
-            i686   : "f5bc0b025b9f3b420b5fcaeefc064f888f5f22a0d6fd7090f4aac0c33eb3555b",
-            x86_64 : "b7fd0f2e3a4de534be3144f9f91acc768630fc463eaf134ab2e64c545e834f7a",
-        ]
-        if (packageVariant == "apt-android-7") {
-            def version = "2026.02.12-r1" + "%2B" + "apt.android-7"
-            project.ext.abiList.each { abi ->
-                def arch = abiToBootstrapArch(abi)
-                downloadBootstrap(arch, checksums[arch], version)
-            }
-        } else if (packageVariant == "apt-android-5") {
-            def version = "2022.04.28-r6" + "+" + packageVariant
-            def checksums5 = [
-                aarch64: "913609d439415c828c5640be1b0561467e539cb1c7080662decaaca2fb4820e7",
-                arm    : "26bfb45304c946170db69108e5eb6e3641aad751406ce106c80df80cad2eccf8",
-                i686   : "46dcfeb5eef67ba765498db9fe4c50dc4690805139aa0dd141a9d8ee0693cd27",
-                x86_64 : "615b590679ee6cd885b7fd2ff9473c845e920f9b422f790bb158c63fe42b8481",
-            ]
-            project.ext.abiList.each { abi ->
-                def arch = abiToBootstrapArch(abi)
-                downloadBootstrap(arch, checksums5[arch], version)
-            }
-        } else {
-            throw new GradleException("Unsupported TERMUX_PACKAGE_VARIANT \"" + packageVariant + "\"")
-        }
-    }
-}
-
-afterEvaluate {
-    android.applicationVariants.all { variant ->
-        // Must run BEFORE native build: the NDK ndkBuild embeds bootstrap-<arch>.zip
-        // via .incbin, so the zip must exist before buildNdkBuild executes.
-        variant.javaCompileProvider.get().dependsOn(downloadBootstraps)
-    }
-    // Pin downloadBootstraps ahead of every native build task (per ABI) so a
-    // missing/!stale bootstrap zip is fetched before ndkBuild's .incbin needs it.
-    tasks.matching { t ->
-        t.name.startsWith("buildNdkBuildRelease") || t.name.startsWith("buildNdkBuildDebug")
-    }.configureEach {
-        dependsOn downloadBootstraps
-    }
-    // Create empty stub bootstrap zips for ABIs not in abiList so ndkBuild
-    // does not fail with "Could not find incbin file 'bootstrap-<arch>.zip'".
-    tasks.matching { t ->
-        t.name.startsWith("configureNdkBuild") || t.name.startsWith("buildNdkBuild")
-    }.configureEach { t ->
-        def m = t.name =~ /\[(.+?)\]/
-        def abi = m.find() ? m.group(1) : null
-        if (abi && !project.ext.abiList.contains(abi)) {
-            doFirst {
-                def arch = abiToBootstrapArch(abi)
-                def stub = new File(projectDir, "src/main/cpp/bootstrap-" + arch + ".zip")
-                if (!stub.exists()) {
-                    stub.parentFile.mkdirs()
-                    stub.createNewFile()
-                }
-            }
-        }
-    }
-}
 
 def validateVersionName(String versionName) {
     // https://semver.org/spec/v2.0.0.html#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string

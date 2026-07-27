@@ -13,7 +13,7 @@
 
 <resources>
 
-        <string name="about_preference_title">حول</string>
+    <string name="about_preference_title">حول</string>
     <string name="action_autofill_password">تعبئة كلمة المرور تلقائيًا</string>
     <string name="action_autofill_username">تعبئة اسم المستخدم تلقائيًا</string>
     <string name="action_create_named_session_confirm">إنشاء</string>
@@ -45,14 +45,35 @@
     <string name="backup_restore_backup_started">جاري إنشاء النسخة الاحتياطية…</string>
     <string name="backup_restore_backup_success">تم إنشاء النسخة الاحتياطية بنجاح</string>
     <string name="backup_restore_cancelled">تم إلغاء العملية</string>
-    <string name="backup_restore_choose_backup">اختر ملف نسخ احتياطي .tar.gz لاستعادته</string>
+    <!-- Settings Backup / Restore -->
+    <string name="backup_restore_full_data_category_title">البيانات الكاملة</string>
+    <string name="backup_restore_settings_category_title">إعدادات التطبيق</string>
+    <string name="backup_settings_title">نسخ إعدادات التطبيق احتياطيًا</string>
+    <string name="backup_settings_summary">حفظ التفضيلات ونظام الألوان والخط وتخطيط المفاتيح (ملف صغير)</string>
+    <string name="restore_settings_title">استعادة إعدادات التطبيق</string>
+    <string name="restore_settings_summary">استعادة التفضيلات ونظام الألوان والخط وتخطيط المفاتيح</string>
+    <string name="settings_backup_warning">سيتم حفظ إعدادات تطبيق Termux (التفضيلات، نظام الألوان، الخط، تخطيط المفاتيح الإضافية) في ملف نسخ احتياطي صغير.\n\nاختر ملف الوجهة.</string>
+    <string name="settings_restore_warning">سيتم استعادة إعدادات تطبيق Termux من ملف النسخ الاحتياطي. سيتم استبدال الإعدادات الحالية.</string>
+    <string name="settings_backup_progress">جاري نسخ الإعدادات احتياطيًا…</string>
+    <string name="settings_restore_progress">جاري استعادة الإعدادات…</string>
+    <string name="settings_backup_success">تم نسخ الإعدادات احتياطيًا بنجاح</string>
+    <string name="settings_restore_success">تم استعادة الإعدادات بنجاح</string>
+    <string name="settings_restart_required">أعد تشغيل Termux لتطبيق جميع الإعدادات المستعادة</string>
+    <string name="settings_backup_failed">فشل نسخ الإعدادات احتياطيًا</string>
+    <string name="settings_restore_failed">فشل استعادة الإعدادات</string>
+    <string name="settings_backup_filename">termux-settings-backup.zip</string>
+    <string name="backup_exclude_tmp_checkbox">تضمين دليل tmp (usr/tmp/)</string>
+    <string name="error_settings_backup_format_version">إصدار تنسيق النسخ الاحتياطي غير مدعوم: %1$s</string>
+    <string name="error_settings_backup_missing_manifest">ملف النسخ الاحتياطي يفتقد manifest.properties</string>
+    <string name="error_settings_restore_open_input">فشل فتح ملف الإدخال</string>
+    <string name="backup_restore_choose_backup">اختر ملف النسخ الاحتياطي (.tar.gz) لاستعادته</string>
     <string name="backup_restore_dialog_title">نسخ احتياطي / استعادة بيانات Termux</string>
     <string name="backup_restore_failed_title">فشلت العملية</string>
-    <string name="backup_restore_need_termux">لم يتم العثور على برنامج termux (tar). يُرجى فتح Termux مرة واحدة على الأقل لإعداد الحاوية.</string>
+    <string name="backup_restore_need_termux">لم يتم العثور على أداة tar. يُرجى فتح Termux مرة واحدة على الأقل لإعداد البيئة.</string>
     <string name="backup_restore_restore_started">جاري استعادة النسخة الاحتياطية…</string>
     <string name="backup_restore_restore_success">تمت استعادة البيانات بنجاح</string>
     <string name="backup_restore_warning_backup">سيؤدي هذا إلى إنشاء أرشيف مضغوط لدليل بيانات Termux (الحزم المثبتة والبيئة مع دليلك المنزلي).\n\nاختر ملف وجهة لحفظ النسخة الاحتياطية.</string>
-    <string name="backup_restore_warning_restore">الاستعادة ستقوم بالكتابة فوق دليل بيانات Termux الحالي (الحزم المثبتة بالإضافة إلى دليلك المنزلي) بمحتويات ملف النسخة الاحتياطية المحدد. سيتم فقدان البيانات الموجودة.\n\n⚠ إذا فشلت الاستعادة — بسبب تلف ملف النسخة الاحتياطية أو عدم اكتماله أو انقطاع الاتصال أثناء العملية — فسيتم ترك بيئة Termux فارغة. لن تكون هناك طريقة لاستعادة البيانات الأصلية.\n\nلا يمكن التراجع عن هذا. يُوصى بشدة بعمل نسخة احتياطية أولاً والتحقق من صحة ملف النسخة الاحتياطية.</string>
+    <string name="backup_restore_warning_restore">ستستبدل الاستعادة دليل بيانات Termux الحالي (الحزم المثبتة بالإضافة إلى دليلك المنزلي) بمحتويات ملف النسخة الاحتياطية المحدد. سيتم فقدان البيانات الموجودة.\n\n⚠ إذا فشلت الاستعادة — بسبب تلف ملف النسخة الاحتياطية أو عدم اكتماله أو انقطاع العملية — فستبقى بيئة Termux فارغة. لن تكون هناك طريقة لاستعادة البيانات الأصلية.\n\nلا يمكن التراجع عن هذا. يُوصى بشدة بعمل نسخة احتياطية أولاً والتحقق من صحة ملف النسخة الاحتياطية.</string>
     <string name="backup_service_channel_name">نسخ احتياطي / استعادة Termux</string>
     <string name="backup_service_notification_cancel">إلغاء</string>
     <string name="backup_service_notification_failed">فشل النسخ الاحتياطي</string>
@@ -62,21 +83,21 @@
     <string name="backup_service_notification_success">تم إنشاء النسخة الاحتياطية بنجاح</string>
     <string name="backup_service_notification_title">نسخ احتياطي لبيانات Termux</string>
     <string name="bootstrap_error_abort">إيقاف</string>
-    <string name="bootstrap_error_body">Termux غير قادر على تثبيت حزم التمهيد.</string>
-    <string name="bootstrap_error_installed_on_portable_sd">Termux لا يمكن تثبيته على
+    <string name="bootstrap_error_body">Termux غير قادر على تثبيت حزمة التمهيد.</string>
+    <string name="bootstrap_error_installed_on_portable_sd">لا يمكن تثبيت Termux على
         بطاقة sd محمولة/خارجية/قابلة للإزالة على جهازك.
-        \nالبرامج الثنائية للتمهيد المترجمة لـ Termux لها مسار $PREFIX ثابت ولا يمكن تثبيتها
+        \nالملفات الثنائية للتمهيد المترجمة لـ Termux لها مسار $PREFIX ثابت ولا يمكن تثبيتها
         تحت أي مسار غير:\n%1$s.</string>
-    <string name="bootstrap_error_not_primary_user_message">Termux يمكن تشغيله فقط كمستخدم أساسي.
-        \nالبرامج الثنائية للتمهيد المترجمة لـ Termux لها مسار $PREFIX ثابت ولا يمكن تثبيتها
+    <string name="bootstrap_error_not_primary_user_message">يمكن تشغيل Termux فقط كمستخدم أساسي.
+        \nالملفات الثنائية للتمهيد المترجمة لـ Termux لها مسار $PREFIX ثابت ولا يمكن تثبيتها
         تحت أي مسار آخر غير:\n%1$s.</string>
     <string name="bootstrap_error_title">تعذر تثبيت التمهيد</string>
     <string name="bootstrap_error_try_again">حاول مرة أخرى</string>
-    <string name="bootstrap_installer_body">جاري تثبيت حزم التمهيد…</string>
-    <string name="color_scheme_dark_summary">نظام الألوان المطبق عندما يكون سمة التطبيق داكنة</string>
+    <string name="bootstrap_installer_body">جاري تثبيت حزمة التمهيد…</string>
+    <string name="color_scheme_dark_summary">نظام الألوان المطبق عندما تكون سمة التطبيق داكنة</string>
     <string name="color_scheme_dark_title">نظام ألوان الطرفية (السمة الداكنة)</string>
     <string name="color_scheme_dialog_title">نظام ألوان الطرفية</string>
-    <string name="color_scheme_light_summary">نظام الألوان المطبق عندما يكون سمة التطبيق فاتحة</string>
+    <string name="color_scheme_light_summary">نظام الألوان المطبق عندما تكون سمة التطبيق فاتحة</string>
     <string name="color_scheme_light_title">نظام ألوان الطرفية (السمة الفاتحة)</string>
     <string name="directory_history_clear_confirm">مسح سجل الدليل بالكامل؟ لا يمكن التراجع عن هذا.</string>
     <string name="directory_history_clear_dialog_title">مسح سجل الدليل</string>
@@ -84,13 +105,13 @@
     <string name="directory_history_max_title">الحد الأقصى للأدلة المحفوظة</string>
     <string name="directory_history_title">سجل الدليل</string>
     <string name="donate_preference_title">تبرع</string>
-    <string name="error_display_over_other_apps_permission_not_granted_to_start_terminal">Termux يتطلب
+    <string name="error_display_over_other_apps_permission_not_granted_to_start_terminal">يحتاج Termux إلى إذن
         "العرض فوق التطبيقات الأخرى" لبدء جلسات الطرفية من الخلفية على Android &gt;= 10.
-        قم بمنحه من الإعدادات -&gt; التطبيقات -&gt; Termux -&gt; خيارات متقدمة</string>
+        امنح الإذن من: الإعدادات -&gt; التطبيقات -&gt; Termux -&gt; خيارات متقدمة</string>
     <string name="error_font_copy_failed">فشل تطبيق الخط</string>
     <string name="error_run_command_service_api_help">قم بزيارة %1$s لمزيد من المعلومات حول استخدام Intent RUN_COMMAND.</string>
     <string name="error_run_command_service_invalid_execution_command_runner">مُشغّل أمر تنفيذ غير صالح لـ RunCommandService: `%1$s`</string>
-    <string name="error_run_command_service_invalid_intent_action">إجراء نية غير صالح لـ RunCommandService: `%1$s`</string>
+    <string name="error_run_command_service_invalid_intent_action">إجراء Intent غير صالح لـ RunCommandService: `%1$s`</string>
     <string name="error_run_command_service_mandatory_extra_missing">حقل إضافي إلزامي مفقود لـ RunCommandService: \"%1$s\"</string>
     <string name="error_styling_not_installed">تطبيق الملحق Termux:Styling غير مثبت.</string>
     <string name="error_termux_service_execution_command_shell_name_unset">لم يتم تعيين اسم الصدفة ولكن تم تمرير وضع إنشاء الصدفة `%1$s`</string>
@@ -102,11 +123,11 @@
     <string name="file_receiver_error_cannot_create_dir">لا يمكن إنشاء المجلد: %s</string>
     <string name="file_receiver_error_cannot_open">لا يمكن فتح الملف: %s</string>
     <string name="file_receiver_error_cannot_receive">تعذر استلام أي ملف أو رابط.</string>
-    <string name="file_receiver_error_empty_name">لا يمكن أن يكون اسم الملف فارغاً أو خالياً</string>
+    <string name="file_receiver_error_empty_name">لا يمكن أن يكون اسم الملف فارغاً أو من مسافات فقط</string>
     <string name="file_receiver_error_handle_shared">تعذر معالجة المحتوى المشترك:\n\n%s</string>
-    <string name="file_receiver_error_invalid_path">مسار الملف من data uri فارغ أو خالٍ أو غير صالح.</string>
+    <string name="file_receiver_error_invalid_path">مسار الملف من data URI فارغ أو غير صالح.</string>
     <string name="file_receiver_error_no_content">إجراء إرسال بدون محتوى - لا يوجد شيء لحفظه.</string>
-    <string name="file_receiver_error_no_data_uri">لم يتم تمرير data uri.</string>
+    <string name="file_receiver_error_no_data_uri">لم يتم تمرير data URI.</string>
     <string name="file_receiver_error_no_editor">الملف التالي غير موجود:\n$HOME/bin/termux-file-editor\n\nقم بإنشاء هذا الملف كبرنامج نصي أو رابط رمزي - سيتم استدعاؤه مع الملف المستلم كوسيطة وحيدة.</string>
     <string name="file_receiver_error_no_url_opener">الملف التالي غير موجود:\n$HOME/bin/termux-url-opener\n\nقم بإنشاء هذا الملف كبرنامج نصي أو رابط رمزي - سيتم استدعاؤه مع الرابط المشترك كوسيطة أولى.</string>
     <string name="file_receiver_error_saving_file">خطأ في حفظ الملف:\n\n%s</string>
@@ -131,32 +152,32 @@
     <string name="msg_extra_keys_create_failed">لا يمكن إنشاء المفاتيح الإضافية الافتراضية</string>
     <string name="msg_extra_keys_load_failed">تعذر تحميل وتعيين الخاصية \"%1$s\" من ملف الخصائص: %2$s</string>
     <string name="msg_generating_report">جارٍ إنشاء التقرير</string>
-    <string name="msg_max_terminals_reached">أغلق المحطات الحالية قبل إنشاء محطات جديدة.</string>
+    <string name="msg_max_terminals_reached">أغلق الطرفيات الحالية قبل إنشاء طرفيات جديدة.</string>
     <string name="msg_select_url_copied_to_clipboard">تم نسخ الرابط إلى الحافظة</string>
     <string name="msg_terminal_font_applied">تم تطبيق الخط</string>
     <string name="msg_terminal_reset">تمت إعادة ضبط الطرفية</string>
     <string name="notification_action_exit">خروج</string>
-    <string name="notification_action_wake_lock">الحصول على قفل الاستيقاظ</string>
+    <string name="notification_action_wake_lock">تفعيل قفل الاستيقاظ</string>
     <string name="notification_action_wake_unlock">تحرير قفل الاستيقاظ</string>
     <plurals name="notification_sessions">
-        <item quantity="zero">%d جلسة</item>
-        <item quantity="one">%d جلسة</item>
-        <item quantity="two">%d جلستان</item>
+        <item quantity="zero">لا جلسات</item>
+        <item quantity="one">جلسة واحدة</item>
+        <item quantity="two">جلستان</item>
         <item quantity="few">%d جلسات</item>
         <item quantity="many">%d جلسة</item>
         <item quantity="other">%d جلسة</item>
     </plurals>
     <plurals name="notification_tasks_separator">
-        <item quantity="zero">، %d مهمة</item>
-        <item quantity="one">، %d مهمة</item>
-        <item quantity="two">، %d مهمتان</item>
+        <item quantity="zero">، لا مهام</item>
+        <item quantity="one">، مهمة واحدة</item>
+        <item quantity="two">، مهمتان</item>
         <item quantity="few">، %d مهام</item>
         <item quantity="many">، %d مهمة</item>
         <item quantity="other">، %d مهمة</item>
     </plurals>
-    <string name="notification_wake_lock_held"> (قفل الاستيقاظ ممسوك)</string>
+    <string name="notification_wake_lock_held"> (قفل الاستيقاظ مفعّل)</string>
     <string name="panel_transparency_title">شفافية اللوحة</string>
-    <string name="per_directory_message_history_summary">الاحتفاظ بسجل رسائل منفصل لكل مجلد عمل. عند الإيقاف، تشارك جميع الجلسات سجلًا واحدًا عامًا.</string>
+    <string name="per_directory_message_history_summary">الاحتفاظ بسجل رسائل منفصل لكل مجلد عمل. عند الإيقاف، تشارك جميع الجلسات سجلاً واحداً عاماً.</string>
     <string name="per_directory_message_history_title">سجل الرسائل حسب المجلد</string>
     <string name="permission_run_command_description">تنفيذ أوامر عشوائية داخل بيئة Termux والوصول إلى الملفات</string>
     <string name="permission_run_command_label">تشغيل الأوامر في بيئة Termux</string>
@@ -164,7 +185,7 @@
     <string name="restore_preference_title">استعادة بيانات Termux</string>
     <string name="restore_sessions_summary">إعادة فتح جميع علامات التبويب وأدلتها عند بدء التطبيق</string>
     <string name="restore_sessions_title">استعادة علامات التبويب عند التشغيل</string>
-    <string name="screen_orientation_summary">تتنوع المتغيرات "تابع المستشعر" بين اتجاهين (مثل 0°/180° عمودي).</string>
+    <string name="screen_orientation_summary">تدور خيارات "تابع المستشعر" بين اتجاهين (مثل 0°/180° عمودي).</string>
     <string name="screen_orientation_title">اتجاه الشاشة</string>
 
     <string name="session_default_title">طرفية</string>
@@ -222,7 +243,7 @@
     <string name="termux_terminal_view_terminal_margin_adjustment_title">ضبط هامش الطرفية</string>
     <string name="termux_terminal_view_view_header">عرض</string>
     <string name="termux_widget_preferences_summary">تفضيلات تطبيق Termux:Widget</string>
-    <string name="text_input_append_enter_summary">عند الإرسال من حقل الإدخال، يتم أيضًا إرسال السطر (الضغط على Enter). قم بتعطيله لإرسال نص خام بدون سطر جديد في النهاية.</string>
+    <string name="text_input_append_enter_summary">عند الإرسال من حقل الإدخال، يُضاف سطر جديد تلقائياً (الضغط على Enter). عطّل هذا الخيار لإرسال النص كما هو بدون سطر جديد في النهاية.</string>
     <string name="text_input_append_enter_title">إضافة Enter عند الإرسال</string>
     <string name="text_input_show_summary_off">حقل إدخال النص مخفي</string>
     <string name="text_input_show_summary_on">حقل إدخال النص ظاهر فوق المفاتيح الإضافية</string>
@@ -230,7 +251,7 @@
     <string name="text_input_title">إدخال النص</string>
     <string name="text_input_hide_on_send_title">إخفاء لوحة الإدخال بعد الإرسال</string>
     <string name="text_input_hide_on_send_summary">عند التفعيل، تُغلق لوحة الإدخال وينتقل التركيز إلى الطرفية بعد الإرسال. عطّل ذلك لإبقاء اللوحة مفتوحة لإدخال أوامر متتابعة.</string>
-    <string name="text_input_insert_at_cursor_title">سلوك استعادة سجل الرسائل</string>
+    <string name="text_input_insert_at_cursor_title">سلوك إدراج رسائل السجل</string>
     <string name="text_input_insert_at_cursor_summary">اضغط للاختيار: إدراج عند المؤشر أو استبدال حقل الإدخال بالكامل</string>
     <string name="text_input_insert_at_cursor_dialog_title">وضع استعادة السجل</string>
     <string name="text_input_insert_at_cursor_option_insert">إدراج عند المؤشر</string>
@@ -239,7 +260,7 @@
     <string name="theme_mode_title">سمة التطبيق</string>
     <string name="theme_title">السمة</string>
     <string name="title_activity_termux_settings">إعدادات Termux</string>
-    <string name="title_confirm_kill_process">هل تريد إنهاء هذه الجلسة؟</string>
+    <string name="title_confirm_kill_process">هل تريد إنهاء هذه العملية؟</string>
     <string name="title_create_named_session">جلسة مسماة جديدة</string>
     <string name="title_file_received">حفظ الملف في ~/downloads/</string>
     <string name="title_max_terminals_reached">تم الوصول للحد الأقصى من الطرفيات</string>
@@ -254,7 +275,7 @@
     
     <string name="locale_override_title">لغة التطبيق</string>
     <string name="locale_override_summary">تجاوز لغة التطبيق</string>
-    <string name="locale_override_entry_system">لغة النظام (ترجمة آلية، قد تكون غير دقيقة)</string>
+    <string name="locale_override_entry_system">لغة النظام (قد تظهر بعض النصوص بالإنجليزية)</string>
     <string name="locale_override_entry_english">الإنجليزية</string>
     
     <string name="hide_extra_keys_with_keyboard_title">إخفاء المفاتيح الإضافية مع لوحة المفاتيح</string>
@@ -264,7 +285,7 @@
     <string name="suggestions_max_count_title">أقصى اقتراحات</string>
     <string name="suggestions_max_count_summary">الإكمال التلقائي من سجل الرسائل (1–10)</string>
 
-        <string name="appearance_category_title">المظهر</string>
+    <string name="appearance_category_title">المظهر</string>
     <string name="backup_restore_preferences_summary">النسخ الاحتياطي أو استعادة بيانات Termux</string>
     <string name="backup_restore_preferences_title">النسخ الاحتياطي والاستعادة</string>
     <string name="diagnostics_preferences_summary">التسجيل وإشعارات الأعطال</string>
@@ -392,7 +413,7 @@
     <string name="terminal_transcript_rows_title">أسطر سجل الطرفية</string>
     <string name="terminal_transcript_rows_summary">عدد الأسطر المحفوظة في سجل التمرير الخلفي.</string>
     <string name="delete_tmpdir_files_older_than_x_days_on_exit_title">حذف ملفات TMPDIR القديمة عند الخروج</string>
-    <string name="delete_tmpdir_files_older_than_x_days_on_exit_summary">حذف الملفات الأقدم من N يومًا من TMPDIR للجلسة عند الخروج (-1 = عدم الحذف أبدًا).</string>
+    <string name="delete_tmpdir_files_older_than_x_days_on_exit_summary">حذف الملفات التي مضى عليها أكثر من N يوماً في TMPDIR للجلسة عند الخروج (-1 = عدم الحذف أبداً).</string>
     <string name="invalid_number">الرجاء إدخال رقم صحيح.</string>
     <string name="shortcut_invalid_format">اختصار غير صالح. استخدم التنسيق \"ctrl+x\" أو اتركه فارغًا للتعطيل.</string>
     <string name="terminal_cursor_style_title">نمط المؤشر</string>
@@ -417,7 +438,7 @@
     <string name="soft_keyboard_toggle_behaviour_title">سلوك تبديل لوحة المفاتيح</string>
     <string name="soft_keyboard_toggle_behaviour_summary">ما إذا كان تبديل لوحة المفاتيح يُظهر/يُخفي أو يُمكن/يُعطل لوحة المفاتيح البرمجية.</string>
     <string name="ctrl_space_workaround_title">حل بديل لـ Ctrl+Space</string>
-    <string name="ctrl_space_workaround_summary">استخدام حل بديل لتسليم Ctrl+Space بشكل صحيح.</string>
+    <string name="ctrl_space_workaround_summary">استخدام حل بديل لإرسال Ctrl+Space بشكل صحيح.</string>
     <string name="enforce_char_based_input_title">فرض الإدخال القائم على الأحرف</string>
     <string name="enforce_char_based_input_summary">فرض إرسال الأحرف بايتًا واحدًا في كل مرة.</string>
     <string name="disable_hardware_keyboard_shortcuts_title">تعطيل اختصارات لوحة المفاتيح الفعلية</string>
@@ -429,10 +450,10 @@
     <string name="fullscreen_title">ملء الشاشة</string>
     <string name="fullscreen_summary">تشغيل Termux في وضع ملء الشاشة.</string>
     <string name="use_fullscreen_workaround_title">حل بديل لملء الشاشة</string>
-    <string name="use_fullscreen_workaround_summary">استخدام حل بديل لملء الشاشة على الأجهزة التي تخفيه بشكل غير صحيح.</string>
-    <string name="night_mode_legacy_title">الوضع الليلي (night-mode قديم)</string>
+    <string name="use_fullscreen_workaround_summary">استخدام حل بديل لملء الشاشة على الأجهزة التي لا تعرض ملء الشاشة بشكل صحيح.</string>
+    <string name="night_mode_legacy_title">الوضع الليلي (الإصدار القديم)</string>
     <string name="night_mode_legacy_summary">يتحكم في خاصية الوضع الليلي القديمة. يُفضل استخدام إعداد السمة في شاشة العرض.</string>
-    <string name="shortcut_summary">التنسيق: Ctrl+KEY (مثل Ctrl+a). اتركه فارغًا للتعطيل.</string>
+    <string name="shortcut_summary">التنسيق: Ctrl+مفتاح (مثل Ctrl+a). اتركه فارغًا للتعطيل.</string>
     <string name="shortcut_create_session_title">اختصار إنشاء جلسة</string>
     <string name="shortcut_next_session_title">اختصار الجلسة التالية</string>
     <string name="shortcut_previous_session_title">اختصار الجلسة السابقة</string>
@@ -463,6 +484,236 @@
     <string name="night_mode_false">فاتح</string>
     <string name="night_mode_system">النظام الافتراضي</string>
     <string name="backup_error_open_output">فشل فتح ملف الإخراج</string>
-    <string name="report_issue_title">Termux الإبلاغ عن مشكلة</string>
+    <string name="report_issue_title">الإبلاغ عن مشكلة في Termux</string>
     <string name="report_issue_transcript_header">## سجل النص\n</string>
-    </resources>
+
+    <!-- Bootstrap Selector Activity -->
+    <string name="bootstrap_selector_error_load_sources">فشل تحميل المصادر</string>
+    <string name="bootstrap_selector_install_local_title">تثبيت حزمة التمهيد محلياً؟</string>
+    <string name="bootstrap_selector_install_local_message">ملف التمهيد المحلي المضغوط يمكنه تنفيذ أي كود. استمر فقط إذا كنت تثق بهذا الملف.</string>
+    <string name="bootstrap_selector_install">تثبيت</string>
+    <string name="bootstrap_selector_cancel">إلغاء</string>
+    <string name="bootstrap_selector_restore_title">استعادة النسخة الاحتياطية</string>
+    <string name="bootstrap_selector_restore_message">استعادة بيئة Termux من:\n\n%1$s\n\nسيؤدي هذا إلى استبدال أي بادئة Termux موجودة.</string>
+    <string name="bootstrap_selector_restore">استعادة</string>
+    <string name="bootstrap_selector_restoring">جارٍ استعادة النسخة الاحتياطية…</string>
+    <string name="bootstrap_selector_starting_restore">بدء الاستعادة</string>
+    <string name="bootstrap_selector_restore_failed">فشلت الاستعادة</string>
+    <string name="bootstrap_selector_ok">موافق</string>
+
+    <!-- Bootstrap Download Service -->
+    <string name="bootstrap_download_status_idle">خامل</string>
+    <string name="bootstrap_download_status_connecting">جارٍ الاتصال</string>
+    <string name="bootstrap_download_progress_preparing">جارٍ تحضير التنزيل</string>
+    <string name="bootstrap_download_status_installing">جارٍ التثبيت</string>
+    <string name="bootstrap_download_progress_extracting">جارٍ استخراج التمهيد</string>
+    <string name="bootstrap_download_status_done">تم</string>
+    <string name="bootstrap_download_status_installed">تم تثبيت التمهيد</string>
+    <string name="bootstrap_download_status_failed">فشل</string>
+    <string name="bootstrap_download_progress_copying_local">جارٍ نسخ الملف المحلي</string>
+    <string name="bootstrap_download_progress_copying_internal">جارٍ النسخ إلى التخزين الداخلي</string>
+    <string name="bootstrap_download_status_downloading">جارٍ التنزيل</string>
+    <string name="bootstrap_download_status_verifying">جارٍ التحقق</string>
+    <string name="bootstrap_download_progress_checking_sha">جارٍ التحقق من SHA-256</string>
+    <string name="bootstrap_download_notification_starting">جارٍ البدء…</string>
+    <string name="bootstrap_download_channel_name">تمهيد Termux</string>
+    <string name="bootstrap_download_notification_title_success">تم تثبيت التمهيد</string>
+    <string name="bootstrap_download_notification_text_success">اضغط لفتح Termux</string>
+    <string name="bootstrap_download_notification_title_failed">فشل تثبيت التمهيد</string>
+
+    <!-- Bootstrap Restore (TermuxInstaller) -->
+    <string name="bootstrap_restore_error_in_progress">التثبيت قيد التنفيذ بالفعل</string>
+    <string name="bootstrap_restore_progress_starting">بدء الاستعادة</string>
+    <string name="bootstrap_restore_progress_extracting">جارٍ استخراج النسخة الاحتياطية</string>
+    <string name="bootstrap_restore_progress_validating">جارٍ التحقق من البادئة</string>
+    <string name="bootstrap_restore_progress_writing_variant">جارٍ كتابة النوع</string>
+    <string name="bootstrap_restore_progress_complete">اكتملت الاستعادة</string>
+    <string name="bootstrap_restore_error_failed">فشلت الاستعادة</string>
+
+    <!-- File Receiver -->
+    <string name="file_receiver_bootstrap_not_installed">لم يتم تثبيت التمهيد. يُرجى فتح تطبيق Termux أولاً.</string>
+
+    <!-- Run Command Service -->
+    <string name="run_command_bootstrap_not_installed">لم يتم تثبيت التمهيد. يُرجى فتح تطبيق Termux لتثبيته أولاً.</string>
+
+    <!-- Backup: restore progress via TarGzExtractor -->
+    <string name="backup_restore_progress_restoring">جارٍ الاستعادة: %1$d مدخلاً، %2$d ميغابايت</string>
+
+    <!-- Bootstrap install progress (TermuxInstaller) -->
+    <string name="bootstrap_install_progress_verify_sha">جارٍ التحقق من المجموع الاختباري</string>
+    <string name="bootstrap_install_progress_verify_manifest">جارٍ التحقق من قائمة محتويات الحزمة</string>
+    <string name="bootstrap_install_progress_extract">جارٍ استخراج الحزم</string>
+    <string name="bootstrap_install_progress_finalize">جارٍ إنهاء التثبيت</string>
+    <string name="bootstrap_install_progress_write_variant">جارٍ كتابة علامة النوع</string>
+    <string name="bootstrap_install_progress_done">تم</string>
+
+    <string name="extra_keys_editor_delay_format">⏱ %d مللي</string>
+    <string name="extra_keys_editor_delay_hint">تأخير (1–1000 مللي)</string>
+    <string name="extra_keys_editor_delay_presets">تحديد سريع:</string>
+
+    <string name="application_name">TermuxEnhanced</string>
+
+    <!-- Termux App Preferences -->
+    <string name="termux_preferences_title">&TERMUX_APP_NAME;</string>
+
+    <!-- Termux:API App Preferences -->
+    <string name="termux_api_preferences_title">&TERMUX_API_APP_NAME;</string>
+
+    <!-- Termux:Float App Preferences -->
+    <string name="termux_float_preferences_title">&TERMUX_FLOAT_APP_NAME;</string>
+
+    <!-- Termux:Tasker App Preferences -->
+    <string name="termux_tasker_preferences_title">&TERMUX_TASKER_APP_NAME;</string>
+
+    <!-- Termux:Widget App Preferences -->
+    <string name="termux_widget_preferences_title">&TERMUX_WIDGET_APP_NAME;</string>
+
+    <!-- Extra keys editor swipe suffixes -->
+    <string name="extra_keys_editor_swipe_up_suffix"> (↑)</string>
+    <string name="extra_keys_editor_swipe_down_suffix"> (↓)</string>
+    <string name="extra_keys_editor_swipe_left_suffix"> (←)</string>
+    <string name="extra_keys_editor_swipe_right_suffix"> (→)</string>
+
+    <!-- Backup -->
+    <string name="backup_restore_backup_filename">termux-data-backup.tar.gz</string>
+    <string name="backup_service_notification_progress">%1$d%%</string>
+
+    <!-- Report Issue -->
+    <string name="report_issue_transcript_footer">\n##\n</string>
+
+    <!-- Extra keys editor signal entries -->
+    <string name="extra_keys_editor_signal_ctrl">CTRL</string>
+    <string name="extra_keys_editor_signal_alt">ALT</string>
+    <string name="extra_keys_editor_signal_shift">SHIFT</string>
+    <string name="extra_keys_editor_signal_fn">FN</string>
+    <string name="extra_keys_editor_signal_esc">Esc</string>
+    <string name="extra_keys_editor_signal_tab">Tab</string>
+    <string name="extra_keys_editor_signal_home">الصفحة الرئيسية</string>
+    <string name="extra_keys_editor_signal_end">النهاية</string>
+    <string name="extra_keys_editor_signal_page_up">الصفحة لأعلى</string>
+    <string name="extra_keys_editor_signal_page_down">الصفحة لأسفل</string>
+    <string name="extra_keys_editor_signal_insert">إدراج</string>
+    <string name="extra_keys_editor_signal_delete">حذف</string>
+    <string name="extra_keys_editor_signal_backspace">مسح للخلف</string>
+    <string name="extra_keys_editor_signal_up">أعلى</string>
+    <string name="extra_keys_editor_signal_left">يسار</string>
+    <string name="extra_keys_editor_signal_right">يمين</string>
+    <string name="extra_keys_editor_signal_down">أسفل</string>
+    <string name="extra_keys_editor_signal_enter">إدخال</string>
+    <!-- F1-F12 -->
+    <string name="extra_keys_editor_signal_f1">F1</string>
+    <string name="extra_keys_editor_signal_f2">F2</string>
+    <string name="extra_keys_editor_signal_f3">F3</string>
+    <string name="extra_keys_editor_signal_f4">F4</string>
+    <string name="extra_keys_editor_signal_f5">F5</string>
+    <string name="extra_keys_editor_signal_f6">F6</string>
+    <string name="extra_keys_editor_signal_f7">F7</string>
+    <string name="extra_keys_editor_signal_f8">F8</string>
+    <string name="extra_keys_editor_signal_f9">F9</string>
+    <string name="extra_keys_editor_signal_f10">F10</string>
+    <string name="extra_keys_editor_signal_f11">F11</string>
+    <string name="extra_keys_editor_signal_f12">F12</string>
+    <string name="extra_keys_editor_signal_add_delay">إضافة تأخير…</string>
+    <string name="extra_keys_editor_delay_dialog_title">إضافة تأخير</string>
+
+    <!-- AbiUtils error messages -->
+    <string name="error_abi_no_supported_abis">لا توجد ABIs مدعومة على هذا الجهاز</string>
+    <string name="error_abi_arch_mismatch">بنية التمهيد \'%1$s\' لا تتطابق مع بنية الجهاز \'%2$s\'. ABIs المتاحة: %3$s</string>
+    <string name="error_abi_unknown">ABI غير معروف: %1$s</string>
+
+    <!-- BootstrapManifest error messages -->
+    <string name="error_bootstrap_manifest_missing_info">معلومات BOOTSTRAP_INFO مفقودة في ملف التمهيد المضغوط</string>
+    <string name="error_bootstrap_manifest_missing_variant">مفتقد \'variant\' في BOOTSTRAP_INFO</string>
+    <string name="error_bootstrap_manifest_missing_arch">مفتقد \'arch\' في BOOTSTRAP_INFO</string>
+
+    <!-- TermuxInstaller error messages -->
+    <string name="error_bootstrap_install_in_progress">تثبيت التمهيد قيد التنفيذ بالفعل</string>
+    <string name="error_bootstrap_zip_not_found">ملف التمهيد المضغوط غير موجود: %1$s</string>
+    <string name="error_bootstrap_create_temp_dir">فشل إنشاء المجلد المؤقت: %1$s</string>
+    <string name="error_bootstrap_rename_prefix">فشل إعادة تسمية البادئة الحالية إلى نسخة احتياطية</string>
+    <string name="error_bootstrap_rename_temp">فشل إعادة تسمية المجلد المؤقت إلى بادئة</string>
+    <string name="error_bootstrap_invalid_zip_entry">اسم إدخال مضغوط غير صالح: %1$s</string>
+    <string name="error_bootstrap_duplicate_zip_entry">إدخال مضغوط مكرر: %1$s</string>
+    <string name="error_bootstrap_directory_metadata_entry">إدخال دليل باسم بيانات وصفية: %1$s</string>
+    <string name="error_bootstrap_failed_mkdir">فشل إنشاء المجلد: %1$s</string>
+    <string name="error_bootstrap_entry_too_large">الإدخال كبير جداً: %1$s (%2$s بايت)</string>
+    <string name="error_bootstrap_compression_ratio">تجاوز نسبة الضغط لـ: %1$s</string>
+    <string name="error_bootstrap_total_size_exceeded">إجمالي الحجم غير المضغوط يتجاوز الحد</string>
+    <string name="error_bootstrap_too_many_entries">عدد كبير جداً من الإدخالات المضغوطة</string>
+    <string name="error_bootstrap_symlink_parent_dir">فشل إنشاء المجلد الأصلي للرابط الرمزي: %1$s</string>
+    <string name="error_bootstrap_symlink_create">فشل إنشاء الرابط الرمزي: %1$s -&gt; %2$s</string>
+    <string name="error_bootstrap_symlink_line">سطر رابط رمزي غير صحيح: %1$s</string>
+    <string name="error_bootstrap_unsupported_file_type">نوع ملف غير مدعوم لـ: %1$s</string>
+    <string name="error_bootstrap_symlink_target_empty">هدف الرابط الرمزي فارغ: %1$s</string>
+    <string name="error_bootstrap_symlink_absolute">هدف الرابط الرمزي المطلق غير مسموح: %1$s</string>
+    <string name="error_bootstrap_symlink_no_parent">الرابط الرمزي ليس له مجلد أصلي: %1$s</string>
+    <string name="error_bootstrap_symlink_escapes_root">الرابط الرمزي يخرج عن جذر الاستخراج: %1$s -&gt; %2$s</string>
+    <string name="error_bootstrap_path_traversal">تم اكتشاف اجتياز مسار الإدخال المضغوط: %1$s</string>
+    <string name="error_bootstrap_create_files_dir">لا يمكن إنشاء مجلد الملفات</string>
+    <string name="error_bootstrap_already_installed">التمهيد مثبت بالفعل</string>
+    <string name="error_bootstrap_create_temp_dir2">لا يمكن إنشاء المجلد المؤقت</string>
+    <string name="error_bootstrap_open_backup_uri">لا يمكن فتح URI النسخة الاحتياطية</string>
+    <string name="error_bootstrap_no_bin_dir">النسخة الاحتياطية لا تحتوي على مجلد bin</string>
+    <string name="error_bootstrap_bin_empty">مجلد bin في النسخة الاحتياطية فارغ</string>
+    <string name="error_bootstrap_rename_prefix2">لا يمكن إعادة تسمية البادئة الحالية إلى نسخة احتياطية</string>
+    <string name="error_bootstrap_rename_temp2">لا يمكن إعادة تسمية المجلد المؤقت إلى بادئة</string>
+    <string name="error_bootstrap_no_symlinks">لم يتم العثور على SYMLINKS.txt</string>
+    <string name="error_bootstrap_move_prefix">فشل نقل المرحلة المؤقتة لبادئة termux إلى مجلد البادئة</string>
+    <string name="error_bootstrap_embedded_lib">مكتبة التمهيد المضمنة غير متوفرة</string>
+
+    <!-- BootstrapDownloadService error messages -->
+    <string name="error_bootstrap_download_cache_dir">فشل إنشاء مجلد التخزين المؤقت</string>
+    <string name="error_bootstrap_download_read_uri">لا يمكن قراءة URI - قد يكون الإذن قد أُلغي</string>
+    <string name="error_bootstrap_download_storage">مساحة تخزين غير كافية. يلزم %1$s على الأقل خالية، المتوفر %2$s</string>
+    <string name="error_bootstrap_download_https">يُسمح فقط بعناوين URL HTTPS</string>
+    <string name="error_bootstrap_download_http">HTTP %1$d لـ %2$s</string>
+    <string name="error_bootstrap_download_sha_mismatch">عدم تطابق SHA-256. متوقع %1$s، تم الحصول على %2$s</string>
+    <string name="error_bootstrap_download_rename">فشل إعادة تسمية الملف المؤقت</string>
+
+    <!-- TermuxBackupUtils error messages -->
+    <string name="error_tar_health_check_exit">فشل فحص صحة tar الثنائي (رمز الخروج %1$d)</string>
+    <string name="error_tar_health_check">فشل فحص صحة tar الثنائي: %1$s</string>
+    <string name="error_backup_recreate_dir">فشل إعادة إنشاء %1$s</string>
+    <string name="error_restore_io">خطأ إدخال/إخراج الاستعادة: %1$s</string>
+    <string name="error_backup_io">خطأ إدخال/إخراج: %1$s</string>
+    <string name="error_tar_exit_code">tar انتهى برمز %1$d</string>
+
+    <!-- TarGzExtractor error messages -->
+    <string name="error_tar_extractor_create_dir">لا يمكن إنشاء المجلد: %1$s</string>
+    <string name="error_tar_extractor_symlink">فشل الرابط الرمزي: %1$s</string>
+    <string name="error_tar_extractor_parent_not_dir">المجلد الأصلي ليس مجلداً: %1$s</string>
+    <string name="error_tar_extractor_create_parent">لا يمكن إنشاء المجلد الأصلي: %1$s</string>
+    <string name="error_tar_extractor_replace_non_dir">لا يمكن استبدال غير مجلد بمجلد: %1$s</string>
+    <string name="error_tar_extractor_replace_dir">لا يمكن استبدال مجلد بملف: %1$s</string>
+    <string name="error_tar_extractor_delete">لا يمكن الحذف: %1$s</string>
+    <string name="error_tar_extractor_chmod">فشل chmod: %1$s</string>
+    <string name="error_tar_extractor_truncated">إدخال مقطوع</string>
+
+    <!-- TermuxBootstrapState -->
+    <string name="error_bootstrap_state_create_dir">فشل إنشاء مجلد etc/termux</string>
+
+    <!-- Sha256 -->
+    <string name="error_sha256_not_available">SHA-256 غير متاح</string>
+
+    <!-- TermuxServiceConnectionManager -->
+    <string name="error_bind_service">bindService() فشل</string>
+
+    <!-- TermuxOpenReceiver -->
+    <string name="error_invalid_path">مسار غير صالح: %1$s</string>
+
+    <!-- Bootstrap crash notification -->
+    <string name="notification_bootstrap_crash_title">خطأ في التمهيد</string>
+    <string name="notification_bootstrap_crash_body">## خطأ في التمهيد\n\n%1$s</string>
+
+    <!-- TarGzExtractor (private extraction errors) -->
+    <string name="error_tar_extractor_truncated_header">رأس مقطوع</string>
+    <string name="error_tar_extractor_too_many_metadata">عدد كبير جداً من إدخالات البيانات الوصفية</string>
+    <string name="error_tar_extractor_too_many_entries">عدد كبير جداً من الإدخالات</string>
+    <string name="error_tar_extractor_negative_size">حجم إدخال سالب</string>
+    <string name="error_tar_extractor_entry_max_size">الإدخال يتجاوز الحد الأقصى للحجم: %1$s</string>
+    <string name="error_tar_extractor_metadata_too_large">إدخال البيانات الوصفية كبير جداً</string>
+    <string name="error_tar_extractor_archive_max_size">الأرشيف يتجاوز الحد الأقصى للحجم الإجمالي</string>
+    <string name="error_tar_extractor_unsupported_type">نوع إدخال غير مدعوم 0x%1$s: %2$s</string>
+    <string name="error_tar_extractor_empty_path">ملف عادي بمسار فارغ</string>
+    <string name="error_tar_extractor_size_mismatch">عدم تطابق الحجم: %1$s</string>
+</resources>

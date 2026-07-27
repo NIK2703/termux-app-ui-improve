@@ -70,5 +70,20 @@
 <string name="log_level_value">ログキャットのログレベルが \"%1$s\" に設定されました</string>
 <string name="notification_channel_app">Termux アプリ</string>
 <string name="notification_channel_run_command">Termux RunCommandService</string>
-<string name="notification_channel_plugin_errors">Termux プラグインコマンドエラー</string>
+    <string name="notification_channel_plugin_errors">Termux プラグインコマンドエラー</string>
+
+    <!-- Font picker -->
+    <string name="title_select_font">フォントを選択</string>
+
+    <!-- TextIOActivity.java -->
+    <string name="title_text_input">テキスト入力</string>
+
+    <!-- TermuxCrashUtils.java -->
+    <string name="title_crash_report">%1$s クラッシュレポート</string>
+
+    <!-- TermuxPluginUtils.java -->
+    <string name="title_plugin_execution_command_error">%1$s プラグイン実行コマンドエラー</string>
+
+    <!-- SharedProperties.java -->
+    <string name="error_could_not_open_properties_file">プロパティファイル \"%1$s\" を開けませんでした: %2$s</string>
 </resources>

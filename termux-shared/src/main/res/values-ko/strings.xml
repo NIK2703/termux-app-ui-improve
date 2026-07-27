@@ -71,4 +71,19 @@
     <string name="title_open_url_with">URL 열기</string>
     <string name="title_report_text">보고서 텍스트</string>
     <string name="title_share_with">공유 대상</string>
+
+    <!-- FontUtils.java -->
+    <string name="title_select_font">글꼴 선택</string>
+
+    <!-- TextIOActivity.java -->
+    <string name="title_text_input">텍스트 입력</string>
+
+    <!-- TermuxCrashUtils.java -->
+    <string name="title_crash_report">%1$s 충돌 보고서</string>
+
+    <!-- TermuxPluginUtils.java -->
+    <string name="title_plugin_execution_command_error">%1$s 플러그인 실행 명령 오류</string>
+
+    <!-- SharedProperties.java -->
+    <string name="error_could_not_open_properties_file">속성 파일 \"%1$s\"을(를) 열 수 없음: %2$s</string>
 </resources>

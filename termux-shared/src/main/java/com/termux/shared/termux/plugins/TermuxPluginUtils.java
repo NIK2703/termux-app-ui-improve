@@ -351,7 +351,7 @@ public class TermuxPluginUtils {
         // Send a notification to show the error which when clicked will open the ReportActivity
         // to show the details of the error
         if (title == null || title.toString().isEmpty())
-            title = TermuxConstants.TERMUX_APP_NAME + " Plugin Execution Command Error";
+            title = currentPackageContext.getString(com.termux.shared.R.string.title_plugin_execution_command_error, TermuxConstants.TERMUX_APP_NAME);
 
         Logger.logDebug(logTag, "Sending \"" + title + "\" notification.");
 

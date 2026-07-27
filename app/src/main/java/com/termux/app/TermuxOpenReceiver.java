@@ -207,7 +207,7 @@ public class TermuxOpenReceiver extends BroadcastReceiver {
                 String storagePath = Environment.getExternalStorageDirectory().getCanonicalPath();
                 // See https://support.google.com/faqs/answer/7496913:
                 if (!(path.startsWith(TermuxConstants.TERMUX_FILES_DIR_PATH) || path.startsWith(storagePath))) {
-                    throw new IllegalArgumentException("Invalid path: " + path);
+                    throw new IllegalArgumentException(getContext().getString(com.termux.R.string.error_invalid_path, path));
                 }
 
                 // If TermuxConstants.PROP_ALLOW_EXTERNAL_APPS property to not set to "true", then throw exception

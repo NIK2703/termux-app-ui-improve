@@ -245,7 +245,7 @@ public class SharedProperties {
             }
         } catch (Exception e) {
             if (context != null)
-                Toast.makeText(context, "Could not open properties file \"" + propertiesFile.getAbsolutePath() + "\": " + e.getMessage(), Toast.LENGTH_LONG).show();
+                Toast.makeText(context, context.getString(com.termux.shared.R.string.error_could_not_open_properties_file, propertiesFile.getAbsolutePath(), e.getMessage()), Toast.LENGTH_LONG).show();
             Logger.logStackTraceWithMessage(LOG_TAG, "Error loading properties file \"" + propertiesFile.getAbsolutePath() + "\"", e);
             return null;
         }

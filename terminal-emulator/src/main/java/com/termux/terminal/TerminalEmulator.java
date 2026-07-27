@@ -17,7 +17,6 @@ import java.util.Stack;
  * <li>http://invisible-island.net/xterm/ctlseqs/ctlseqs.html</li>
  * <li>http://en.wikipedia.org/wiki/ANSI_escape_code</li>
  * <li>http://man.he.net/man4/console_codes</li>
- * <li>http://bazaar.launchpad.net/~leonerd/libvterm/trunk/view/head:/src/state.c</li>
  * <li>http://www.columbia.edu/~kermit/k95manual/iso2022.html</li>
  * <li>http://www.vt100.net/docs/vt510-rm/chapter4</li>
  * <li>http://en.wikipedia.org/wiki/ISO/IEC_2022 - for 7-bit and 8-bit GL GR explanation</li>
@@ -154,9 +153,8 @@ public final class TerminalEmulator {
     public static final int TERMINAL_CURSOR_STYLE_BLOCK = 0;
     public static final int TERMINAL_CURSOR_STYLE_UNDERLINE = 1;
     public static final int TERMINAL_CURSOR_STYLE_BAR = 2;
-    public static final int TERMINAL_CURSOR_STYLE_IBEAM = 3;
     public static final int DEFAULT_TERMINAL_CURSOR_STYLE = TERMINAL_CURSOR_STYLE_BLOCK;
-    public static final Integer[] TERMINAL_CURSOR_STYLES_LIST = new Integer[]{TERMINAL_CURSOR_STYLE_BLOCK, TERMINAL_CURSOR_STYLE_UNDERLINE, TERMINAL_CURSOR_STYLE_BAR, TERMINAL_CURSOR_STYLE_IBEAM};
+    public static final Integer[] TERMINAL_CURSOR_STYLES_LIST = new Integer[]{TERMINAL_CURSOR_STYLE_BLOCK, TERMINAL_CURSOR_STYLE_UNDERLINE, TERMINAL_CURSOR_STYLE_BAR};
 
     /** The terminal cursor styles. */
     private int mCursorStyle = DEFAULT_TERMINAL_CURSOR_STYLE;
@@ -248,9 +246,11 @@ public final class TerminalEmulator {
      * Current foreground, background and underline colors. Can either be a color index in [0,259] or a truecolor (24-bit) value.
      * For a 24-bit value the top byte (0xff000000) is set.
      *
+     * <p>Note that the underline color is currently parsed but not yet used during rendering.
+     *
      * @see TextStyle
      */
-    public int mForeColor, mBackColor, mUnderlineColor;
+    int mForeColor, mBackColor, mUnderlineColor;
 
     /** Current {@link TextStyle} effect. */
     int mEffect;
@@ -1880,17 +1880,14 @@ public final class TerminalEmulator {
                 mEffect |= TextStyle.CHARACTER_ATTRIBUTE_ITALIC;
             } else if (code == 4) {
                 if (i + 1 <= mArgIndex && ((mArgsSubParamsBitSet & (1 << (i + 1))) != 0)) {
+                    // Sub parameter, see https://sw.kovidgoyal.net/kitty/underlines/
                     i++;
-                    int variant = mArgs[i];
-                    if (variant == 0) {
+                    if (mArgs[i] == 0) {
+                        // No underline.
                         mEffect &= ~TextStyle.CHARACTER_ATTRIBUTE_UNDERLINE;
-                        mEffect = (mEffect & ~TextStyle.UNDERLINE_VARIANT_MASK)
-                            | (TextStyle.UNDERLINE_NONE << TextStyle.UNDERLINE_VARIANT_SHIFT);
                     } else {
+                        // Different variations of underlines: https://sw.kovidgoyal.net/kitty/underlines/
                         mEffect |= TextStyle.CHARACTER_ATTRIBUTE_UNDERLINE;
-                        int encodedVariant = variant <= 5 ? variant : TextStyle.UNDERLINE_SINGLE;
-                        mEffect = (mEffect & ~TextStyle.UNDERLINE_VARIANT_MASK)
-                            | (encodedVariant << TextStyle.UNDERLINE_VARIANT_SHIFT);
                     }
                 } else {
                     mEffect |= TextStyle.CHARACTER_ATTRIBUTE_UNDERLINE;
@@ -1913,7 +1910,6 @@ public final class TerminalEmulator {
                 mEffect &= ~TextStyle.CHARACTER_ATTRIBUTE_ITALIC;
             } else if (code == 24) { // underline: none
                 mEffect &= ~TextStyle.CHARACTER_ATTRIBUTE_UNDERLINE;
-                mEffect &= ~TextStyle.UNDERLINE_VARIANT_MASK;
             } else if (code == 25) { // blink: none
                 mEffect &= ~TextStyle.CHARACTER_ATTRIBUTE_BLINK;
             } else if (code == 27) { // image: positive
@@ -1971,14 +1967,6 @@ public final class TerminalEmulator {
                 mBackColor = code - 40;
             } else if (code == 49) { // Set default background color.
                 mBackColor = TextStyle.COLOR_INDEX_BACKGROUND;
-            } else if (code == 51) { // Framed / boxed on.
-                mEffect |= TextStyle.CHARACTER_ATTRIBUTE_BOXED;
-            } else if (code == 53) { // Overline on.
-                mEffect |= TextStyle.CHARACTER_ATTRIBUTE_OVERLINE;
-            } else if (code == 54) { // Framed / boxed off.
-                mEffect &= ~TextStyle.CHARACTER_ATTRIBUTE_BOXED;
-            } else if (code == 55) { // Overline off.
-                mEffect &= ~TextStyle.CHARACTER_ATTRIBUTE_OVERLINE;
             } else if (code == 59) { // Set default underline color.
                 mUnderlineColor = TextStyle.COLOR_INDEX_FOREGROUND;
             } else if (code >= 90 && code <= 97) { // Bright foreground colors (aixterm codes).
@@ -2244,7 +2232,6 @@ public final class TerminalEmulator {
      *
      * <p>References:
      * <a href="https://vt100.net/docs/vt510-rm/chapter4.html#S4.3.3">VT510 Video Terminal Programmer Information: Control Sequences</a>
-     * <a href="https://github.com/alacritty/vte/issues/22">alacritty/vte: Implement colon separated CSI parameters</a>
      * */
     private void parseArg(int b) {
         if (b >= '0' && b <= '9') {

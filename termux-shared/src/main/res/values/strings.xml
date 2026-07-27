@@ -143,4 +143,19 @@
     <!-- Font picker -->
     <string name="font_picker_title">Select a font (.ttf)</string>
 
+    <!-- FontUtils.java -->
+    <string name="title_select_font">Select a font</string>
+
+    <!-- TextIOActivity.java -->
+    <string name="title_text_input">Text Input</string>
+
+    <!-- TermuxCrashUtils.java -->
+    <string name="title_crash_report">%1$s Crash Report</string>
+
+    <!-- TermuxPluginUtils.java -->
+    <string name="title_plugin_execution_command_error">%1$s Plugin Execution Command Error</string>
+
+    <!-- SharedProperties.java -->
+    <string name="error_could_not_open_properties_file">Could not open properties file \"%1$s\": %2$s</string>
+
 </resources>

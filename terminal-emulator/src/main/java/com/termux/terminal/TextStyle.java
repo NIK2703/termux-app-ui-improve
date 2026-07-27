@@ -36,22 +36,6 @@ public final class TextStyle {
     /** If true (24-bit) color is used for the cell for foreground. */
     private final static int CHARACTER_ATTRIBUTE_TRUECOLOR_BACKGROUND= 1 << 10;
 
-    /** Underline variant (SGR 4:0-5), stored in bits 11-13. */
-    public static final int UNDERLINE_VARIANT_SHIFT = 11;
-    public static final int UNDERLINE_VARIANT_MASK = 0b111 << UNDERLINE_VARIANT_SHIFT;
-    public static final int UNDERLINE_NONE = 0;
-    public static final int UNDERLINE_SINGLE = 1;
-    public static final int UNDERLINE_DOUBLE = 2;
-    public static final int UNDERLINE_CURLY = 3;
-    public static final int UNDERLINE_DOTTED = 4;
-    public static final int UNDERLINE_DASHED = 5;
-
-    /** Overline (SGR 53/55). */
-    public final static int CHARACTER_ATTRIBUTE_OVERLINE = 1 << 14;
-
-    /** Boxed / framed. */
-    public final static int CHARACTER_ATTRIBUTE_BOXED = 1 << 15;
-
     public final static int COLOR_INDEX_FOREGROUND = 256;
     public final static int COLOR_INDEX_BACKGROUND = 257;
     public final static int COLOR_INDEX_CURSOR = 258;
@@ -63,7 +47,7 @@ public final class TextStyle {
     final static long NORMAL = encode(COLOR_INDEX_FOREGROUND, COLOR_INDEX_BACKGROUND, 0);
 
     static long encode(int foreColor, int backColor, int effect) {
-        long result = effect & 0xFFFFL;
+        long result = effect & 0b111111111;
         if ((0xff000000 & foreColor) == 0xff000000) {
             // 24-bit color.
             result |= CHARACTER_ATTRIBUTE_TRUECOLOR_FOREGROUND | ((foreColor & 0x00ffffffL) << 40L);
@@ -100,24 +84,7 @@ public final class TextStyle {
     }
 
     public static int decodeEffect(long style) {
-        return (int) (style & 0xFFFFL);
-    }
-
-    public static int decodeUnderlineVariant(long style) {
-        return (int) ((style & UNDERLINE_VARIANT_MASK) >>> UNDERLINE_VARIANT_SHIFT);
-    }
-
-    public static long encodeUnderlineVariant(long style, int variant) {
-        return (style & ~UNDERLINE_VARIANT_MASK)
-            | (((long) variant) << UNDERLINE_VARIANT_SHIFT);
-    }
-
-    public static boolean decodeOverline(long style) {
-        return (style & CHARACTER_ATTRIBUTE_OVERLINE) != 0;
-    }
-
-    public static boolean decodeBoxed(long style) {
-        return (style & CHARACTER_ATTRIBUTE_BOXED) != 0;
+        return (int) (style & 0b11111111111);
     }
 
 }

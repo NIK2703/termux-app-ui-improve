@@ -66,4 +66,19 @@
     <string name="title_open_url_with">URL öffnen mit</string>
     <string name="title_report_text">Berichtstext</string>
     <string name="title_share_with">Teilen mit</string>
+
+    <!-- FontUtils.java -->
+    <string name="title_select_font">Schriftart auswählen</string>
+
+    <!-- TextIOActivity.java -->
+    <string name="title_text_input">Texteingabe</string>
+
+    <!-- TermuxCrashUtils.java -->
+    <string name="title_crash_report">%1$s Absturzbericht</string>
+
+    <!-- TermuxPluginUtils.java -->
+    <string name="title_plugin_execution_command_error">%1$s Plugin-Ausführungsbefehlsfehler</string>
+
+    <!-- SharedProperties.java -->
+    <string name="error_could_not_open_properties_file">Konnte Eigenschaftendatei \"%1$s\" nicht öffnen: %2$s</string>
 </resources>

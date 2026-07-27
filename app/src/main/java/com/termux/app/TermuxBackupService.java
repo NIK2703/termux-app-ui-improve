@@ -65,6 +65,7 @@ public final class TermuxBackupService extends Service {
     public static final String ACTION_CANCEL = "com.termux.app.TermuxBackupService.ACTION_CANCEL";
 
     private static final String EXTRA_ESTIMATED_SIZE = "com.termux.app.TermuxBackupService.extra_estimated_size";
+    private static final String EXTRA_EXCLUDE_TMP = "com.termux.app.TermuxBackupService.extra_exclude_tmp";
 
     /** Live instance, so the UI dialog can poll progress without binding. */
     private static volatile TermuxBackupService sInstance;
@@ -100,12 +101,13 @@ public final class TermuxBackupService extends Service {
     // Public entry points used by the preferences fragment
     // ------------------------------------------------------------------
 
-    public static void startBackup(Context context, Uri uri, long estimatedSize) {
+    public static void startBackup(Context context, Uri uri, long estimatedSize, boolean excludeTmp) {
         Intent intent = new Intent(context, TermuxBackupService.class)
             .setAction(ACTION_BACKUP)
             .setData(uri)
             .addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
-            .putExtra(EXTRA_ESTIMATED_SIZE, estimatedSize);
+            .putExtra(EXTRA_ESTIMATED_SIZE, estimatedSize)
+            .putExtra(EXTRA_EXCLUDE_TMP, excludeTmp);
         start(context, intent);
     }
 
@@ -270,17 +272,19 @@ public final class TermuxBackupService extends Service {
         final boolean isRestore = mIsRestore;
         final Uri uri = intent.getData();
         final long estimatedSize = intent.getLongExtra(EXTRA_ESTIMATED_SIZE, 0);
+        final boolean excludeTmp = !isRestore && intent.getBooleanExtra(EXTRA_EXCLUDE_TMP, false);
         final AtomicReference<Error> result = new AtomicReference<>();
 
         sInstance = this;
         sLastResult = null;
         mMainHandler = new Handler(Looper.getMainLooper());
+        final boolean fExcludeTmp = excludeTmp;
         mWorker = new Thread(() -> {
             try {
                 if (isRestore) {
                     runRestore(uri, estimatedSize, result);
                 } else {
-                    runBackup(uri, estimatedSize, result);
+                    runBackup(uri, estimatedSize, fExcludeTmp, result);
                 }
             } finally {
                 // Publish the result BEFORE flipping the finished flag so any reader that sees
@@ -351,7 +355,7 @@ public final class TermuxBackupService extends Service {
     // Core operations
     // ------------------------------------------------------------------
 
-    private void runBackup(Uri uri, long estimatedSize, AtomicReference<Error> out) {
+    private void runBackup(Uri uri, long estimatedSize, boolean excludeTmp, AtomicReference<Error> out) {
         OutputStream os = null;
         try {
             os = getContentResolver().openOutputStream(uri);
@@ -383,7 +387,7 @@ public final class TermuxBackupService extends Service {
                     long est = estimateRef.get();
                     publishProgress(false, copied, est > 0 ? est : 0);
                 },
-                mCancelled);
+                mCancelled, excludeTmp);
             // The data pump inside TermuxBackupUtils.backup() -> runTar() already closed 'os'.
             // Prevent the finally block from closing it again.
             os = null;

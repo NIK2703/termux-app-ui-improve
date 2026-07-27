@@ -159,7 +159,18 @@ public class TermuxSessionSnapshotManager {
         List<TermuxSession> sessions = service.getTermuxSessions();
         if (sessions != null && !sessions.isEmpty()) {
             int idx = Math.max(0, Math.min(active, sessions.size() - 1));
-            sessionClient.setCurrentSession(sessions.get(idx).getTerminalSession());
+            TerminalSession session = sessions.get(idx).getTerminalSession();
+            sessionClient.setCurrentSession(session);
+            // Persist the handle so that getCurrentStoredSessionOrLast() (called
+            // from a subsequent syncTerminalPagerToService() on the background-init
+            // thread) finds it instead of falling back to getLastTermuxSession()
+            // (the rightmost tab). Without this, a cold-start restore would first
+            // select the correct tab via setCurrentSession -> mPendingInitialSession,
+            // but after that flag is consumed by the pager sync in
+            // termuxSessionListNotifyUpdated(), the deferred background-thread
+            // syncTerminalPagerToService() would override the selection with the
+            // last tab.
+            mActivity.getPreferences().setCurrentSession(session.mHandle);
         }
         return true;
     }

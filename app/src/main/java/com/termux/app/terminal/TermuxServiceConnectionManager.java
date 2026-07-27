@@ -87,7 +87,7 @@ public class TermuxServiceConnectionManager implements ServiceConnection {
             // Attempt to bind to the service, this will call the {@link #onServiceConnected(ComponentName, IBinder)}
             // callback if it succeeds.
             if (!mActivity.bindService(serviceIntent, this, 0))
-                throw new RuntimeException("bindService() failed");
+                throw new RuntimeException(mActivity.getString(com.termux.R.string.error_bind_service));
             return true;
         } catch (Exception e) {
             Logger.logStackTraceWithMessage(LOG_TAG, "TermuxActivity failed to start TermuxService", e);
@@ -142,6 +142,17 @@ public class TermuxServiceConnectionManager implements ServiceConnection {
         }
 
         if (mTermuxService.isTermuxSessionsEmpty()) {
+            // Check if bootstrap is installed; if not, show the selector activity.
+            if (!TermuxInstaller.isBootstrapInstalled()) {
+                if (mActivity.isVisible()) {
+                    TermuxInstaller.cleanupInterruptedInstall();
+                    Intent selectorIntent = new Intent(mActivity, com.termux.installer.BootstrapSelectorActivity.class);
+                    mActivity.startActivityForResult(selectorIntent, TermuxActivity.REQUEST_BOOTSTRAP_SETUP);
+                } else {
+                    TermuxActivityUtils.finishActivityIfNotFinishing(mActivity);
+                }
+                return;
+            }
             if (mActivity.isVisible()) {
                 TermuxInstaller.setupBootstrapIfNeeded(mActivity, () -> {
                     if (mTermuxService == null) return; // Activity might have been destroyed.

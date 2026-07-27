@@ -58,6 +58,13 @@ public final class BackupProgressController {
     /** Start a fresh operation behind the dialog and launch the service. */
     public void start(int titleRes, long totalBytes,
                       boolean launchTermuxOnSuccess, boolean isRestore, android.net.Uri uri) {
+        start(titleRes, totalBytes, launchTermuxOnSuccess, isRestore, uri, false);
+    }
+
+    /** Start a fresh operation behind the dialog and launch the service. */
+    public void start(int titleRes, long totalBytes,
+                      boolean launchTermuxOnSuccess, boolean isRestore, android.net.Uri uri,
+                      boolean excludeTmp) {
         FragmentActivity activity = mActivityRef.get();
         if (activity == null) return;
         mBackupIsRestore = isRestore;
@@ -67,7 +74,7 @@ public final class BackupProgressController {
         if (isRestore) {
             TermuxBackupService.startRestore(activity, uri, totalBytes);
         } else {
-            TermuxBackupService.startBackup(activity, uri, totalBytes);
+            TermuxBackupService.startBackup(activity, uri, totalBytes, excludeTmp);
         }
         showDialog(titleRes);
     }

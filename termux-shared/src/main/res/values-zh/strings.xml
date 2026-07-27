@@ -122,4 +122,18 @@
     <!-- Font picker -->
     <string name="font_picker_title">选择字体（.ttf）</string>
 
+    <!-- FontUtils.java -->
+    <string name="title_select_font">选择字体</string>
+
+    <!-- TextIOActivity.java -->
+    <string name="title_text_input">文本输入</string>
+
+    <!-- TermuxCrashUtils.java -->
+    <string name="title_crash_report">%1$s 崩溃报告</string>
+
+    <!-- TermuxPluginUtils.java -->
+    <string name="title_plugin_execution_command_error">%1$s 插件执行命令错误</string>
+
+    <!-- SharedProperties.java -->
+    <string name="error_could_not_open_properties_file">无法打开属性文件 \"%1$s\"：%2$s</string>
 </resources>
