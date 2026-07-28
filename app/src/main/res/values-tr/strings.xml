@@ -367,6 +367,8 @@
     <string name="extra_keys_editor_done">Tamam</string>
     <string name="extra_keys_editor_open_editor">Ek tuşları düzenle</string>
     <string name="extra_keys_editor_open_editor_summary">Düzen, ölçek ve tuş bağlamalarını yapılandırın</string>
+    <string name="extra_keys_edge_indicators_title">Kaydırma yönü göstergeleri</string>
+    <string name="extra_keys_edge_indicators_summary">Ek tuşlarda atanmış eylemlerin kaydırma yönü göstergelerini göster</string>
     <string name="extra_keys_editor_hint">Ana eylem atamak için dokunun · Hareket eylemleri atamak için ↑ ↓ ← → kaydırın</string>
     <string name="extra_keys_editor_mode_assign">Ata</string>
     <string name="extra_keys_editor_mode_move">Taşı</string>

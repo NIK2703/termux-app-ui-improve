@@ -592,6 +592,8 @@
     <string name="extra_keys_editor_done">Готово</string>
     <string name="extra_keys_editor_open_editor">Редактировать дополнительные кнопки</string>
     <string name="extra_keys_editor_open_editor_summary">Настройка раскладки, масштаба и привязки кнопок</string>
+    <string name="extra_keys_edge_indicators_title">Индикаторы направлений свайпа</string>
+    <string name="extra_keys_edge_indicators_summary">Показывать на кнопках индикаторы направлений свайпа с заданными действиями</string>
     <string name="extra_keys_editor_hint">Нажмите, чтобы назначить основное действие · Смахните ↑ ↓ ← → для назначения действий по жестам</string>
     <string name="extra_keys_editor_mode_assign">Назначить</string>
     <string name="extra_keys_editor_mode_move">Переместить</string>

@@ -344,6 +344,8 @@
     <string name="extra_keys_editor_done">完了</string>
     <string name="extra_keys_editor_open_editor">拡張キーを編集</string>
     <string name="extra_keys_editor_open_editor_summary">レイアウト、スケール、キー割り当てを設定</string>
+    <string name="extra_keys_edge_indicators_title">スワイプ方向インジケーター</string>
+    <string name="extra_keys_edge_indicators_summary">拡張キーにアクションが割り当てられたスワイプ方向インジケーターを表示する</string>
     <string name="extra_keys_editor_hint">タップでメインアクションを割り当て · スワイプ ↑ ↓ ← → でジェスチャーアクションを割り当て</string>
     <string name="extra_keys_editor_mode_assign">割り当て</string>
     <string name="extra_keys_editor_mode_move">移動</string>

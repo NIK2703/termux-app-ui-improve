@@ -328,6 +328,8 @@
     <string name="extra_keys_editor_done">Selesai</string>
     <string name="extra_keys_editor_open_editor">Edit tombol tambahan</string>
     <string name="extra_keys_editor_open_editor_summary">Konfigurasikan tata letak, skala, dan pemetaan tombol</string>
+    <string name="extra_keys_edge_indicators_title">Indikator arah geser</string>
+    <string name="extra_keys_edge_indicators_summary">Tampilkan indikator arah geser dan tindakan pada tombol tambahan</string>
     <string name="extra_keys_editor_hint">Ketuk untuk menetapkan tindakan utama · Geser ↑ ↓ ← → untuk menetapkan tindakan isyarat</string>
     <string name="extra_keys_editor_mode_assign">Tetapkan</string>
     <string name="extra_keys_editor_mode_move">Pindahkan</string>

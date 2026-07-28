@@ -97,7 +97,7 @@
         <ListPreference
             app:key="terminal-cursor-style"
             app:defaultValue="block"
-            app:persistent="false"
+            android:persistent="false"
             app:title="@string/terminal_cursor_style_title"
             app:summary="@string/terminal_cursor_style_summary"
             app:entries="@array/terminal_cursor_style_entries"

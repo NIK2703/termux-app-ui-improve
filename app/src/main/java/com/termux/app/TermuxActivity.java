@@ -657,8 +657,7 @@ public final class TermuxActivity extends AppCompatActivity implements TextInput
         // clobbering the "focus was on panel" state we saved in onStop(). We
         // re-assert this snapshot before restoring, so the panel focus + caret is
         // honoured on return from the background.
-        final boolean resumeFocusWasOnInput =
-            !mIsOnResumeAfterOnCreate && isFocusOnInputForSession(getCurrentSession());
+        final boolean resumeFocusWasOnInput = isFocusOnInputForSession(getCurrentSession());
 
         if (mTermuxTerminalSessionActivityClient != null)
             mTermuxTerminalSessionActivityClient.onResume();
@@ -666,7 +665,7 @@ public final class TermuxActivity extends AppCompatActivity implements TextInput
         if (mTermuxTerminalViewClient != null)
             mTermuxTerminalViewClient.onResume();
 
-        // Check if a crash happened on last run of the app or if a plugin crashed and show a
+        // Check if a crash happened on last run of the app or if a crash happened and show a
         // notification with the crash details if it did
         TermuxCrashUtils.notifyAppCrashFromCrashLogFile(this, LOG_TAG);
 
@@ -674,10 +673,16 @@ public final class TermuxActivity extends AppCompatActivity implements TextInput
         // with applyFocus=false at startup), re-apply the current session's panel
         // visibility together with its remembered focus target and caret, exactly
         // as a tab switch does. Restores keyboard-on-panel or focus-on-terminal.
-        if (!mIsOnResumeAfterOnCreate) {
+        // Also run after recreate (e.g. settings changed extra keys, which calls
+        // recreate() while SettingsActivity is on top). mIsActivityRecreated
+        // distinguishes cold start (false) from recreate (true), so the first
+        // onResume after recreate applies the focus/IME state restored from the
+        // saved-instance Bundle even though mIsOnResumeAfterOnCreate is true.
+        TerminalSession currentSession = getCurrentSession();
+        if (!mIsOnResumeAfterOnCreate || mIsActivityRecreated) {
             // Restore the pre-background focus target clobbered by the client above.
             setFocusOnInputForCurrentSession(resumeFocusWasOnInput);
-            applyTextInputVisibilityForSession(getCurrentSession(), true);
+            applyTextInputVisibilityForSession(currentSession, true);
         }
 
         mIsOnResumeAfterOnCreate = false;

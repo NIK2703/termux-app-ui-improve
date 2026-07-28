@@ -355,6 +355,8 @@
     <string name="extra_keys_editor_done">Concluído</string>
     <string name="extra_keys_editor_open_editor">Editar teclas extras</string>
     <string name="extra_keys_editor_open_editor_summary">Configurar layout, escala e atalhos das teclas</string>
+    <string name="extra_keys_edge_indicators_title">Indicadores de direção do deslize</string>
+    <string name="extra_keys_edge_indicators_summary">Mostrar indicadores de direção do deslize com ações atribuídas às teclas extras</string>
     <string name="extra_keys_editor_hint">Toque para atribuir a ação principal · Deslize ↑ ↓ ← → para atribuir ações de gesto</string>
     <string name="extra_keys_editor_mode_assign">Atribuir</string>
     <string name="extra_keys_editor_mode_move">Mover</string>

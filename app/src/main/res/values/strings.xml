@@ -646,6 +646,8 @@
     <string name="extra_keys_editor_done">Done</string>
     <string name="extra_keys_editor_open_editor">Edit extra keys</string>
     <string name="extra_keys_editor_open_editor_summary">Configure layout, scale and key bindings</string>
+    <string name="extra_keys_edge_indicators_title">Swipe direction indicators</string>
+    <string name="extra_keys_edge_indicators_summary">Show swipe direction indicators on extra keys</string>
     <string name="extra_keys_editor_hint">Tap to assign the main action · Swipe ↑ ↓ ← → to assign gesture actions</string>
     <string name="extra_keys_editor_mode_assign">Assign</string>
     <string name="extra_keys_editor_mode_move">Move</string>

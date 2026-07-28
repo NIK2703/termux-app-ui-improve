@@ -38,7 +38,7 @@
         app:defaultValue="100"
         app:showSeekBarValue="true"
         app:iconSpaceReserved="false"
-        app:persistent="false" />
+        android:persistent="false" />
 
     <SeekBarPreference
         app:key="extra-keys-corner-radius"
@@ -58,7 +58,7 @@
         app:defaultValue="20"
         app:showSeekBarValue="true"
         app:iconSpaceReserved="false"
-        app:persistent="false" />
+        android:persistent="false" />
 
     <SeekBarPreference
         app:key="extra-keys-font-size"
@@ -69,7 +69,7 @@
         app:defaultValue="14"
         app:showSeekBarValue="true"
         app:iconSpaceReserved="false"
-        app:persistent="false" />
+        android:persistent="false" />
 
     <ListPreference
         app:key="extra-keys-style"
@@ -97,8 +97,8 @@
     <SwitchPreferenceCompat
         app:key="extra-keys-edge-indicators"
         app:defaultValue="true"
-        app:title="Edge indicators"
-        app:summary="Show swipe direction borders on extra keys"
+        app:title="@string/extra_keys_edge_indicators_title"
+        app:summary="@string/extra_keys_edge_indicators_summary"
         app:iconSpaceReserved="false" />
 
 </PreferenceScreen>
