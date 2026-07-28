@@ -18,10 +18,8 @@
 - The history of all texts sent from it is saved for quick restoration by a swipe up from the button.
 - When typing the initial part of one of the saved texts, a context window with autocomplete options from the history is shown; by a swipe right-left on one of the suggestions, you can fill in several words from it.
 
-### Backup and Restore
-- Added capabilities for backup and restore of the Termux container into a tar.gz archive, as well as backup and restore of application settings into a .zip file.
-
 ### Other
+- Added capabilities for backup and restore of the Termux container into a tar.gz archive, as well as backup and restore of application settings into a .zip file.
 - Settings from the termux.properties file are moved to the application settings interface.
 - The application is fully translated into 12 languages: Arabic, German, Spanish, French, Hindi, Indonesian, Japanese, Korean, Portuguese, Russian, Turkish, Chinese.
 - More complete application of Termux Styling color schemes on the terminal screen
