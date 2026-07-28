@@ -7,8 +7,6 @@ import androidx.annotation.Nullable;
 
 import com.termux.R;
 import com.termux.shared.errors.Error;
-import com.termux.shared.file.filesystem.FileTypes;
-import com.termux.shared.file.FileUtils;
 import com.termux.shared.logger.Logger;
 import com.termux.shared.termux.TermuxConstants;
 
@@ -157,24 +155,31 @@ public final class TermuxBackupUtils {
             .append(" canRead=").append(f.canRead())
             .append(" canWrite=").append(f.canWrite());
         if (f.isDirectory()) {
-            File[] children = f.listFiles();
-            int count = (children != null) ? children.length : -1;
-            long size = 0;
-            if (children != null) for (File c : children) size += sizeOf(c);
-            sb.append(" entries=").append(count).append(" sizeBytes=").append(size);
+            // Count children via find to avoid ART crash from File.listFiles()
+            // when filenames contain invalid UTF-8 bytes (NewStringUTF SIGABRT).
+            int count = -1;
+            long size = -1;
+            try {
+                Process p = new ProcessBuilder("find", path, "-mindepth", "1", "-maxdepth", "1")
+                    .redirectErrorStream(true).start();
+                try (java.io.BufferedReader r = new java.io.BufferedReader(
+                        new java.io.InputStreamReader(p.getInputStream()))) {
+                    String line;
+                    while ((line = r.readLine()) != null) {
+                        if (count < 0) count = 0;
+                        count++;
+                        File cf = new File(line);
+                        if (cf.isFile()) size += cf.length();
+                    }
+                }
+                p.waitFor();
+            } catch (Exception ignored) {}
+            sb.append(" entries=").append(count >= 0 ? count : "?")
+                .append(" sizeBytes=").append(size >= 0 ? size : "?");
         } else {
             sb.append(" length=").append(f.length());
         }
         Logger.logInfo(LOG_TAG, "[restore-state] " + sb);
-    }
-
-    /** Recursive size in bytes. */
-    private static long sizeOf(File f) {
-        if (f.isFile()) return f.length();
-        long total = 0;
-        File[] children = f.listFiles();
-        if (children != null) for (File c : children) total += sizeOf(c);
-        return total;
     }
 
     /** Remove the *contents* of {@code dir} (not the directory itself) so its inode stays stable.
@@ -183,15 +188,24 @@ public final class TermuxBackupUtils {
     private static void clearDirectoryContents(String label, String dirPath) {
         File dir = new File(dirPath);
         if (!dir.isDirectory()) return;
-        File[] children = dir.listFiles();
-        if (children == null) return;
-        for (File child : children) {
-            Error err = FileUtils.deleteFile(label, child.getAbsolutePath(), true, false,
-                FileTypes.FILE_TYPE_ANY_FLAGS);
-            if (err != null) {
-                Logger.logError(LOG_TAG, "Failed to delete " + child.getAbsolutePath()
-                    + ": " + err.getMinimalErrorString());
-            }
+
+        // Use find -delete to avoid Java's File.listFiles() which crashes ART on
+        // invalid UTF-8 filenames (NewStringUTF SIGABRT). This handles arbitrary
+        // filename bytes correctly via C readdir().
+        boolean cleared = false;
+        try {
+            Process p = new ProcessBuilder("find", dirPath, "-mindepth", "1", "-delete")
+                .redirectErrorStream(true).start();
+            cleared = (p.waitFor() == 0);
+        } catch (Exception ignored) {}
+
+        if (!cleared) {
+            // Fallback: delete via shell. Works even if find is unavailable.
+            try {
+                Process p = new ProcessBuilder("rm", "-rf", dirPath).start();
+                p.waitFor();
+                dir.mkdirs();
+            } catch (Exception ignored) {}
         }
     }
 
@@ -326,6 +340,7 @@ public final class TermuxBackupUtils {
                 listener.onResult(new Error(msg));
             }
         } catch (Exception e) {
+            rollbackRestore(filesDir);
             listener.onResult(new Error(e.getMessage(), e));
         }
     }

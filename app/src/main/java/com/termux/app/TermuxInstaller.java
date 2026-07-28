@@ -10,7 +10,11 @@ import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
+import android.system.ErrnoException;
 import android.system.Os;
+import android.system.OsConstants;
+import android.system.StructStat;
+import android.util.Log;
 import android.util.Pair;
 import android.view.WindowManager;
 
@@ -109,7 +113,7 @@ public final class TermuxInstaller {
     public static void installBootstrapFromZipFile(Context context, File zipFile,
             InstallProgressListener listener) throws IOException, BootstrapException {
         if (!sInstallInProgress.compareAndSet(false, true)) {
-            throw new BootstrapException("Bootstrap install already in progress");
+            throw new BootstrapException(context.getString(com.termux.R.string.error_bootstrap_install_in_progress));
         }
         try {
             installBootstrapFromZipFileLocked(context, zipFile, listener);
@@ -120,19 +124,20 @@ public final class TermuxInstaller {
 
     private static void installBootstrapFromZipFileLocked(Context context, File zipFile,
             InstallProgressListener listener) throws IOException, BootstrapException {
+        Logger.logInfo(LOG_TAG, "installBootstrapFromZipFile: zip=" + zipFile.getAbsolutePath());
         if (!zipFile.isFile()) {
             throw new IOException(context.getString(com.termux.R.string.error_bootstrap_zip_not_found, zipFile.getAbsolutePath()));
         }
 
-        if (listener != null) listener.onProgress(context.getString(com.termux.R.string.bootstrap_install_progress_verify_sha), 0);
+        if (listener != null) listener.onProgress(context.getString(com.termux.R.string.bootstrap_install_progress_verify_manifest), 0);
 
-        String sha256 = Sha256.hexOfFile(zipFile);
-        Logger.logInfo(LOG_TAG, "Zip SHA-256: " + sha256);
-
-        if (listener != null) listener.onProgress(context.getString(com.termux.R.string.bootstrap_install_progress_verify_manifest), 5);
-
-        BootstrapManifest manifest = BootstrapManifest.fromZip(zipFile);
-        AbiUtils.validateBootstrapArch(manifest.arch);
+        BootstrapManifest manifest = BootstrapManifest.fromZip(context, zipFile);
+        if (manifest != null) {
+            AbiUtils.validateBootstrapArch(context, manifest.arch);
+            Logger.logInfo(LOG_TAG, "manifest: arch=" + manifest.arch + " variant=" + manifest.variant);
+        } else {
+            Logger.logInfo(LOG_TAG, "No BOOTSTRAP_INFO in zip, skipping manifest validation");
+        }
 
         File filesDir = context.getFilesDir();
         String tmpName = "usr.tmp-" + UUID.randomUUID().toString();
@@ -143,28 +148,37 @@ public final class TermuxInstaller {
             if (!tempDir.mkdirs()) {
                 throw new IOException(context.getString(com.termux.R.string.error_bootstrap_create_temp_dir, tempDir));
             }
+            Logger.logInfo(LOG_TAG, "tempDir=" + tempDir);
 
             if (listener != null) listener.onProgress(context.getString(com.termux.R.string.bootstrap_install_progress_extract), 10);
 
             extractZipFile(context, zipFile, tempDir, listener);
 
             if (listener != null) listener.onProgress(context.getString(com.termux.R.string.bootstrap_install_progress_finalize), 90);
+            Logger.logInfo(LOG_TAG, "extraction complete, finalizing");
 
             File prefixDir = TERMUX_PREFIX_DIR;
             if (prefixDir.exists()) {
                 String backupName = "usr.old-" + UUID.randomUUID().toString();
                 backupDir = new File(filesDir, backupName);
-                if (!prefixDir.renameTo(backupDir)) {
-                    throw new IOException(context.getString(com.termux.R.string.error_bootstrap_rename_prefix));
+                try {
+                    renameOrMove(prefixDir, backupDir);
+                } catch (Exception e) {
+                    throw new IOException(context.getString(com.termux.R.string.error_bootstrap_rename_prefix) + ": " + e.getMessage(), e);
                 }
+                Logger.logInfo(LOG_TAG, "old prefix renamed to " + backupName);
             }
 
-            if (!tempDir.renameTo(prefixDir)) {
+            try {
+                renameOrMove(tempDir, prefixDir);
+            } catch (Exception e) {
+                Logger.logError(LOG_TAG, "rename tempDir -> prefixDir failed, restoring backup");
                 if (backupDir != null && backupDir.exists()) {
-                    backupDir.renameTo(prefixDir);
+                    try { renameOrMove(backupDir, prefixDir); } catch (Exception ignored) {}
                 }
-                throw new IOException(context.getString(com.termux.R.string.error_bootstrap_rename_temp));
+                throw new IOException(context.getString(com.termux.R.string.error_bootstrap_rename_temp) + ": " + e.getMessage(), e);
             }
+            Logger.logInfo(LOG_TAG, "tempDir renamed to " + prefixDir);
 
             if (backupDir != null) {
                 deleteRecursive(backupDir);
@@ -172,18 +186,22 @@ public final class TermuxInstaller {
 
             Logger.logInfo(LOG_TAG, "Bootstrap packages installed successfully.");
 
-            if (listener != null) listener.onProgress(context.getString(com.termux.R.string.bootstrap_install_progress_write_variant), 95);
+            if (manifest != null) {
+                if (listener != null) listener.onProgress(context.getString(com.termux.R.string.bootstrap_install_progress_write_variant), 95);
 
-            try {
-                TermuxBootstrapState.writeVariantMarker(context, manifest.variant);
-                TermuxBootstrapState.setInstalledVariant(context, manifest.variant);
-            } catch (IOException e) {
-                Logger.logError(LOG_TAG, "Failed to write variant marker: " + e.getMessage());
+                try {
+                    TermuxBootstrapState.writeVariantMarker(context, manifest.variant);
+                    TermuxBootstrapState.setInstalledVariant(context, manifest.variant);
+                    Logger.logInfo(LOG_TAG, "variant marker written: " + manifest.variant);
+                } catch (IOException e) {
+                    Logger.logError(LOG_TAG, "Failed to write variant marker: " + e.getMessage());
+                }
             }
 
             if (listener != null) listener.onProgress(context.getString(com.termux.R.string.bootstrap_install_progress_done), 100);
 
         } catch (Exception e) {
+            Logger.logError(LOG_TAG, "installBootstrapFromZipFile failed: " + Log.getStackTraceString(e));
             deleteRecursive(tempDir);
             if (backupDir != null) deleteRecursive(backupDir);
             throw e;
@@ -344,19 +362,27 @@ public final class TermuxInstaller {
         if (target.isEmpty()) {
             throw new SecurityException(context.getString(com.termux.R.string.error_bootstrap_symlink_target_empty, linkName));
         }
-        if (target.startsWith("/")) {
-            throw new SecurityException(context.getString(com.termux.R.string.error_bootstrap_symlink_absolute, target));
-        }
         File linkFile = new File(extractRoot, linkName);
         File parent = linkFile.getParentFile();
         if (parent == null) {
             throw new SecurityException(context.getString(com.termux.R.string.error_bootstrap_symlink_no_parent, linkName));
         }
-        File resolved = new File(parent, target);
-        String rootPath = extractRoot.getCanonicalPath() + File.separator;
-        String resolvedPath = resolved.getCanonicalPath();
-        if (!resolvedPath.startsWith(rootPath)) {
-            throw new SecurityException(context.getString(com.termux.R.string.error_bootstrap_symlink_escapes_root, linkName, target));
+
+        if (target.startsWith("/")) {
+            String prefixPath = TERMUX_PREFIX_DIR_PATH;
+            if (!prefixPath.endsWith("/")) prefixPath += "/";
+            if (target.startsWith(prefixPath) || target.equals(TERMUX_PREFIX_DIR_PATH)) {
+                Logger.logInfo(LOG_TAG, "Allowing absolute symlink inside prefix: " + linkName + " -> " + target);
+            } else {
+                throw new SecurityException(context.getString(com.termux.R.string.error_bootstrap_symlink_absolute, target));
+            }
+        } else {
+            File resolved = new File(parent, target);
+            String rootPath = extractRoot.getCanonicalPath() + File.separator;
+            String resolvedPath = resolved.getCanonicalPath();
+            if (!resolvedPath.startsWith(rootPath)) {
+                throw new SecurityException(context.getString(com.termux.R.string.error_bootstrap_symlink_escapes_root, linkName, target));
+            }
         }
     }
 
@@ -626,8 +652,10 @@ public final class TermuxInstaller {
                     }
 
                     Logger.logInfo(LOG_TAG, "Moving termux prefix staging to prefix directory.");
-                    if (!TERMUX_STAGING_PREFIX_DIR.renameTo(TERMUX_PREFIX_DIR)) {
-                        throw new RuntimeException(activity.getString(com.termux.R.string.error_bootstrap_move_prefix));
+                    try {
+                        renameOrMove(TERMUX_STAGING_PREFIX_DIR, TERMUX_PREFIX_DIR);
+                    } catch (Exception e) {
+                        throw new RuntimeException(activity.getString(com.termux.R.string.error_bootstrap_move_prefix) + ": " + e.getMessage(), e);
                     }
                     Logger.logInfo(LOG_TAG, "Bootstrap packages installed successfully.");
                     TermuxShellEnvironment.writeEnvironmentToFile(activity);
@@ -738,8 +766,72 @@ public final class TermuxInstaller {
 
     private static native byte[] getZip();
 
+    private static void renameOrMove(File src, File dst) throws IOException {
+        try {
+            Os.rename(src.getAbsolutePath(), dst.getAbsolutePath());
+        } catch (ErrnoException e) {
+            if (e.errno == OsConstants.EXDEV) {
+                Logger.logInfo(LOG_TAG, "EXDEV rename, falling back to copy+delete: " + src + " -> " + dst);
+                copyRecursive(src, dst);
+                deleteRecursive(src);
+            } else {
+                throw new IOException("rename failed: " + e.getMessage(), e);
+            }
+        }
+    }
+
+    private static void copyRecursive(File src, File dest) throws IOException {
+        try {
+            StructStat st = Os.lstat(src.getAbsolutePath());
+            if (OsConstants.S_ISLNK(st.st_mode)) {
+                String target = Os.readlink(src.getAbsolutePath());
+                Os.symlink(target, dest.getAbsolutePath());
+                return;
+            }
+        } catch (ErrnoException e) {
+        }
+
+        if (src.isDirectory()) {
+            if (!dest.isDirectory() && !dest.mkdirs()) {
+                throw new IOException("Failed to create directory: " + dest);
+            }
+            File[] children = src.listFiles();
+            if (children != null) {
+                for (File child : children) {
+                    copyRecursive(child, new File(dest, child.getName()));
+                }
+            }
+        } else if (src.isFile()) {
+            File parent = dest.getParentFile();
+            if (parent != null && !parent.isDirectory() && !parent.mkdirs()) {
+                throw new IOException("Failed to create directory: " + parent);
+            }
+            try (InputStream in = new BufferedInputStream(new FileInputStream(src));
+                 OutputStream out = new BufferedOutputStream(new FileOutputStream(dest))) {
+                byte[] buf = new byte[65536];
+                int n;
+                while ((n = in.read(buf)) != -1) {
+                    out.write(buf, 0, n);
+                }
+            }
+            try {
+                StructStat st = Os.stat(src.getAbsolutePath());
+                Os.chmod(dest.getAbsolutePath(), st.st_mode & 0777);
+            } catch (Exception ignored) {}
+        } else if (src.exists()) {
+            throw new IOException("Unsupported file type: " + src);
+        }
+    }
+
     private static void deleteRecursive(File f) {
         if (f == null || !f.exists()) return;
+        try {
+            StructStat st = Os.lstat(f.getAbsolutePath());
+            if (OsConstants.S_ISLNK(st.st_mode)) {
+                f.delete();
+                return;
+            }
+        } catch (Exception ignored) {}
         if (f.isDirectory()) {
             File[] children = f.listFiles();
             if (children != null) {

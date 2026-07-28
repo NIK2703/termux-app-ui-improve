@@ -868,4 +868,14 @@
     <string name="error_tar_extractor_unsupported_type">Unsupported entry type 0x%1$s: %2$s</string>
     <string name="error_tar_extractor_empty_path">Regular file with empty path</string>
     <string name="error_tar_extractor_size_mismatch">Size mismatch: %1$s</string>
+
+    <!-- BootstrapDownloadService humanSize -->
+    <string name="human_size_format" formatted="false">%.1f %s</string>
+    <string name="human_size_progress_format">%1$s / %2$s</string>
+    <string-array name="human_size_units">
+        <item>B</item>
+        <item>KB</item>
+        <item>MB</item>
+        <item>GB</item>
+    </string-array>
 </resources>

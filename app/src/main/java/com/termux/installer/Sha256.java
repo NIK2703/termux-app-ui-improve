@@ -1,5 +1,7 @@
 package com.termux.installer;
 
+import android.content.Context;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -11,7 +13,7 @@ public final class Sha256 {
 
     private Sha256() {}
 
-    public static String hexOfFile(File file) throws IOException {
+    public static String hexOfFile(Context context, File file) throws IOException {
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-256");
             byte[] buffer = new byte[65536];
@@ -23,7 +25,7 @@ public final class Sha256 {
             }
             return bytesToHex(md.digest());
         } catch (NoSuchAlgorithmException e) {
-            throw new IOException("SHA-256 not available", e);
+            throw new IOException(context.getString(com.termux.R.string.error_sha256_not_available), e);
         }
     }
 

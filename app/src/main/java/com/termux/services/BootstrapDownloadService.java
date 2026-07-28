@@ -129,13 +129,17 @@ public class BootstrapDownloadService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent == null) { stopSelf(); return START_NOT_STICKY; }
         mForegroundMode = !intent.getBooleanExtra(EXTRA_NO_FOREGROUND, false);
+        Logger.i("BootstrapDownloadService", "onStartCommand action=" + intent.getAction()
+            + " foreground=" + mForegroundMode);
         if (mForegroundMode) startForegroundWithPermissionCheck();
         String action = intent.getAction();
         if (ACTION_DOWNLOAD.equals(action)) {
             BootstrapSource source = (BootstrapSource) intent.getSerializableExtra(EXTRA_SOURCE);
+            Logger.i("BootstrapDownloadService", "ACTION_DOWNLOAD source=" + (source != null ? source.name : "null"));
             if (source != null) startDownloadTask(source);
         } else if (ACTION_INSTALL_LOCAL.equals(action)) {
             Uri uri = intent.getParcelableExtra(EXTRA_URI);
+            Logger.i("BootstrapDownloadService", "ACTION_INSTALL_LOCAL uri=" + uri);
             if (uri != null) startLocalInstallTask(uri);
         }
         return START_NOT_STICKY;
@@ -163,6 +167,7 @@ public class BootstrapDownloadService extends Service {
 
     @Override
     public void onDestroy() {
+        Logger.i("BootstrapDownloadService", "onDestroy");
         super.onDestroy();
         releaseWakeLock();
         mExecutor.shutdownNow();
@@ -177,6 +182,7 @@ public class BootstrapDownloadService extends Service {
 
     private void startDownloadTask(BootstrapSource source) {
         acquireWakeLock();
+        Logger.i("BootstrapDownloadService", "startDownloadTask: " + source.name);
         setState(Status.CONNECTING,
             getString(com.termux.R.string.bootstrap_download_status_connecting),
             getString(com.termux.R.string.bootstrap_download_progress_preparing),
@@ -187,6 +193,7 @@ public class BootstrapDownloadService extends Service {
                 checkStorageSpace(getFilesDir());
 
                 File downloaded = downloadAndVerify(source);
+                Logger.i("BootstrapDownloadService", "downloadAndVerify returned: " + downloaded.getAbsolutePath() + " size=" + downloaded.length());
 
                 setState(Status.INSTALLING,
                     getString(com.termux.R.string.bootstrap_download_status_installing),
@@ -224,6 +231,7 @@ public class BootstrapDownloadService extends Service {
 
     private void startLocalInstallTask(Uri uri) {
         acquireWakeLock();
+        Logger.i("BootstrapDownloadService", "startLocalInstallTask: uri=" + uri);
         setState(Status.INSTALLING,
             getString(com.termux.R.string.bootstrap_download_status_installing),
             getString(com.termux.R.string.bootstrap_download_progress_copying_local),
@@ -345,6 +353,7 @@ public class BootstrapDownloadService extends Service {
 
     private File downloadAndVerify(BootstrapSource source) throws Exception {
         String resolvedUrl = source.resolveUrl(AbiUtils.getDeviceArch());
+        Logger.i("BootstrapDownloadService", "downloadAndVerify: url=" + resolvedUrl);
 
         if (!resolvedUrl.startsWith("https://"))
             throw new IOException(getString(com.termux.R.string.error_bootstrap_download_https));
@@ -358,13 +367,18 @@ public class BootstrapDownloadService extends Service {
 
         if (finalFile.exists()) {
             if (source.sha256 != null) {
-                String existing = Sha256.hexOfFile(finalFile);
-                if (existing.equalsIgnoreCase(source.sha256)) return finalFile;
+                String existing = Sha256.hexOfFile(BootstrapDownloadService.this, finalFile);
+                Logger.i("BootstrapDownloadService", "cached file exists, sha256=" + existing);
+                if (existing.equalsIgnoreCase(source.sha256)) {
+                    Logger.i("BootstrapDownloadService", "cache hit, returning cached file");
+                    return finalFile;
+                }
             }
             finalFile.delete();
         }
 
         File tempFile = new File(cacheDir, hashPart + ".part");
+        Logger.i("BootstrapDownloadService", "downloading to tempFile=" + tempFile);
         // Delete stale part file
         if (tempFile.exists()) tempFile.delete();
 
@@ -379,6 +393,7 @@ public class BootstrapDownloadService extends Service {
             conn.connect();
 
             int responseCode = conn.getResponseCode();
+            Logger.i("BootstrapDownloadService", "HTTP response=" + responseCode + " content-length=" + conn.getContentLengthLong());
             if (responseCode != HttpURLConnection.HTTP_OK) {
                 throw new IOException(getString(com.termux.R.string.error_bootstrap_download_http, responseCode, resolvedUrl));
             }
@@ -401,18 +416,21 @@ public class BootstrapDownloadService extends Service {
                         final long t = total;
                         mMainHandler.post(() -> setState(Status.DOWNLOADING,
                             getString(com.termux.R.string.bootstrap_download_status_downloading),
-                            humanSize(d) + " / " + humanSize(t),
+                            getString(com.termux.R.string.human_size_progress_format, humanSize(d), humanSize(t)),
                             t > 0 ? (int)(100 * d / t) : 0, t <= 0, false, false));
                     }
                 }
             }
+
+            Logger.i("BootstrapDownloadService", "download complete: " + downloaded + " bytes");
 
             if (source.sha256 != null) {
                 setState(Status.VERIFYING,
                     getString(com.termux.R.string.bootstrap_download_status_verifying),
                     getString(com.termux.R.string.bootstrap_download_progress_checking_sha),
                     90, true, false, false);
-                String actual = Sha256.hexOfFile(tempFile);
+                String actual = Sha256.hexOfFile(BootstrapDownloadService.this, tempFile);
+                Logger.i("BootstrapDownloadService", "SHA-256 expected=" + source.sha256 + " actual=" + actual);
                 if (!actual.equalsIgnoreCase(source.sha256)) {
                     tempFile.delete();
                     throw new IOException(getString(com.termux.R.string.error_bootstrap_download_sha_mismatch, source.sha256, actual));
@@ -430,6 +448,8 @@ public class BootstrapDownloadService extends Service {
 
     private void setState(Status status, String statusMsg, String progressMsg,
                           int percent, boolean indeterminate, boolean success, boolean failed) {
+        Logger.i("BootstrapDownloadService", "setState: " + status + " pct=" + percent
+            + " msg=" + statusMsg + "/" + progressMsg);
         mState.status = status;
         mState.statusMessage = statusMsg;
         mState.progressMessage = progressMsg;
@@ -481,22 +501,28 @@ public class BootstrapDownloadService extends Service {
             if (pm != null) {
                 mWakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "termux:bootstrap");
                 mWakeLock.setReferenceCounted(false);
+                Logger.i("BootstrapDownloadService", "acquireWakeLock: created");
             }
         }
-        if (mWakeLock != null && !mWakeLock.isHeld())
+        if (mWakeLock != null && !mWakeLock.isHeld()) {
             mWakeLock.acquire();
+            Logger.i("BootstrapDownloadService", "acquireWakeLock: acquired");
+        }
     }
 
     private void releaseWakeLock() {
-        if (mWakeLock != null && mWakeLock.isHeld()) mWakeLock.release();
+        if (mWakeLock != null && mWakeLock.isHeld()) {
+            mWakeLock.release();
+            Logger.i("BootstrapDownloadService", "releaseWakeLock: released");
+        }
     }
 
-    private static String humanSize(long bytes) {
-        String[] units = {"B", "KB", "MB", "GB"};
+    private String humanSize(long bytes) {
+        String[] units = getResources().getStringArray(com.termux.R.array.human_size_units);
         double v = bytes;
         int u = 0;
         while (v >= 1024 && u < units.length - 1) { v /= 1024; u++; }
-        return String.format("%.1f %s", v, units[u]);
+        return String.format(java.util.Locale.US, getString(com.termux.R.string.human_size_format), v, units[u]);
     }
 
     private static final class Logger {

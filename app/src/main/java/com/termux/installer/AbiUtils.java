@@ -1,5 +1,6 @@
 package com.termux.installer;
 
+import android.content.Context;
 import android.os.Build;
 
 import com.termux.app.TermuxInstaller;
@@ -23,12 +24,11 @@ public final class AbiUtils {
         throw new RuntimeException("No supported ABIs on this device");
     }
 
-    public static void validateBootstrapArch(String manifestArch) throws TermuxInstaller.BootstrapException {
+    public static void validateBootstrapArch(Context context, String manifestArch) throws TermuxInstaller.BootstrapException {
         String deviceArch = getDeviceArch();
         if (!manifestArch.equals(deviceArch)) {
             throw new TermuxInstaller.BootstrapException(
-                "Bootstrap architecture '" + manifestArch + "' does not match device architecture '"
-                    + deviceArch + "'. Available ABIs: " + Arrays.toString(Build.SUPPORTED_ABIS));
+                context.getString(com.termux.R.string.error_abi_arch_mismatch, manifestArch, deviceArch, Arrays.toString(Build.SUPPORTED_ABIS)));
         }
     }
 

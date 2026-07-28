@@ -1,9 +1,12 @@
 package com.termux.installer;
 
+import android.content.Context;
+
+import com.termux.shared.logger.Logger;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.Properties;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -20,11 +23,12 @@ public class BootstrapManifest {
         this.version = version;
     }
 
-    public static BootstrapManifest fromZip(File zipFile) throws IOException {
+    public static BootstrapManifest fromZip(Context context, File zipFile) throws IOException {
         try (ZipFile zip = new ZipFile(zipFile)) {
             ZipEntry entry = zip.getEntry("BOOTSTRAP_INFO");
             if (entry == null) {
-                throw new IOException("Missing BOOTSTRAP_INFO in bootstrap zip");
+                Logger.logInfo("BootstrapManifest", "BOOTSTRAP_INFO not found in zip, skipping manifest validation");
+                return null;
             }
             Properties props = new Properties();
             try (InputStream in = zip.getInputStream(entry)) {
@@ -34,10 +38,10 @@ public class BootstrapManifest {
             String arch = props.getProperty("arch");
             String version = props.getProperty("version", "0");
             if (variant == null || variant.isEmpty()) {
-                throw new IOException("Missing 'variant' in BOOTSTRAP_INFO");
+                throw new IOException(context.getString(com.termux.R.string.error_bootstrap_manifest_missing_variant));
             }
             if (arch == null || arch.isEmpty()) {
-                throw new IOException("Missing 'arch' in BOOTSTRAP_INFO");
+                throw new IOException(context.getString(com.termux.R.string.error_bootstrap_manifest_missing_arch));
             }
             return new BootstrapManifest(variant, arch, version);
         }

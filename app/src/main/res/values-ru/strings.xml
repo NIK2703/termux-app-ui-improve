@@ -845,4 +845,20 @@
     <string name="error_tar_extractor_unsupported_type">Неподдерживаемый тип записи 0x%1$s: %2$s</string>
     <string name="error_tar_extractor_empty_path">Обычный файл с пустым путём</string>
     <string name="error_tar_extractor_size_mismatch">Несоответствие размера: %1$s</string>
+
+    <!-- Bootstrap error messages -->
+    <string name="error_bootstrap_install_in_progress">Установка bootstrap уже выполняется</string>
+    <string name="error_abi_arch_mismatch">Архитектура bootstrap \'%1$s\' не соответствует архитектуре устройства \'%2$s\'. Доступные ABI: %3$s</string>
+    <string name="error_bootstrap_manifest_missing_variant">Отсутствует \'variant\' в BOOTSTRAP_INFO</string>
+    <string name="error_bootstrap_manifest_missing_arch">Отсутствует \'arch\' в BOOTSTRAP_INFO</string>
+
+    <!-- Human-readable size formatting -->
+    <string name="human_size_format" formatted="false">%.1f %s</string>
+    <string name="human_size_progress_format">%1$s / %2$s</string>
+    <string-array name="human_size_units">
+        <item>B</item>
+        <item>KB</item>
+        <item>MB</item>
+        <item>GB</item>
+    </string-array>
 </resources>
