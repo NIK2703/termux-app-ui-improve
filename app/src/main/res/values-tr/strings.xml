@@ -535,13 +535,14 @@
     <string name="bootstrap_selector_install_local_message">Yerel bir başlangıç zip dosyası, rastgele kod çalıştırabilir. Yalnızca bu dosyaya güveniyorsanız devam edin.</string>
     <string name="bootstrap_selector_install">Yükle</string>
     <string name="bootstrap_selector_cancel">İptal</string>
-    <string name="bootstrap_selector_restore_title">Yedekten geri yükle</string>
-    <string name="bootstrap_selector_restore_message">Termux ortamı şuradan geri yüklensin:\n\n%1$s\n\nBu işlem mevcut Termux ön ekini değiştirecektir.</string>
-    <string name="bootstrap_selector_restore">Geri yükle</string>
-    <string name="bootstrap_selector_restoring">Yedek geri yükleniyor…</string>
-    <string name="bootstrap_selector_starting_restore">Geri yükleme başlatılıyor</string>
-    <string name="bootstrap_selector_restore_failed">Geri yükleme başarısız</string>
-    <string name="bootstrap_selector_ok">Tamam</string>
+    <string name="bootstrap_selector_title">Termux Başlangıç Yüklemesi</string>
+    <string name="bootstrap_selector_status_default">Yüklemek için bir başlangıç kaynağı seçin:</string>
+    <string name="bootstrap_selector_source_label">Kaynak:</string>
+    <string name="bootstrap_selector_download">Önerilen Başlangıcı İndir</string>
+    <string name="bootstrap_selector_pick_zip">Yerel .zip Dosyası Seç</string>
+    <string name="bootstrap_selector_retry">Yeniden Dene</string>
+    <string name="bootstrap_selector_offline">Minimum Çevrimdışı Kurulum (Temel Kabuk)</string>
+    <string name="bootstrap_progress_title">Başlangıç Yükleniyor</string>
 
     
     <string name="bootstrap_download_status_idle">Boşta</string>
@@ -564,13 +565,6 @@
     <string name="bootstrap_download_notification_title_failed">Başlangıç yüklemesi başarısız</string>
 
     
-    <string name="bootstrap_restore_error_in_progress">Yükleme zaten devam ediyor</string>
-    <string name="bootstrap_restore_progress_starting">Geri yükleme başlatılıyor</string>
-    <string name="bootstrap_restore_progress_extracting">Yedek çıkarılıyor</string>
-    <string name="bootstrap_restore_progress_validating">Ön ek doğrulanıyor</string>
-    <string name="bootstrap_restore_progress_writing_variant">Varyant yazılıyor</string>
-    <string name="bootstrap_restore_progress_complete">Geri yükleme tamamlandı</string>
-    <string name="bootstrap_restore_error_failed">Geri yükleme başarısız</string>
 
     
     <string name="file_receiver_bootstrap_not_installed">Başlangıç yüklü değil. Lütfen önce Termux uygulamasını açın.</string>
@@ -579,7 +573,6 @@
     <string name="run_command_bootstrap_not_installed">Başlangıç yüklü değil. Lütfen önce yüklemek için Termux uygulamasını açın.</string>
 
     
-    <string name="backup_restore_progress_restoring">Geri yükleniyor: %1$d öğe, %2$d MB</string>
 
     
     <string name="bootstrap_install_progress_verify_sha">Sağlama toplamı doğrulanıyor</string>
@@ -702,14 +695,6 @@
     <string name="error_bootstrap_symlink_no_parent">Sembolik bağın üst öğesi yok: %1$s</string>
     <string name="error_bootstrap_symlink_escapes_root">Sembolik bağ çıkarma kökünden çıkıyor: %1$s -&gt; %2$s</string>
     <string name="error_bootstrap_path_traversal">Zip girişi yol dolaşımı tespit edildi: %1$s</string>
-    <string name="error_bootstrap_create_files_dir">Dosya dizini oluşturulamıyor</string>
-    <string name="error_bootstrap_already_installed">Bootstrap zaten yüklü</string>
-    <string name="error_bootstrap_create_temp_dir2">Geçici dizin oluşturulamıyor</string>
-    <string name="error_bootstrap_open_backup_uri">Yedek URI\'sı açılamıyor</string>
-    <string name="error_bootstrap_no_bin_dir">Yedekte bin dizini yok</string>
-    <string name="error_bootstrap_bin_empty">Yedek bin\'i boş</string>
-    <string name="error_bootstrap_rename_prefix2">Mevcut ön ek yedek olarak yeniden adlandırılamıyor</string>
-    <string name="error_bootstrap_rename_temp2">Geçici dizin ön ek olarak yeniden adlandırılamıyor</string>
     <string name="error_bootstrap_no_symlinks">SYMLINKS.txt bulunamadı</string>
     <string name="error_bootstrap_move_prefix">Termux ön ek hazırlık dizini ön ek dizinine taşınamadı</string>
     <string name="error_bootstrap_embedded_lib">Gömülü bootstrap kütüphanesi mevcut değil</string>
@@ -731,16 +716,6 @@
     <string name="error_backup_io">G/Ç hatası: %1$s</string>
     <string name="error_tar_exit_code">tar %1$d koduyla çıktı</string>
 
-    <!-- TarGzExtractor error messages -->
-    <string name="error_tar_extractor_create_dir">Dizin oluşturulamıyor: %1$s</string>
-    <string name="error_tar_extractor_symlink">sembolik bağ başarısız: %1$s</string>
-    <string name="error_tar_extractor_parent_not_dir">Üst öğe bir dizin değil: %1$s</string>
-    <string name="error_tar_extractor_create_parent">Üst öğe oluşturulamıyor: %1$s</string>
-    <string name="error_tar_extractor_replace_non_dir">Dizin olmayan, dizinle değiştirilemiyor: %1$s</string>
-    <string name="error_tar_extractor_replace_dir">Dizin dosyayla değiştirilemiyor: %1$s</string>
-    <string name="error_tar_extractor_delete">Silinemiyor: %1$s</string>
-    <string name="error_tar_extractor_chmod">chmod başarısız: %1$s</string>
-    <string name="error_tar_extractor_truncated">Kesilmiş giriş</string>
 
     <!-- TermuxBootstrapState -->
     <string name="error_bootstrap_state_create_dir">etc/termux dizini oluşturulamadı</string>
@@ -758,15 +733,13 @@
     <string name="notification_bootstrap_crash_title">Bootstrap Hatası</string>
     <string name="notification_bootstrap_crash_body">## Bootstrap Hatası\n\n%1$s</string>
 
-    <!-- TarGzExtractor (private extraction errors) -->
-    <string name="error_tar_extractor_truncated_header">Kesilmiş başlık</string>
-    <string name="error_tar_extractor_too_many_metadata">Çok fazla meta veri girişi</string>
-    <string name="error_tar_extractor_too_many_entries">Çok fazla giriş</string>
-    <string name="error_tar_extractor_negative_size">Negatif giriş boyutu</string>
-    <string name="error_tar_extractor_entry_max_size">Giriş maksimum boyutu aştı: %1$s</string>
-    <string name="error_tar_extractor_metadata_too_large">Meta veri girişi çok büyük</string>
-    <string name="error_tar_extractor_archive_max_size">Arşiv maksimum toplam boyutu aştı</string>
-    <string name="error_tar_extractor_unsupported_type">Desteklenmeyen giriş türü 0x%1$s: %2$s</string>
-    <string name="error_tar_extractor_empty_path">Boş yola sahip normal dosya</string>
-    <string name="error_tar_extractor_size_mismatch">Boyut uyuşmazlığı: %1$s</string>
+    <!-- BootstrapDownloadService humanSize -->
+    <string name="human_size_format" formatted="false">%.1f %s</string>
+    <string name="human_size_progress_format">%1$s / %2$s</string>
+    <string-array name="human_size_units">
+        <item>B</item>
+        <item>KB</item>
+        <item>MB</item>
+        <item>GB</item>
+    </string-array>
 </resources>

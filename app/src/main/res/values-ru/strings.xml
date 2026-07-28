@@ -660,13 +660,14 @@
     <string name="bootstrap_selector_install_local_message">Локальный bootstrap-архив может выполнить произвольный код. Продолжайте, только если доверяете этому файлу.</string>
     <string name="bootstrap_selector_install">Установить</string>
     <string name="bootstrap_selector_cancel">Отмена</string>
-    <string name="bootstrap_selector_restore_title">Восстановить из резервной копии</string>
-    <string name="bootstrap_selector_restore_message">Восстановить окружение Termux из:\n\n%1$s\n\nЭто заменит существующий префикс Termux.</string>
-    <string name="bootstrap_selector_restore">Восстановить</string>
-    <string name="bootstrap_selector_restoring">Восстановление резервной копии…</string>
-    <string name="bootstrap_selector_starting_restore">Запуск восстановления</string>
-    <string name="bootstrap_selector_restore_failed">Восстановление не удалось</string>
-    <string name="bootstrap_selector_ok">ОК</string>
+    <string name="bootstrap_selector_title">Установка bootstrap для Termux</string>
+    <string name="bootstrap_selector_status_default">Выберите источник bootstrap для установки:</string>
+    <string name="bootstrap_selector_source_label">Источник:</string>
+    <string name="bootstrap_selector_download">Скачать рекомендуемый bootstrap</string>
+    <string name="bootstrap_selector_pick_zip">Выбрать локальный .zip-файл</string>
+    <string name="bootstrap_selector_retry">Повторить</string>
+    <string name="bootstrap_selector_offline">Установить минимальную офлайн-версию (базовая оболочка)</string>
+    <string name="bootstrap_progress_title">Установка bootstrap</string>
 
     
     <string name="bootstrap_download_status_idle">Ожидание</string>
@@ -689,13 +690,6 @@
     <string name="bootstrap_download_notification_title_failed">Установка bootstrap не удалась</string>
 
     
-    <string name="bootstrap_restore_error_in_progress">Установка уже выполняется</string>
-    <string name="bootstrap_restore_progress_starting">Запуск восстановления</string>
-    <string name="bootstrap_restore_progress_extracting">Извлечение резервной копии</string>
-    <string name="bootstrap_restore_progress_validating">Проверка префикса</string>
-    <string name="bootstrap_restore_progress_writing_variant">Запись варианта</string>
-    <string name="bootstrap_restore_progress_complete">Восстановление завершено</string>
-    <string name="bootstrap_restore_error_failed">Восстановление не удалось</string>
 
     
     <string name="file_receiver_bootstrap_not_installed">Bootstrap не установлен. Пожалуйста, сначала откройте приложение Termux.</string>
@@ -704,7 +698,6 @@
     <string name="run_command_bootstrap_not_installed">Bootstrap не установлен. Пожалуйста, откройте Termux для его установки.</string>
 
     
-    <string name="backup_restore_progress_restoring">Восстановление: %1$d записей, %2$d МБ</string>
 
     
     <string name="bootstrap_install_progress_verify_sha">Проверка контрольной суммы</string>
@@ -778,14 +771,6 @@
     <string name="error_bootstrap_symlink_no_parent">У симлинка нет родительского каталога: %1$s</string>
     <string name="error_bootstrap_symlink_escapes_root">Симлинк выходит за пределы корня извлечения: %1$s -&gt; %2$s</string>
     <string name="error_bootstrap_path_traversal">Обнаружен обход пути в zip-записи: %1$s</string>
-    <string name="error_bootstrap_create_files_dir">Не удаётся создать каталог files</string>
-    <string name="error_bootstrap_already_installed">Bootstrap уже установлен</string>
-    <string name="error_bootstrap_create_temp_dir2">Не удаётся создать временный каталог</string>
-    <string name="error_bootstrap_open_backup_uri">Не удаётся открыть URI резервной копии</string>
-    <string name="error_bootstrap_no_bin_dir">Резервная копия не содержит каталог bin</string>
-    <string name="error_bootstrap_bin_empty">Каталог bin резервной копии пуст</string>
-    <string name="error_bootstrap_rename_prefix2">Не удаётся переименовать существующий префикс в backup</string>
-    <string name="error_bootstrap_rename_temp2">Не удаётся переименовать временный каталог в prefix</string>
     <string name="error_bootstrap_no_symlinks">Файл SYMLINKS.txt не найден</string>
     <string name="error_bootstrap_move_prefix">Не удалось переместить staging-каталог префикса Termux в каталог префикса</string>
     <string name="error_bootstrap_embedded_lib">Встроенная bootstrap-библиотека недоступна</string>
@@ -807,16 +792,6 @@
     <string name="error_backup_io">Ошибка ввода-вывода: %1$s</string>
     <string name="error_tar_exit_code">tar завершился с кодом %1$d</string>
 
-    <!-- TarGzExtractor error messages -->
-    <string name="error_tar_extractor_create_dir">Не удаётся создать каталог: %1$s</string>
-    <string name="error_tar_extractor_symlink">Ошибка симлинка: %1$s</string>
-    <string name="error_tar_extractor_parent_not_dir">Родительский элемент не является каталогом: %1$s</string>
-    <string name="error_tar_extractor_create_parent">Не удаётся создать родительский каталог: %1$s</string>
-    <string name="error_tar_extractor_replace_non_dir">Не удаётся заменить не-каталог каталогом: %1$s</string>
-    <string name="error_tar_extractor_replace_dir">Не удаётся заменить каталог файлом: %1$s</string>
-    <string name="error_tar_extractor_delete">Не удаётся удалить: %1$s</string>
-    <string name="error_tar_extractor_chmod">Ошибка chmod: %1$s</string>
-    <string name="error_tar_extractor_truncated">Усечённая запись</string>
 
     <!-- TermuxBootstrapState -->
     <string name="error_bootstrap_state_create_dir">Не удалось создать каталог etc/termux</string>
@@ -834,17 +809,6 @@
     <string name="notification_bootstrap_crash_title">Ошибка Bootstrap</string>
     <string name="notification_bootstrap_crash_body">## Ошибка Bootstrap\n\n%1$s</string>
 
-    <!-- TarGzExtractor (private extraction errors) -->
-    <string name="error_tar_extractor_truncated_header">Усечённый заголовок</string>
-    <string name="error_tar_extractor_too_many_metadata">Слишком много записей метаданных</string>
-    <string name="error_tar_extractor_too_many_entries">Слишком много записей</string>
-    <string name="error_tar_extractor_negative_size">Отрицательный размер записи</string>
-    <string name="error_tar_extractor_entry_max_size">Запись превышает максимальный размер: %1$s</string>
-    <string name="error_tar_extractor_metadata_too_large">Запись метаданных слишком велика</string>
-    <string name="error_tar_extractor_archive_max_size">Архив превышает максимальный общий размер</string>
-    <string name="error_tar_extractor_unsupported_type">Неподдерживаемый тип записи 0x%1$s: %2$s</string>
-    <string name="error_tar_extractor_empty_path">Обычный файл с пустым путём</string>
-    <string name="error_tar_extractor_size_mismatch">Несоответствие размера: %1$s</string>
 
     <!-- Bootstrap error messages -->
     <string name="error_bootstrap_install_in_progress">Установка bootstrap уже выполняется</string>

@@ -526,13 +526,14 @@
     <string name="bootstrap_selector_install_local_message">ローカルのブートストラップzipは任意のコードを実行できます。このファイルを信頼する場合のみ続行してください。</string>
     <string name="bootstrap_selector_install">インストール</string>
     <string name="bootstrap_selector_cancel">キャンセル</string>
-    <string name="bootstrap_selector_restore_title">バックアップを復元</string>
-    <string name="bootstrap_selector_restore_message">次の場所からTermux環境を復元:\n\n%1$s\n\n既存のTermuxプレフィックスは置き換えられます。</string>
-    <string name="bootstrap_selector_restore">復元</string>
-    <string name="bootstrap_selector_restoring">バックアップを復元中…</string>
-    <string name="bootstrap_selector_starting_restore">復元を開始</string>
-    <string name="bootstrap_selector_restore_failed">復元に失敗しました</string>
-    <string name="bootstrap_selector_ok">OK</string>
+    <string name="bootstrap_selector_title">Termuxブートストラップのインストール</string>
+    <string name="bootstrap_selector_status_default">インストールするブートストラップソースを選択:</string>
+    <string name="bootstrap_selector_source_label">ソース:</string>
+    <string name="bootstrap_selector_download">推奨ブートストラップをダウンロード</string>
+    <string name="bootstrap_selector_pick_zip">ローカルの.zipファイルを選択</string>
+    <string name="bootstrap_selector_retry">再試行</string>
+    <string name="bootstrap_selector_offline">最小オフラインインストール（基本シェル）</string>
+    <string name="bootstrap_progress_title">ブートストラップをインストール中</string>
     <string name="bootstrap_download_status_idle">待機中</string>
     <string name="bootstrap_download_status_connecting">接続中</string>
     <string name="bootstrap_download_progress_preparing">ダウンロードを準備中</string>
@@ -551,16 +552,8 @@
     <string name="bootstrap_download_notification_title_success">ブートストラップがインストールされました</string>
     <string name="bootstrap_download_notification_text_success">タップしてTermuxを開く</string>
     <string name="bootstrap_download_notification_title_failed">ブートストラップのインストールに失敗しました</string>
-    <string name="bootstrap_restore_error_in_progress">インストールが既に進行中です</string>
-    <string name="bootstrap_restore_progress_starting">復元を開始中</string>
-    <string name="bootstrap_restore_progress_extracting">バックアップを展開中</string>
-    <string name="bootstrap_restore_progress_validating">プレフィックスを検証中</string>
-    <string name="bootstrap_restore_progress_writing_variant">バリアントを書き込み中</string>
-    <string name="bootstrap_restore_progress_complete">復元が完了しました</string>
-    <string name="bootstrap_restore_error_failed">復元に失敗しました</string>
     <string name="file_receiver_bootstrap_not_installed">ブートストラップがインストールされていません。先にTermuxアプリを開いてください。</string>
     <string name="run_command_bootstrap_not_installed">ブートストラップがインストールされていません。先にTermuxアプリを開いてインストールしてください。</string>
-    <string name="backup_restore_progress_restoring">復元中: %1$d エントリ、%2$d MB</string>
     <string name="bootstrap_install_progress_verify_sha">チェックサムを検証中</string>
     <string name="bootstrap_install_progress_verify_manifest">パッケージマニフェストを検証中</string>
     <string name="bootstrap_install_progress_extract">パッケージを展開中</string>
@@ -662,82 +655,63 @@
     <string name="error_bootstrap_duplicate_zip_entry">重複する zip エントリ: %1$s</string>
     <string name="error_bootstrap_directory_metadata_entry">メタデータ名を持つディレクトリエントリ: %1$s</string>
     <string name="error_bootstrap_failed_mkdir">mkdir に失敗しました: %1$s</string>
-    <string name="error_bootstrap_entry_too_large">エントリが大きすぎます: %1$s (%2$s バイト)</string>
-    <string name="error_bootstrap_compression_ratio">圧縮率を超えました: %1$s</string>
-    <string name="error_bootstrap_total_size_exceeded">展開後の合計サイズが制限を超えています</string>
-    <string name="error_bootstrap_too_many_entries">zip エントリが多すぎます</string>
-    <string name="error_bootstrap_symlink_parent_dir">シンボリックリンクの親ディレクトリの作成に失敗しました: %1$s</string>
-    <string name="error_bootstrap_symlink_create">シンボリックリンクの作成に失敗しました: %1$s -&gt; %2$s</string>
-    <string name="error_bootstrap_symlink_line">不正なシンボリックリンク行: %1$s</string>
-    <string name="error_bootstrap_unsupported_file_type">サポートされていないファイルタイプ: %1$s</string>
-    <string name="error_bootstrap_symlink_target_empty">空のシンボリックリンクターゲット: %1$s</string>
-    <string name="error_bootstrap_symlink_absolute">絶対パスのシンボリックリンクターゲットは許可されていません: %1$s</string>
-    <string name="error_bootstrap_symlink_no_parent">シンボリックリンクに親がありません: %1$s</string>
-    <string name="error_bootstrap_symlink_escapes_root">シンボリックリンクが展開ルートから脱出しています: %1$s -&gt; %2$s</string>
-    <string name="error_bootstrap_path_traversal">zip エントリのパストラバーサルが検出されました: %1$s</string>
-    <string name="error_bootstrap_create_files_dir">files ディレクトリを作成できません</string>
-    <string name="error_bootstrap_already_installed">ブートストラップは既にインストールされています</string>
-    <string name="error_bootstrap_create_temp_dir2">一時ディレクトリを作成できません</string>
-    <string name="error_bootstrap_open_backup_uri">バックアップ URI を開けません</string>
-    <string name="error_bootstrap_no_bin_dir">バックアップに bin ディレクトリがありません</string>
-    <string name="error_bootstrap_bin_empty">バックアップ bin が空です</string>
-    <string name="error_bootstrap_rename_prefix2">既存のプレフィックスをバックアップに名前変更できません</string>
-    <string name="error_bootstrap_rename_temp2">テンポラリをプレフィックスに名前変更できません</string>
-    <string name="error_bootstrap_no_symlinks">SYMLINKS.txt が見つかりません</string>
-    <string name="error_bootstrap_move_prefix">termux プレフィックスステージングをプレフィックスディレクトリに移動できませんでした</string>
-    <string name="error_bootstrap_embedded_lib">埋め込みブートストラップライブラリは利用できません</string>
+<string name="error_bootstrap_entry_too_large">エントリが大きすぎます: %1$s (%2$s バイト)</string>
+<string name="error_bootstrap_compression_ratio">圧縮率を超えました: %1$s</string>
+<string name="error_bootstrap_total_size_exceeded">展開後の合計サイズが制限を超えています</string>
+<string name="error_bootstrap_too_many_entries">zip エントリが多すぎます</string>
+<string name="error_bootstrap_symlink_parent_dir">シンボリックリンクの親ディレクトリの作成に失敗しました: %1$s</string>
+<string name="error_bootstrap_symlink_create">シンボリックリンクの作成に失敗しました: %1$s -&gt; %2$s</string>
+<string name="error_bootstrap_symlink_line">不正なシンボリックリンク行: %1$s</string>
+<string name="error_bootstrap_unsupported_file_type">サポートされていないファイルタイプ: %1$s</string>
+<string name="error_bootstrap_symlink_target_empty">空のシンボリックリンクターゲット: %1$s</string>
+<string name="error_bootstrap_symlink_absolute">絶対パスのシンボリックリンクターゲットは許可されていません: %1$s</string>
+<string name="error_bootstrap_symlink_no_parent">シンボリックリンクに親がありません: %1$s</string>
+<string name="error_bootstrap_symlink_escapes_root">シンボリックリンクが展開ルートから脱出しています: %1$s -&gt; %2$s</string>
+<string name="error_bootstrap_path_traversal">zip エントリのパストラバーサルが検出されました: %1$s</string>
+<string name="error_bootstrap_no_symlinks">SYMLINKS.txt が見つかりません</string>
+<string name="error_bootstrap_move_prefix">termux プレフィックスステージングをプレフィックスディレクトリに移動できませんでした</string>
+<string name="error_bootstrap_embedded_lib">埋め込みブートストラップライブラリは利用できません</string>
 
-    <!-- BootstrapDownloadService error messages -->
-    <string name="error_bootstrap_download_cache_dir">キャッシュディレクトリの作成に失敗しました</string>
-    <string name="error_bootstrap_download_read_uri">URI を読み取れません - 権限が取り消された可能性があります</string>
-    <string name="error_bootstrap_download_storage">ストレージが不足しています。少なくとも %1$s の空きが必要ですが、%2$s しかありません</string>
-    <string name="error_bootstrap_download_https">HTTPS URL のみ許可されています</string>
-    <string name="error_bootstrap_download_http">%2$s で HTTP %1$d</string>
-    <string name="error_bootstrap_download_sha_mismatch">SHA-256 が一致しません。期待値 %1$s、取得値 %2$s</string>
-    <string name="error_bootstrap_download_rename">一時ファイルの名前変更に失敗しました</string>
+<!-- BootstrapDownloadService error messages -->
+<string name="error_bootstrap_download_cache_dir">キャッシュディレクトリの作成に失敗しました</string>
+<string name="error_bootstrap_download_read_uri">URI を読み取れません - 権限が取り消された可能性があります</string>
+<string name="error_bootstrap_download_storage">ストレージが不足しています。少なくとも %1$s の空きが必要ですが、%2$s しかありません</string>
+<string name="error_bootstrap_download_https">HTTPS URL のみ許可されています</string>
+<string name="error_bootstrap_download_http">%2$s で HTTP %1$d</string>
+<string name="error_bootstrap_download_sha_mismatch">SHA-256 が一致しません。期待値 %1$s、取得値 %2$s</string>
+<string name="error_bootstrap_download_rename">一時ファイルの名前変更に失敗しました</string>
 
-    <!-- TermuxBackupUtils error messages -->
-    <string name="error_tar_health_check_exit">tar バイナリ健全性チェックに失敗しました (終了コード %1$d)</string>
-    <string name="error_tar_health_check">tar バイナリ健全性チェックに失敗しました: %1$s</string>
-    <string name="error_backup_recreate_dir">%1$s の再作成に失敗しました</string>
-    <string name="error_restore_io">復元 I/O エラー: %1$s</string>
-    <string name="error_backup_io">I/O エラー: %1$s</string>
-    <string name="error_tar_exit_code">tar がコード %1$d で終了しました</string>
+<!-- TermuxBackupUtils error messages -->
+<string name="error_tar_health_check_exit">tar バイナリ健全性チェックに失敗しました (終了コード %1$d)</string>
+<string name="error_tar_health_check">tar バイナリ健全性チェックに失敗しました: %1$s</string>
+<string name="error_backup_recreate_dir">%1$s の再作成に失敗しました</string>
+<string name="error_restore_io">復元 I/O エラー: %1$s</string>
+<string name="error_backup_io">I/O エラー: %1$s</string>
+<string name="error_tar_exit_code">tar がコード %1$d で終了しました</string>
 
-    <!-- TarGzExtractor error messages -->
-    <string name="error_tar_extractor_create_dir">ディレクトリを作成できません: %1$s</string>
-    <string name="error_tar_extractor_symlink">シンボリックリンクに失敗しました: %1$s</string>
-    <string name="error_tar_extractor_parent_not_dir">親がディレクトリではありません: %1$s</string>
-    <string name="error_tar_extractor_create_parent">親を作成できません: %1$s</string>
-    <string name="error_tar_extractor_replace_non_dir">ディレクトリ以外をディレクトリに置き換えできません: %1$s</string>
-    <string name="error_tar_extractor_replace_dir">ディレクトリをファイルに置き換えできません: %1$s</string>
-    <string name="error_tar_extractor_delete">削除できません: %1$s</string>
-    <string name="error_tar_extractor_chmod">chmod に失敗しました: %1$s</string>
-    <string name="error_tar_extractor_truncated">切り詰められたエントリ</string>
-    <string name="error_tar_extractor_truncated_header">切り詰められたヘッダー</string>
-    <string name="error_tar_extractor_too_many_metadata">メタデータエントリが多すぎます</string>
-    <string name="error_tar_extractor_too_many_entries">エントリが多すぎます</string>
-    <string name="error_tar_extractor_negative_size">負のエントリサイズ</string>
-    <string name="error_tar_extractor_entry_max_size">エントリが最大サイズを超えています: %1$s</string>
-    <string name="error_tar_extractor_metadata_too_large">メタデータエントリが大きすぎます</string>
-    <string name="error_tar_extractor_archive_max_size">アーカイブが最大合計サイズを超えています</string>
-    <string name="error_tar_extractor_unsupported_type">サポートされていないエントリタイプ 0x%1$s: %2$s</string>
-    <string name="error_tar_extractor_empty_path">パスが空の通常ファイル</string>
-    <string name="error_tar_extractor_size_mismatch">サイズ不一致: %1$s</string>
 
-    <!-- TermuxBootstrapState -->
-    <string name="error_bootstrap_state_create_dir">etc/termux ディレクトリの作成に失敗しました</string>
+<!-- TermuxBootstrapState -->
+<string name="error_bootstrap_state_create_dir">etc/termux ディレクトリの作成に失敗しました</string>
 
-    <!-- Sha256 -->
-    <string name="error_sha256_not_available">SHA-256 は利用できません</string>
+<!-- Sha256 -->
+<string name="error_sha256_not_available">SHA-256 は利用できません</string>
 
-    <!-- TermuxServiceConnectionManager -->
-    <string name="error_bind_service">bindService() に失敗しました</string>
+<!-- TermuxServiceConnectionManager -->
+<string name="error_bind_service">bindService() に失敗しました</string>
 
-    <!-- TermuxOpenReceiver -->
-    <string name="error_invalid_path">無効なパス: %1$s</string>
+<!-- TermuxOpenReceiver -->
+<string name="error_invalid_path">無効なパス: %1$s</string>
 
-    <!-- Bootstrap crash notification -->
-    <string name="notification_bootstrap_crash_title">ブートストラップエラー</string>
-    <string name="notification_bootstrap_crash_body">## ブートストラップエラー\n\n%1$s</string>
-    </resources>
+<!-- Bootstrap crash notification -->
+<string name="notification_bootstrap_crash_title">ブートストラップエラー</string>
+<string name="notification_bootstrap_crash_body">## ブートストラップエラー\n\n%1$s</string>
+<!-- Download progress human-readable size format -->
+<string name="human_size_format" formatted="false">%.1f %s</string>
+<string name="human_size_progress_format">%1$s / %2$s</string>
+<string-array name="human_size_units">
+    <item>B</item>
+    <item>KB</item>
+    <item>MB</item>
+    <item>GB</item>
+</string-array>
+</resources>

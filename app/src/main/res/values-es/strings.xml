@@ -468,13 +468,14 @@
     <string name="bootstrap_selector_install_local_message">Un archivo zip de bootstrap local puede ejecutar código arbitrario. Continúe solo si confía en este archivo.</string>
     <string name="bootstrap_selector_install">Instalar</string>
     <string name="bootstrap_selector_cancel">Cancelar</string>
-    <string name="bootstrap_selector_restore_title">Restaurar copia de seguridad</string>
-    <string name="bootstrap_selector_restore_message">Restaurar el entorno de Termux desde:\n\n%1$s\n\nEsto reemplazará cualquier prefijo de Termux existente.</string>
-    <string name="bootstrap_selector_restore">Restaurar</string>
-    <string name="bootstrap_selector_restoring">Restaurando copia de seguridad…</string>
-    <string name="bootstrap_selector_starting_restore">Iniciando restauración</string>
-    <string name="bootstrap_selector_restore_failed">Restauración fallida</string>
-    <string name="bootstrap_selector_ok">Aceptar</string>
+    <string name="bootstrap_selector_title">Instalación de bootstrap de Termux</string>
+    <string name="bootstrap_selector_status_default">Elige una fuente de bootstrap para instalar:</string>
+    <string name="bootstrap_selector_source_label">Fuente:</string>
+    <string name="bootstrap_selector_download">Descargar bootstrap recomendado</string>
+    <string name="bootstrap_selector_pick_zip">Elegir archivo .zip local</string>
+    <string name="bootstrap_selector_retry">Reintentar</string>
+    <string name="bootstrap_selector_offline">Instalar mínimo sin conexión (shell básico)</string>
+    <string name="bootstrap_progress_title">Instalando bootstrap</string>
 
     <!-- Bootstrap Download Service -->
     <string name="bootstrap_download_status_idle">Inactivo</string>
@@ -496,14 +497,6 @@
     <string name="bootstrap_download_notification_text_success">Toca para abrir Termux</string>
     <string name="bootstrap_download_notification_title_failed">Instalación de bootstrap fallida</string>
 
-    <!-- Bootstrap Restore (TermuxInstaller) -->
-    <string name="bootstrap_restore_error_in_progress">Ya hay una instalación en curso</string>
-    <string name="bootstrap_restore_progress_starting">Iniciando restauración</string>
-    <string name="bootstrap_restore_progress_extracting">Extrayendo copia de seguridad</string>
-    <string name="bootstrap_restore_progress_validating">Validando prefijo</string>
-    <string name="bootstrap_restore_progress_writing_variant">Escribiendo variante</string>
-    <string name="bootstrap_restore_progress_complete">Restauración completada</string>
-    <string name="bootstrap_restore_error_failed">Restauración fallida</string>
 
     <!-- File Receiver -->
     <string name="file_receiver_bootstrap_not_installed">Bootstrap no instalado. Abra la aplicación Termux primero.</string>
@@ -511,8 +504,6 @@
     <!-- Run Command Service -->
     <string name="run_command_bootstrap_not_installed">Bootstrap no instalado. Abra la aplicación Termux para instalarlo primero.</string>
 
-    <!-- Backup: restore progress via TarGzExtractor -->
-    <string name="backup_restore_progress_restoring">Restaurando: %1$d entradas, %2$d MB</string>
 
     <!-- Bootstrap install progress (TermuxInstaller) -->
     <string name="bootstrap_install_progress_verify_sha">Verificando suma de verificación</string>
@@ -623,14 +614,6 @@
     <string name="error_bootstrap_symlink_no_parent">El enlace simbólico no tiene padre: %1$s</string>
     <string name="error_bootstrap_symlink_escapes_root">El enlace simbólico escapa de la raíz de extracción: %1$s -&gt; %2$s</string>
     <string name="error_bootstrap_path_traversal">Detección de traversal de ruta en entrada zip: %1$s</string>
-    <string name="error_bootstrap_create_files_dir">No se puede crear el directorio de archivos</string>
-    <string name="error_bootstrap_already_installed">Bootstrap ya instalado</string>
-    <string name="error_bootstrap_create_temp_dir2">No se puede crear el directorio temporal</string>
-    <string name="error_bootstrap_open_backup_uri">No se puede abrir la URI de copia de seguridad</string>
-    <string name="error_bootstrap_no_bin_dir">La copia de seguridad no tiene directorio bin</string>
-    <string name="error_bootstrap_bin_empty">El directorio bin de la copia de seguridad está vacío</string>
-    <string name="error_bootstrap_rename_prefix2">No se puede renombrar el prefijo existente a copia de seguridad</string>
-    <string name="error_bootstrap_rename_temp2">No se puede renombrar temp a prefijo</string>
     <string name="error_bootstrap_no_symlinks">No se encontró SYMLINKS.txt</string>
     <string name="error_bootstrap_move_prefix">Error al mover el directorio de staging del prefijo de termux al directorio de prefijo</string>
     <string name="error_bootstrap_embedded_lib">Librería bootstrap integrada no disponible</string>
@@ -652,16 +635,6 @@
     <string name="error_backup_io">Error de E/S: %1$s</string>
     <string name="error_tar_exit_code">tar terminó con el código %1$d</string>
 
-    <!-- TarGzExtractor error messages -->
-    <string name="error_tar_extractor_create_dir">No se puede crear el directorio: %1$s</string>
-    <string name="error_tar_extractor_symlink">enlace simbólico fallido: %1$s</string>
-    <string name="error_tar_extractor_parent_not_dir">El padre no es un directorio: %1$s</string>
-    <string name="error_tar_extractor_create_parent">No se puede crear el directorio padre: %1$s</string>
-    <string name="error_tar_extractor_replace_non_dir">No se puede reemplazar un no-directorio con un directorio: %1$s</string>
-    <string name="error_tar_extractor_replace_dir">No se puede reemplazar un directorio con un archivo: %1$s</string>
-    <string name="error_tar_extractor_delete">No se puede eliminar: %1$s</string>
-    <string name="error_tar_extractor_chmod">chmod fallido: %1$s</string>
-    <string name="error_tar_extractor_truncated">Entrada truncada</string>
 
     <!-- TermuxBootstrapState -->
     <string name="error_bootstrap_state_create_dir">Error al crear el directorio etc/termux</string>
@@ -675,15 +648,13 @@
     <!-- TermuxOpenReceiver -->
     <string name="error_invalid_path">Ruta no válida: %1$s</string>
 
-    <!-- TarGzExtractor (private extraction errors) -->
-    <string name="error_tar_extractor_truncated_header">Cabecera truncada</string>
-    <string name="error_tar_extractor_too_many_metadata">Demasiadas entradas de metadatos</string>
-    <string name="error_tar_extractor_too_many_entries">Demasiadas entradas</string>
-    <string name="error_tar_extractor_negative_size">Tamaño de entrada negativo</string>
-    <string name="error_tar_extractor_entry_max_size">La entrada supera el tamaño máximo: %1$s</string>
-    <string name="error_tar_extractor_metadata_too_large">Entrada de metadatos demasiado grande</string>
-    <string name="error_tar_extractor_archive_max_size">El archivo supera el tamaño total máximo</string>
-    <string name="error_tar_extractor_unsupported_type">Tipo de entrada no compatible 0x%1$s: %2$s</string>
-    <string name="error_tar_extractor_empty_path">Archivo regular con ruta vacía</string>
-    <string name="error_tar_extractor_size_mismatch">Tamaño no coincide: %1$s</string>
+    <!-- BootstrapDownloadService humanSize -->
+    <string name="human_size_format" formatted="false">%.1f %s</string>
+    <string name="human_size_progress_format">%1$s / %2$s</string>
+    <string-array name="human_size_units">
+        <item>B</item>
+        <item>KB</item>
+        <item>MB</item>
+        <item>GB</item>
+    </string-array>
 </resources>

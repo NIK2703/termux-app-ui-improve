@@ -1,19 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:fillViewport="true">
+    android:background="?attr/colorSurface">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_gravity="center"
         android:orientation="vertical"
-        android:padding="24dp">
+        android:padding="16dp"
+        android:layout_marginHorizontal="24dp"
+        android:background="?attr/colorSurface"
+        android:elevation="4dp">
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Termux Bootstrap Installation"
+            android:text="@string/bootstrap_selector_title"
             android:textSize="20sp"
             android:textStyle="bold"
             android:layout_marginBottom="8dp" />
@@ -22,49 +26,34 @@
             android:id="@+id/status_text"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Choose a bootstrap source to install:"
             android:textSize="14sp"
-            android:layout_marginBottom="16dp" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Source:"
-            android:textSize="13sp"
-            android:layout_marginBottom="4dp" />
-
-        <Spinner
-            android:id="@+id/source_spinner"
-            android:layout_width="match_parent"
-            android:layout_height="48dp"
             android:layout_marginBottom="16dp" />
 
         <Button
             android:id="@+id/download_button"
             android:layout_width="match_parent"
-            android:layout_height="48dp"
-            android:text="Download Recommended Bootstrap"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:maxLines="2"
+            android:text="@string/bootstrap_selector_download"
             android:layout_marginBottom="8dp" />
 
         <Button
             android:id="@+id/pick_zip_button"
             android:layout_width="match_parent"
-            android:layout_height="48dp"
-            android:text="Choose Local .zip File"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:maxLines="2"
+            android:text="@string/bootstrap_selector_pick_zip"
             android:layout_marginBottom="8dp" />
-
-        <Button
-            android:id="@+id/restore_backup_button"
-            android:layout_width="match_parent"
-            android:layout_height="48dp"
-            android:text="Restore from Backup (.tar.gz)"
-            android:layout_marginBottom="16dp" />
 
         <Button
             android:id="@+id/offline_button"
             android:layout_width="match_parent"
-            android:layout_height="48dp"
-            android:text="Install Minimal Offline (Basic Shell)"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:maxLines="2"
+            android:text="@string/bootstrap_selector_offline"
             android:layout_marginBottom="16dp"
             android:visibility="gone" />
 
@@ -87,10 +76,12 @@
         <Button
             android:id="@+id/retry_button"
             android:layout_width="match_parent"
-            android:layout_height="48dp"
-            android:text="Retry"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:maxLines="2"
+            android:text="@string/bootstrap_selector_retry"
             android:visibility="gone" />
 
     </LinearLayout>
 
-</ScrollView>
+</FrameLayout>

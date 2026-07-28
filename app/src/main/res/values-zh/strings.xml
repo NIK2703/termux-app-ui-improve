@@ -528,13 +528,6 @@
     <string name="bootstrap_selector_install_local_message">本地引导程序 ZIP 可以执行任意代码。请仅在您信任此文件时继续。</string>
     <string name="bootstrap_selector_install">安装</string>
     <string name="bootstrap_selector_cancel">取消</string>
-    <string name="bootstrap_selector_restore_title">恢复备份</string>
-    <string name="bootstrap_selector_restore_message">从以下位置恢复 Termux 环境：\n\n%1$s\n\n这将替换现有的 Termux 前缀。</string>
-    <string name="bootstrap_selector_restore">恢复</string>
-    <string name="bootstrap_selector_restoring">正在恢复备份…</string>
-    <string name="bootstrap_selector_starting_restore">开始恢复</string>
-    <string name="bootstrap_selector_restore_failed">恢复失败</string>
-    <string name="bootstrap_selector_ok">确定</string>
 
     <!-- Bootstrap Download Service -->
     <string name="bootstrap_download_status_idle">空闲</string>
@@ -556,14 +549,6 @@
     <string name="bootstrap_download_notification_text_success">点击打开 Termux</string>
     <string name="bootstrap_download_notification_title_failed">引导程序安装失败</string>
 
-    <!-- Bootstrap Restore (TermuxInstaller) -->
-    <string name="bootstrap_restore_error_in_progress">安装已在进行中</string>
-    <string name="bootstrap_restore_progress_starting">开始恢复</string>
-    <string name="bootstrap_restore_progress_extracting">正在解压备份</string>
-    <string name="bootstrap_restore_progress_validating">正在验证前缀</string>
-    <string name="bootstrap_restore_progress_writing_variant">正在写入变体</string>
-    <string name="bootstrap_restore_progress_complete">恢复完成</string>
-    <string name="bootstrap_restore_error_failed">恢复失败</string>
 
     <!-- File Receiver -->
     <string name="file_receiver_bootstrap_not_installed">引导程序未安装。请先打开 Termux 应用。</string>
@@ -571,8 +556,6 @@
     <!-- Run Command Service -->
     <string name="run_command_bootstrap_not_installed">引导程序未安装。请先打开 Termux 应用以进行安装。</string>
 
-    <!-- Backup: restore progress via TarGzExtractor -->
-    <string name="backup_restore_progress_restoring">正在恢复：%1$d 项，%2$d MB</string>
 
     <!-- Bootstrap install progress (TermuxInstaller) -->
     <string name="bootstrap_install_progress_verify_sha">正在验证校验和</string>
@@ -666,14 +649,6 @@
     <string name="error_bootstrap_symlink_no_parent">符号链接无父目录：%1$s</string>
     <string name="error_bootstrap_symlink_escapes_root">符号链接超出提取根目录：%1$s -&gt; %2$s</string>
     <string name="error_bootstrap_path_traversal">检测到 zip 条目路径遍历：%1$s</string>
-    <string name="error_bootstrap_create_files_dir">无法创建文件目录</string>
-    <string name="error_bootstrap_already_installed">引导程序已安装</string>
-    <string name="error_bootstrap_create_temp_dir2">无法创建临时目录</string>
-    <string name="error_bootstrap_open_backup_uri">无法打开备份 URI</string>
-    <string name="error_bootstrap_no_bin_dir">备份没有 bin 目录</string>
-    <string name="error_bootstrap_bin_empty">备份 bin 目录为空</string>
-    <string name="error_bootstrap_rename_prefix2">无法重命名现有前缀为备份</string>
-    <string name="error_bootstrap_rename_temp2">无法将临时目录重命名为前缀</string>
     <string name="error_bootstrap_no_symlinks">未遇到 SYMLINKS.txt</string>
     <string name="error_bootstrap_move_prefix">将 termux 前缀暂存移动到前缀目录失败</string>
     <string name="error_bootstrap_embedded_lib">嵌入式引导程序库不可用</string>
@@ -695,16 +670,6 @@
     <string name="error_backup_io">I/O 错误：%1$s</string>
     <string name="error_tar_exit_code">tar 退出代码 %1$d</string>
 
-    <!-- TarGzExtractor error messages -->
-    <string name="error_tar_extractor_create_dir">无法创建目录：%1$s</string>
-    <string name="error_tar_extractor_symlink">符号链接失败：%1$s</string>
-    <string name="error_tar_extractor_parent_not_dir">父目录不是目录：%1$s</string>
-    <string name="error_tar_extractor_create_parent">无法创建父目录：%1$s</string>
-    <string name="error_tar_extractor_replace_non_dir">无法用目录替换非目录：%1$s</string>
-    <string name="error_tar_extractor_replace_dir">无法用文件替换目录：%1$s</string>
-    <string name="error_tar_extractor_delete">无法删除：%1$s</string>
-    <string name="error_tar_extractor_chmod">chmod 失败：%1$s</string>
-    <string name="error_tar_extractor_truncated">截断的条目</string>
 
     <!-- TermuxBootstrapState -->
     <string name="error_bootstrap_state_create_dir">创建 etc/termux 目录失败</string>
@@ -722,15 +687,22 @@
     <string name="notification_bootstrap_crash_title">引导程序错误</string>
     <string name="notification_bootstrap_crash_body">## 引导程序错误\n\n%1$s</string>
 
-    <!-- TarGzExtractor (private extraction errors) -->
-    <string name="error_tar_extractor_truncated_header">截断的头部</string>
-    <string name="error_tar_extractor_too_many_metadata">元数据条目过多</string>
-    <string name="error_tar_extractor_too_many_entries">条目过多</string>
-    <string name="error_tar_extractor_negative_size">负数的条目大小</string>
-    <string name="error_tar_extractor_entry_max_size">条目超出最大大小：%1$s</string>
-    <string name="error_tar_extractor_metadata_too_large">元数据条目过大</string>
-    <string name="error_tar_extractor_archive_max_size">归档超出最大总大小</string>
-    <string name="error_tar_extractor_unsupported_type">不支持的条目类型 0x%1$s：%2$s</string>
-    <string name="error_tar_extractor_empty_path">路径为空的常规文件</string>
-    <string name="error_tar_extractor_size_mismatch">大小不匹配：%1$s</string>
+    <!-- Bootstrap/backup strings added for i18n completeness -->
+    <string name="bootstrap_selector_title">Termux 引导程序安装</string>
+    <string name="bootstrap_selector_status_default">选择引导程序源以开始安装：</string>
+    <string name="bootstrap_selector_source_label">来源：</string>
+    <string name="bootstrap_selector_download">下载推荐的引导程序</string>
+    <string name="bootstrap_selector_pick_zip">选择本地 .zip 文件</string>
+    <string name="bootstrap_selector_retry">重试</string>
+    <string name="bootstrap_selector_offline">安装最小离线包（基础 Shell）</string>
+    <string name="bootstrap_progress_title">正在安装引导程序</string>
+    <string name="human_size_format" formatted="false">%.1f %s</string>
+    <string name="human_size_progress_format">%1$s / %2$s</string>
+    <string-array name="human_size_units">
+        <item>B</item>
+        <item>KB</item>
+        <item>MB</item>
+        <item>GB</item>
+    </string-array>
+
 </resources>

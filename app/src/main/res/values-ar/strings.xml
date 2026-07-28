@@ -493,13 +493,6 @@
     <string name="bootstrap_selector_install_local_message">ملف التمهيد المحلي المضغوط يمكنه تنفيذ أي كود. استمر فقط إذا كنت تثق بهذا الملف.</string>
     <string name="bootstrap_selector_install">تثبيت</string>
     <string name="bootstrap_selector_cancel">إلغاء</string>
-    <string name="bootstrap_selector_restore_title">استعادة النسخة الاحتياطية</string>
-    <string name="bootstrap_selector_restore_message">استعادة بيئة Termux من:\n\n%1$s\n\nسيؤدي هذا إلى استبدال أي بادئة Termux موجودة.</string>
-    <string name="bootstrap_selector_restore">استعادة</string>
-    <string name="bootstrap_selector_restoring">جارٍ استعادة النسخة الاحتياطية…</string>
-    <string name="bootstrap_selector_starting_restore">بدء الاستعادة</string>
-    <string name="bootstrap_selector_restore_failed">فشلت الاستعادة</string>
-    <string name="bootstrap_selector_ok">موافق</string>
 
     <!-- Bootstrap Download Service -->
     <string name="bootstrap_download_status_idle">خامل</string>
@@ -521,14 +514,6 @@
     <string name="bootstrap_download_notification_text_success">اضغط لفتح Termux</string>
     <string name="bootstrap_download_notification_title_failed">فشل تثبيت التمهيد</string>
 
-    <!-- Bootstrap Restore (TermuxInstaller) -->
-    <string name="bootstrap_restore_error_in_progress">التثبيت قيد التنفيذ بالفعل</string>
-    <string name="bootstrap_restore_progress_starting">بدء الاستعادة</string>
-    <string name="bootstrap_restore_progress_extracting">جارٍ استخراج النسخة الاحتياطية</string>
-    <string name="bootstrap_restore_progress_validating">جارٍ التحقق من البادئة</string>
-    <string name="bootstrap_restore_progress_writing_variant">جارٍ كتابة النوع</string>
-    <string name="bootstrap_restore_progress_complete">اكتملت الاستعادة</string>
-    <string name="bootstrap_restore_error_failed">فشلت الاستعادة</string>
 
     <!-- File Receiver -->
     <string name="file_receiver_bootstrap_not_installed">لم يتم تثبيت التمهيد. يُرجى فتح تطبيق Termux أولاً.</string>
@@ -536,8 +521,6 @@
     <!-- Run Command Service -->
     <string name="run_command_bootstrap_not_installed">لم يتم تثبيت التمهيد. يُرجى فتح تطبيق Termux لتثبيته أولاً.</string>
 
-    <!-- Backup: restore progress via TarGzExtractor -->
-    <string name="backup_restore_progress_restoring">جارٍ الاستعادة: %1$d مدخلاً، %2$d ميغابايت</string>
 
     <!-- Bootstrap install progress (TermuxInstaller) -->
     <string name="bootstrap_install_progress_verify_sha">جارٍ التحقق من المجموع الاختباري</string>
@@ -649,14 +632,6 @@
     <string name="error_bootstrap_symlink_no_parent">الرابط الرمزي ليس له مجلد أصلي: %1$s</string>
     <string name="error_bootstrap_symlink_escapes_root">الرابط الرمزي يخرج عن جذر الاستخراج: %1$s -&gt; %2$s</string>
     <string name="error_bootstrap_path_traversal">تم اكتشاف اجتياز مسار الإدخال المضغوط: %1$s</string>
-    <string name="error_bootstrap_create_files_dir">لا يمكن إنشاء مجلد الملفات</string>
-    <string name="error_bootstrap_already_installed">التمهيد مثبت بالفعل</string>
-    <string name="error_bootstrap_create_temp_dir2">لا يمكن إنشاء المجلد المؤقت</string>
-    <string name="error_bootstrap_open_backup_uri">لا يمكن فتح URI النسخة الاحتياطية</string>
-    <string name="error_bootstrap_no_bin_dir">النسخة الاحتياطية لا تحتوي على مجلد bin</string>
-    <string name="error_bootstrap_bin_empty">مجلد bin في النسخة الاحتياطية فارغ</string>
-    <string name="error_bootstrap_rename_prefix2">لا يمكن إعادة تسمية البادئة الحالية إلى نسخة احتياطية</string>
-    <string name="error_bootstrap_rename_temp2">لا يمكن إعادة تسمية المجلد المؤقت إلى بادئة</string>
     <string name="error_bootstrap_no_symlinks">لم يتم العثور على SYMLINKS.txt</string>
     <string name="error_bootstrap_move_prefix">فشل نقل المرحلة المؤقتة لبادئة termux إلى مجلد البادئة</string>
     <string name="error_bootstrap_embedded_lib">مكتبة التمهيد المضمنة غير متوفرة</string>
@@ -678,16 +653,6 @@
     <string name="error_backup_io">خطأ إدخال/إخراج: %1$s</string>
     <string name="error_tar_exit_code">tar انتهى برمز %1$d</string>
 
-    <!-- TarGzExtractor error messages -->
-    <string name="error_tar_extractor_create_dir">لا يمكن إنشاء المجلد: %1$s</string>
-    <string name="error_tar_extractor_symlink">فشل الرابط الرمزي: %1$s</string>
-    <string name="error_tar_extractor_parent_not_dir">المجلد الأصلي ليس مجلداً: %1$s</string>
-    <string name="error_tar_extractor_create_parent">لا يمكن إنشاء المجلد الأصلي: %1$s</string>
-    <string name="error_tar_extractor_replace_non_dir">لا يمكن استبدال غير مجلد بمجلد: %1$s</string>
-    <string name="error_tar_extractor_replace_dir">لا يمكن استبدال مجلد بملف: %1$s</string>
-    <string name="error_tar_extractor_delete">لا يمكن الحذف: %1$s</string>
-    <string name="error_tar_extractor_chmod">فشل chmod: %1$s</string>
-    <string name="error_tar_extractor_truncated">إدخال مقطوع</string>
 
     <!-- TermuxBootstrapState -->
     <string name="error_bootstrap_state_create_dir">فشل إنشاء مجلد etc/termux</string>
@@ -705,15 +670,21 @@
     <string name="notification_bootstrap_crash_title">خطأ في التمهيد</string>
     <string name="notification_bootstrap_crash_body">## خطأ في التمهيد\n\n%1$s</string>
 
-    <!-- TarGzExtractor (private extraction errors) -->
-    <string name="error_tar_extractor_truncated_header">رأس مقطوع</string>
-    <string name="error_tar_extractor_too_many_metadata">عدد كبير جداً من إدخالات البيانات الوصفية</string>
-    <string name="error_tar_extractor_too_many_entries">عدد كبير جداً من الإدخالات</string>
-    <string name="error_tar_extractor_negative_size">حجم إدخال سالب</string>
-    <string name="error_tar_extractor_entry_max_size">الإدخال يتجاوز الحد الأقصى للحجم: %1$s</string>
-    <string name="error_tar_extractor_metadata_too_large">إدخال البيانات الوصفية كبير جداً</string>
-    <string name="error_tar_extractor_archive_max_size">الأرشيف يتجاوز الحد الأقصى للحجم الإجمالي</string>
-    <string name="error_tar_extractor_unsupported_type">نوع إدخال غير مدعوم 0x%1$s: %2$s</string>
-    <string name="error_tar_extractor_empty_path">ملف عادي بمسار فارغ</string>
-    <string name="error_tar_extractor_size_mismatch">عدم تطابق الحجم: %1$s</string>
+    <!-- Bootstrap/backup strings added for i18n completeness -->
+    <string name="bootstrap_selector_title">تثبيت تمهيد Termux</string>
+    <string name="bootstrap_selector_status_default">اختر مصدر تمهيد للتثبيت:</string>
+    <string name="bootstrap_selector_source_label">المصدر:</string>
+    <string name="bootstrap_selector_download">تنزيل التمهيد الموصى به</string>
+    <string name="bootstrap_selector_pick_zip">اختر ملف .zip محلي</string>
+    <string name="bootstrap_selector_retry">إعادة المحاولة</string>
+    <string name="bootstrap_selector_offline">تثبيت الحد الأدنى دون اتصال (صدفة أساسية)</string>
+    <string name="bootstrap_progress_title">جاري تثبيت التمهيد</string>
+    <string name="human_size_format" formatted="false">%.1f %s</string>
+    <string name="human_size_progress_format">%1$s / %2$s</string>
+    <string-array name="human_size_units">
+        <item>B</item>
+        <item>KB</item>
+        <item>MB</item>
+        <item>GB</item>
+    </string-array>
 </resources>

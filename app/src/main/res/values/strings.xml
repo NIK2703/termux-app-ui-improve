@@ -713,14 +713,15 @@
     <string name="bootstrap_selector_install_local_title">Install local bootstrap?</string>
     <string name="bootstrap_selector_install_local_message">A local bootstrap zip can execute arbitrary code. Only continue if you trust this file.</string>
     <string name="bootstrap_selector_install">Install</string>
+    <string name="bootstrap_selector_title">Termux Bootstrap Installation</string>
+    <string name="bootstrap_selector_status_default">Choose a bootstrap source to install:</string>
+
+    <string name="bootstrap_selector_download">Download Recommended Bootstrap</string>
+    <string name="bootstrap_selector_pick_zip">Choose Local .zip File</string>
+    <string name="bootstrap_selector_retry">Retry</string>
     <string name="bootstrap_selector_cancel">Cancel</string>
-    <string name="bootstrap_selector_restore_title">Restore backup</string>
-    <string name="bootstrap_selector_restore_message">Restore Termux environment from:\n\n%1$s\n\nThis will replace any existing Termux prefix.</string>
-    <string name="bootstrap_selector_restore">Restore</string>
-    <string name="bootstrap_selector_restoring">Restoring backup…</string>
-    <string name="bootstrap_selector_starting_restore">Starting restore</string>
-    <string name="bootstrap_selector_restore_failed">Restore failed</string>
-    <string name="bootstrap_selector_ok">OK</string>
+    <string name="bootstrap_selector_offline">Install Minimal Offline (Basic Shell)</string>
+    <string name="bootstrap_progress_title">Installing Bootstrap</string>
 
     <!-- Bootstrap Download Service -->
     <string name="bootstrap_download_status_idle">Idle</string>
@@ -742,23 +743,11 @@
     <string name="bootstrap_download_notification_text_success">Tap to open Termux</string>
     <string name="bootstrap_download_notification_title_failed">Bootstrap installation failed</string>
 
-    <!-- Bootstrap Restore (TermuxInstaller) -->
-    <string name="bootstrap_restore_error_in_progress">Install already in progress</string>
-    <string name="bootstrap_restore_progress_starting">Starting restore</string>
-    <string name="bootstrap_restore_progress_extracting">Extracting backup</string>
-    <string name="bootstrap_restore_progress_validating">Validating prefix</string>
-    <string name="bootstrap_restore_progress_writing_variant">Writing variant</string>
-    <string name="bootstrap_restore_progress_complete">Restore complete</string>
-    <string name="bootstrap_restore_error_failed">Restore failed</string>
-
     <!-- File Receiver -->
     <string name="file_receiver_bootstrap_not_installed">Bootstrap not installed. Please open Termux app first.</string>
 
     <!-- Run Command Service -->
     <string name="run_command_bootstrap_not_installed">Bootstrap not installed. Please open Termux app to install it first.</string>
-
-    <!-- Backup: restore progress via TarGzExtractor -->
-    <string name="backup_restore_progress_restoring">Restoring: %1$d entries, %2$d MB</string>
 
     <!-- Bootstrap install progress (TermuxInstaller) -->
     <string name="bootstrap_install_progress_verify_sha">Verifying checksum</string>
@@ -801,14 +790,6 @@
     <string name="error_bootstrap_symlink_no_parent">Symlink has no parent: %1$s</string>
     <string name="error_bootstrap_symlink_escapes_root">Symlink escapes extraction root: %1$s -&gt; %2$s</string>
     <string name="error_bootstrap_path_traversal">Zip entry path traversal detected: %1$s</string>
-    <string name="error_bootstrap_create_files_dir">Cannot create files dir</string>
-    <string name="error_bootstrap_already_installed">Bootstrap already installed</string>
-    <string name="error_bootstrap_create_temp_dir2">Cannot create temp dir</string>
-    <string name="error_bootstrap_open_backup_uri">Cannot open backup URI</string>
-    <string name="error_bootstrap_no_bin_dir">Backup has no bin directory</string>
-    <string name="error_bootstrap_bin_empty">Backup bin is empty</string>
-    <string name="error_bootstrap_rename_prefix2">Cannot rename existing prefix to backup</string>
-    <string name="error_bootstrap_rename_temp2">Cannot rename temp to prefix</string>
     <string name="error_bootstrap_no_symlinks">No SYMLINKS.txt encountered</string>
     <string name="error_bootstrap_move_prefix">Moving termux prefix staging to prefix directory failed</string>
     <string name="error_bootstrap_embedded_lib">Embedded bootstrap library not available</string>
@@ -830,17 +811,6 @@
     <string name="error_backup_io">I/O error: %1$s</string>
     <string name="error_tar_exit_code">tar exited with code %1$d</string>
 
-    <!-- TarGzExtractor error messages -->
-    <string name="error_tar_extractor_create_dir">Cannot create dir: %1$s</string>
-    <string name="error_tar_extractor_symlink">symlink failed: %1$s</string>
-    <string name="error_tar_extractor_parent_not_dir">Parent not a dir: %1$s</string>
-    <string name="error_tar_extractor_create_parent">Cannot create parent: %1$s</string>
-    <string name="error_tar_extractor_replace_non_dir">Cannot replace non-dir with dir: %1$s</string>
-    <string name="error_tar_extractor_replace_dir">Cannot replace dir with file: %1$s</string>
-    <string name="error_tar_extractor_delete">Cannot delete: %1$s</string>
-    <string name="error_tar_extractor_chmod">chmod failed: %1$s</string>
-    <string name="error_tar_extractor_truncated">Truncated entry</string>
-
     <!-- TermuxBootstrapState -->
     <string name="error_bootstrap_state_create_dir">Failed to create etc/termux directory</string>
 
@@ -856,18 +826,6 @@
     <!-- Bootstrap crash notification -->
     <string name="notification_bootstrap_crash_title">Bootstrap Error</string>
     <string name="notification_bootstrap_crash_body">## Bootstrap Error\n\n%1$s</string>
-
-    <!-- TarGzExtractor (private extraction errors) -->
-    <string name="error_tar_extractor_truncated_header">Truncated header</string>
-    <string name="error_tar_extractor_too_many_metadata">Too many metadata entries</string>
-    <string name="error_tar_extractor_too_many_entries">Too many entries</string>
-    <string name="error_tar_extractor_negative_size">Negative entry size</string>
-    <string name="error_tar_extractor_entry_max_size">Entry exceeds max size: %1$s</string>
-    <string name="error_tar_extractor_metadata_too_large">Metadata entry too large</string>
-    <string name="error_tar_extractor_archive_max_size">Archive exceeds max total size</string>
-    <string name="error_tar_extractor_unsupported_type">Unsupported entry type 0x%1$s: %2$s</string>
-    <string name="error_tar_extractor_empty_path">Regular file with empty path</string>
-    <string name="error_tar_extractor_size_mismatch">Size mismatch: %1$s</string>
 
     <!-- BootstrapDownloadService humanSize -->
     <string name="human_size_format" formatted="false">%.1f %s</string>

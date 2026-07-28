@@ -523,13 +523,6 @@
     <string name="bootstrap_selector_install_local_message">Ein lokales Bootstrap-Zip kann beliebigen Code ausführen. Nur fortfahren, wenn Sie dieser Datei vertrauen.</string>
     <string name="bootstrap_selector_install">Installieren</string>
     <string name="bootstrap_selector_cancel">Abbrechen</string>
-    <string name="bootstrap_selector_restore_title">Backup wiederherstellen</string>
-    <string name="bootstrap_selector_restore_message">Termux-Umgebung wiederherstellen von:\n\n%1$s\n\nDies ersetzt alle vorhandenen Termux-Daten.</string>
-    <string name="bootstrap_selector_restore">Wiederherstellen</string>
-    <string name="bootstrap_selector_restoring">Backup wird wiederhergestellt…</string>
-    <string name="bootstrap_selector_starting_restore">Wiederherstellung wird gestartet</string>
-    <string name="bootstrap_selector_restore_failed">Wiederherstellung fehlgeschlagen</string>
-    <string name="bootstrap_selector_ok">OK</string>
 
     <!-- Bootstrap Download Service -->
     <string name="bootstrap_download_status_idle">Leerlauf</string>
@@ -551,14 +544,6 @@
     <string name="bootstrap_download_notification_text_success">Tippen, um Termux zu öffnen</string>
     <string name="bootstrap_download_notification_title_failed">Bootstrap-Installation fehlgeschlagen</string>
 
-    <!-- Bootstrap Restore (TermuxInstaller) -->
-    <string name="bootstrap_restore_error_in_progress">Installation läuft bereits</string>
-    <string name="bootstrap_restore_progress_starting">Wiederherstellung wird gestartet</string>
-    <string name="bootstrap_restore_progress_extracting">Backup wird extrahiert</string>
-    <string name="bootstrap_restore_progress_validating">Prefix wird validiert</string>
-    <string name="bootstrap_restore_progress_writing_variant">Variantenmarkierung wird geschrieben</string>
-    <string name="bootstrap_restore_progress_complete">Wiederherstellung abgeschlossen</string>
-    <string name="bootstrap_restore_error_failed">Wiederherstellung fehlgeschlagen</string>
 
     <!-- File Receiver -->
     <string name="file_receiver_bootstrap_not_installed">Bootstrap nicht installiert. Bitte öffnen Sie zuerst die Termux-App.</string>
@@ -566,8 +551,6 @@
     <!-- Run Command Service -->
     <string name="run_command_bootstrap_not_installed">Bootstrap nicht installiert. Bitte öffnen Sie Termux, um es zu installieren.</string>
 
-    <!-- Backup: restore progress via TarGzExtractor -->
-    <string name="backup_restore_progress_restoring">Wiederherstellung: %1$d Einträge, %2$d MB</string>
 
     <!-- Bootstrap install progress (TermuxInstaller) -->
     <string name="bootstrap_install_progress_verify_sha">Prüfsumme wird verifiziert</string>
@@ -671,14 +654,6 @@
     <string name="error_bootstrap_symlink_no_parent">Symlink hat kein übergeordnetes Verzeichnis: %1$s</string>
     <string name="error_bootstrap_symlink_escapes_root">Symlink verlässt Extraktionswurzel: %1$s -&gt; %2$s</string>
     <string name="error_bootstrap_path_traversal">Zip-Eintrag-Pfad-Traversal erkannt: %1$s</string>
-    <string name="error_bootstrap_create_files_dir">Kann Dateiverzeichnis nicht erstellen</string>
-    <string name="error_bootstrap_already_installed">Bootstrap bereits installiert</string>
-    <string name="error_bootstrap_create_temp_dir2">Kann Temp-Verzeichnis nicht erstellen</string>
-    <string name="error_bootstrap_open_backup_uri">Kann Backup-URI nicht öffnen</string>
-    <string name="error_bootstrap_no_bin_dir">Backup hat kein bin-Verzeichnis</string>
-    <string name="error_bootstrap_bin_empty">Backup-bin ist leer</string>
-    <string name="error_bootstrap_rename_prefix2">Kann vorhandenes Prefix nicht in Backup umbenennen</string>
-    <string name="error_bootstrap_rename_temp2">Kann Temp nicht in Prefix umbenennen</string>
     <string name="error_bootstrap_no_symlinks">Keine SYMLINKS.txt gefunden</string>
     <string name="error_bootstrap_move_prefix">Verschieben des Termux-Prefix-Staging ins Prefix-Verzeichnis fehlgeschlagen</string>
     <string name="error_bootstrap_embedded_lib">Eingebettete Bootstrap-Bibliothek nicht verfügbar</string>
@@ -700,26 +675,6 @@
     <string name="error_backup_io">E/A-Fehler: %1$s</string>
     <string name="error_tar_exit_code">tar mit Code %1$d beendet</string>
 
-    <!-- TarGzExtractor error messages -->
-    <string name="error_tar_extractor_create_dir">Kann Verzeichnis nicht erstellen: %1$s</string>
-    <string name="error_tar_extractor_symlink">Symlink fehlgeschlagen: %1$s</string>
-    <string name="error_tar_extractor_parent_not_dir">Übergeordnetes Element ist kein Verzeichnis: %1$s</string>
-    <string name="error_tar_extractor_create_parent">Kann übergeordnetes Element nicht erstellen: %1$s</string>
-    <string name="error_tar_extractor_replace_non_dir">Kann Nicht-Verzeichnis nicht durch Verzeichnis ersetzen: %1$s</string>
-    <string name="error_tar_extractor_replace_dir">Kann Verzeichnis nicht durch Datei ersetzen: %1$s</string>
-    <string name="error_tar_extractor_delete">Kann nicht löschen: %1$s</string>
-    <string name="error_tar_extractor_chmod">chmod fehlgeschlagen: %1$s</string>
-    <string name="error_tar_extractor_truncated">Abgeschnittener Eintrag</string>
-    <string name="error_tar_extractor_truncated_header">Abgeschnittener Header</string>
-    <string name="error_tar_extractor_too_many_metadata">Zu viele Metadaten-Einträge</string>
-    <string name="error_tar_extractor_too_many_entries">Zu viele Einträge</string>
-    <string name="error_tar_extractor_negative_size">Negative Eintragsgröße</string>
-    <string name="error_tar_extractor_entry_max_size">Eintrag überschreitet maximale Größe: %1$s</string>
-    <string name="error_tar_extractor_metadata_too_large">Metadaten-Eintrag zu groß</string>
-    <string name="error_tar_extractor_archive_max_size">Archiv überschreitet maximale Gesamtgröße</string>
-    <string name="error_tar_extractor_unsupported_type">Nicht unterstützter Eintragstyp 0x%1$s: %2$s</string>
-    <string name="error_tar_extractor_empty_path">Reguläre Datei mit leerem Pfad</string>
-    <string name="error_tar_extractor_size_mismatch">Größenkonflikt: %1$s</string>
 
     <!-- TermuxBootstrapState -->
     <string name="error_bootstrap_state_create_dir">etc/termux-Verzeichnis konnte nicht erstellt werden</string>
@@ -741,4 +696,22 @@
     <!-- Bootstrap crash notification -->
     <string name="notification_bootstrap_crash_title">Bootstrap-Fehler</string>
     <string name="notification_bootstrap_crash_body">## Bootstrap-Fehler\n\n%1$s</string>
+
+    <!-- Bootstrap/backup strings added for i18n completeness -->
+    <string name="bootstrap_selector_title">Termux Bootstrap-Installation</string>
+    <string name="bootstrap_selector_status_default">Wählen Sie eine Bootstrap-Quelle zur Installation:</string>
+    <string name="bootstrap_selector_source_label">Quelle:</string>
+    <string name="bootstrap_selector_download">Empfohlenes Bootstrap herunterladen</string>
+    <string name="bootstrap_selector_pick_zip">Lokale .zip-Datei auswählen</string>
+    <string name="bootstrap_selector_retry">Wiederholen</string>
+    <string name="bootstrap_selector_offline">Minimale Offline-Installation (Basis-Shell)</string>
+    <string name="bootstrap_progress_title">Bootstrap wird installiert</string>
+    <string name="human_size_format" formatted="false">%.1f %s</string>
+    <string name="human_size_progress_format">%1$s / %2$s</string>
+    <string-array name="human_size_units">
+        <item>B</item>
+        <item>KB</item>
+        <item>MB</item>
+        <item>GB</item>
+    </string-array>
 </resources>

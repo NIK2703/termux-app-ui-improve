@@ -2,14 +2,18 @@ package com.termux.app;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.util.Xml;
 
 import com.termux.installer.TermuxBootstrapState;
 import com.termux.shared.errors.Error;
 import com.termux.shared.logger.Logger;
 import com.termux.shared.termux.TermuxConstants;
 
+import org.xmlpull.v1.XmlPullParser;
+
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -17,7 +21,9 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -99,67 +105,331 @@ public final class TermuxSettingsBackupUtils {
         }
     }
 
-    /** Restore all app settings from a ZIP InputStream. */
+    /** Restore all app settings from a ZIP InputStream.
+     *  Supports multiple formats: strict (preferences/*, config/*, marker/*, manifest.properties)
+     *  and fallback basename-based (SharedPreferences XML, config files by name from any path). */
     public static void importSettings(Context context, InputStream in,
                                       ResultListener listener,
                                       ProgressCallback progress,
                                       AtomicBoolean cancelled) {
+        int manifestCount = 0;
+        int preferenceEntries = 0;
+        int configEntries = 0;
+        int markerEntries = 0;
+        int unrecognizedEntries = 0;
+        List<String> sampleUnrecognized = new ArrayList<>(5);
+
         try (ZipInputStream zis = new ZipInputStream(new BufferedInputStream(in))) {
             ZipEntry entry;
-            boolean manifestSeen = false;
 
             while ((entry = zis.getNextEntry()) != null) {
                 if (isCancelled(cancelled)) { listener.onResult(CANCELLED_ERROR); return; }
-                String name = entry.getName();
-                report(progress, name);
+                String rawName = entry.getName();
+                report(progress, rawName);
 
-                if (name.equals("manifest.properties")) {
-                    Properties manifest = new Properties();
-                    manifest.load(zis);
-                    String version = manifest.getProperty("format.version");
-                    if (!BACKUP_FORMAT_VERSION.equals(version)) {
-                        listener.onResult(new Error(
-                            context.getString(com.termux.R.string.error_settings_backup_format_version, version)));
-                        return;
+                if (entry.isDirectory()) {
+                    zis.closeEntry();
+                    continue;
+                }
+
+                String normalizedName = normalizeZipEntryName(rawName);
+                if (normalizedName == null || normalizedName.isEmpty()) {
+                    Logger.logWarn(LOG_TAG, "Skipping unsafe or empty ZIP entry: \"" + rawName + "\"");
+                    zis.closeEntry();
+                    continue;
+                }
+
+                boolean matched = false;
+
+                // --- Strict matching (current export format) ---
+                if (!matched && normalizedName.equals("manifest.properties")) {
+                    matched = handleManifestEntry(zis);
+                    if (matched) manifestCount++;
+                }
+
+                if (!matched && normalizedName.startsWith("preferences/")) {
+                    matched = handleStrictPrefsEntry(context, normalizedName, rawName, zis);
+                    if (matched) preferenceEntries++;
+                }
+
+                if (!matched && normalizedName.startsWith("config/")) {
+                    matched = handleStrictConfigEntry(normalizedName, rawName, zis);
+                    if (matched) configEntries++;
+                }
+
+                if (!matched && normalizedName.startsWith("marker/")) {
+                    matched = handleStrictMarkerEntry(context, normalizedName, rawName, zis);
+                    if (matched) markerEntries++;
+                }
+
+                // --- Fallback matching (basename-based, works with any directory structure) ---
+                if (!matched) {
+                    String basename = getBasename(normalizedName);
+
+                    if (basename.equals("manifest.properties")) {
+                        matched = handleManifestEntry(zis);
+                        if (matched) manifestCount++;
                     }
-                    manifestSeen = true;
-                } else if (name.startsWith("preferences/")) {
-                    String basename = name.substring("preferences/".length());
-                    String prefName = basename.endsWith(".properties")
-                        ? basename.substring(0, basename.length() - ".properties".length())
-                        : basename;
-                    SharedPreferences prefs = prefsForName(context, prefName);
-                    if (prefs != null) {
-                        readPrefsEntry(prefs, zis);
+
+                    if (!matched && isConfigBasename(basename)) {
+                        matched = handleConfigBasenameEntry(basename, zis);
+                        if (matched) configEntries++;
                     }
-                } else if (name.startsWith("config/")) {
-                    String fileName = name.substring("config/".length());
-                    String destPath = configDestPath(fileName);
-                    if (destPath != null) {
-                        writeFileFromStream(destPath, zis);
+
+                    if (!matched && "bootstrap_variant".equals(basename)) {
+                        matched = handleMarkerBasenameEntry(context, zis);
+                        if (matched) markerEntries++;
                     }
-                } else if (name.startsWith("marker/")) {
-                    String fileName = name.substring("marker/".length());
-                    if ("bootstrap_variant".equals(fileName)) {
-                        String variant = readLine(zis);
-                        if (variant != null && !variant.isEmpty()) {
-                            TermuxBootstrapState.writeVariantMarker(context, variant);
-                            TermuxBootstrapState.setInstalledVariant(context, variant);
-                        }
+
+                    if (!matched && basename.endsWith(".xml")) {
+                        matched = tryImportSharedPreferencesXml(context, basename, zis);
+                        if (matched) preferenceEntries++;
                     }
                 }
+
+                if (!matched) {
+                    unrecognizedEntries++;
+                    if (sampleUnrecognized.size() < 5) {
+                        sampleUnrecognized.add(rawName);
+                    }
+                }
+
                 zis.closeEntry();
             }
 
-            if (!manifestSeen) {
-                listener.onResult(new Error(
-                    context.getString(com.termux.R.string.error_settings_backup_missing_manifest)));
+            if (manifestCount == 0) {
+                Logger.logWarn(LOG_TAG, "Backup file is missing manifest.properties; proceeding without format check");
+            }
+
+            if (preferenceEntries == 0 && configEntries == 0 && markerEntries == 0) {
+                StringBuilder msg = new StringBuilder("Backup file contained no recognizable Termux settings data"
+                    + " (unrecognized entries: " + unrecognizedEntries + ")");
+                if (!sampleUnrecognized.isEmpty()) {
+                    msg.append(". Sample entries: ");
+                    for (int i = 0; i < sampleUnrecognized.size(); i++) {
+                        if (i > 0) msg.append(", ");
+                        msg.append('"').append(sampleUnrecognized.get(i)).append('"');
+                    }
+                }
+                listener.onResult(new Error(msg.toString()));
                 return;
             }
+
+            Logger.logInfo(LOG_TAG, "Settings restore complete: "
+                + preferenceEntries + " preference files, "
+                + configEntries + " config files, "
+                + markerEntries + " markers"
+                + (unrecognizedEntries > 0 ? ", " + unrecognizedEntries + " unrecognized entries" : ""));
             listener.onResult(null);
         } catch (Exception e) {
             Logger.logStackTraceWithMessage(LOG_TAG, "Settings import failed", e);
             listener.onResult(new Error(e.getMessage(), e));
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Per-entry handlers (strict format)
+    // ------------------------------------------------------------------
+
+    private static boolean handleManifestEntry(ZipInputStream zis) throws IOException {
+        Properties manifest = new Properties();
+        manifest.load(zis);
+        String version = manifest.getProperty("format.version");
+        if (!BACKUP_FORMAT_VERSION.equals(version)) {
+            Logger.logWarn(LOG_TAG, "Backup format version mismatch: expected "
+                + BACKUP_FORMAT_VERSION + ", got " + version + " — proceeding anyway");
+        }
+        return true;
+    }
+
+    private static boolean handleStrictPrefsEntry(Context context, String normalizedName, String rawName, ZipInputStream zis) throws IOException {
+        String basename = normalizedName.substring("preferences/".length());
+        if (basename.isEmpty()) {
+            Logger.logWarn(LOG_TAG, "Skipping empty preferences entry: \"" + rawName + "\"");
+            return false;
+        }
+        String prefName = basename.endsWith(".properties")
+            ? basename.substring(0, basename.length() - ".properties".length())
+            : basename;
+        SharedPreferences prefs = prefsForName(context, prefName);
+        if (prefs == null) {
+            Logger.logWarn(LOG_TAG, "No SharedPreferences mapping for entry: \"" + rawName + "\"");
+            return false;
+        }
+        readPrefsEntry(prefs, zis);
+        return true;
+    }
+
+    private static boolean handleStrictConfigEntry(String normalizedName, String rawName, ZipInputStream zis) throws IOException {
+        String fileName = normalizedName.substring("config/".length());
+        if (fileName.isEmpty()) {
+            Logger.logWarn(LOG_TAG, "Skipping empty config entry: \"" + rawName + "\"");
+            return false;
+        }
+        String destPath = configDestPath(fileName);
+        if (destPath == null) {
+            Logger.logWarn(LOG_TAG, "Rejected config file entry: \"" + rawName + "\"");
+            return false;
+        }
+        writeFileFromStream(destPath, zis);
+        return true;
+    }
+
+    private static boolean handleStrictMarkerEntry(Context context, String normalizedName, String rawName, ZipInputStream zis) throws IOException {
+        String fileName = normalizedName.substring("marker/".length());
+        if (!"bootstrap_variant".equals(fileName)) {
+            Logger.logWarn(LOG_TAG, "Unrecognized marker entry: \"" + rawName + "\"");
+            return false;
+        }
+        String variant = readLine(zis);
+        if (variant == null || variant.isEmpty()) {
+            Logger.logWarn(LOG_TAG, "Empty bootstrap_variant marker in backup");
+            return false;
+        }
+        TermuxBootstrapState.writeVariantMarker(context, variant);
+        TermuxBootstrapState.setInstalledVariant(context, variant);
+        return true;
+    }
+
+    // ------------------------------------------------------------------
+    // Fallback helpers
+    // ------------------------------------------------------------------
+
+    private static String getBasename(String path) {
+        int idx = path.lastIndexOf('/');
+        return idx >= 0 ? path.substring(idx + 1) : path;
+    }
+
+    private static boolean isConfigBasename(String basename) {
+        return "colors.properties".equals(basename)
+            || "colors.light.properties".equals(basename)
+            || "colors.dark.properties".equals(basename)
+            || "font.ttf".equals(basename)
+            || "termux.float.properties".equals(basename);
+    }
+
+    private static boolean handleConfigBasenameEntry(String basename, ZipInputStream zis) throws IOException {
+        String destPath = configDestPath(basename);
+        if (destPath == null) return false;
+        writeFileFromStream(destPath, zis);
+        return true;
+    }
+
+    private static boolean handleMarkerBasenameEntry(Context context, ZipInputStream zis) throws IOException {
+        String variant = readLine(zis);
+        if (variant == null || variant.isEmpty()) {
+            Logger.logWarn(LOG_TAG, "Empty bootstrap_variant marker in backup (fallback)");
+            return false;
+        }
+        TermuxBootstrapState.writeVariantMarker(context, variant);
+        TermuxBootstrapState.setInstalledVariant(context, variant);
+        return true;
+    }
+
+    /**
+     * Try to parse a ZIP entry as an Android SharedPreferences XML file and import it.
+     * Supports the standard Android format: {@code <map>} root with typed tags
+     * ({@code <string>}, {@code <int>}, {@code <boolean>}, {@code <float>},
+     * {@code <long>}, {@code <set>}).
+     * @return true if the entry was successfully parsed and imported
+     */
+    private static boolean tryImportSharedPreferencesXml(Context context, String basename, ZipInputStream zis) {
+        String prefName = basename.endsWith(".xml")
+            ? basename.substring(0, basename.length() - ".xml".length())
+            : basename;
+        SharedPreferences prefs = prefsForName(context, prefName);
+        if (prefs == null) {
+            prefs = context.getSharedPreferences(prefName, Context.MODE_PRIVATE);
+        }
+
+        byte[] data;
+        try {
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            byte[] buf = new byte[8192];
+            int n;
+            while ((n = zis.read(buf)) >= 0) {
+                baos.write(buf, 0, n);
+            }
+            data = baos.toByteArray();
+        } catch (IOException e) {
+            Logger.logWarn(LOG_TAG, "Failed to read XML entry \"" + basename + "\": " + e.getMessage());
+            return false;
+        }
+
+        try (ByteArrayInputStream bais = new ByteArrayInputStream(data)) {
+            XmlPullParser parser = Xml.newPullParser();
+            parser.setInput(bais, "UTF-8");
+
+            int eventType = parser.getEventType();
+            while (eventType != XmlPullParser.START_TAG && eventType != XmlPullParser.END_DOCUMENT) {
+                eventType = parser.next();
+            }
+            if (eventType == XmlPullParser.END_DOCUMENT) {
+                Logger.logWarn(LOG_TAG, "Empty XML file: \"" + basename + "\"");
+                return false;
+            }
+            if (!"map".equals(parser.getName())) {
+                Logger.logWarn(LOG_TAG, "XML \"" + basename + "\" root is <" + parser.getName() + ">, not <map>");
+                return false;
+            }
+
+            SharedPreferences.Editor editor = prefs.edit();
+            parseXmlMap(parser, editor);
+            editor.commit();
+            return true;
+        } catch (Exception e) {
+            Logger.logWarn(LOG_TAG, "Failed to parse SharedPreferences XML \"" + basename + "\": " + e.getMessage());
+            return false;
+        }
+    }
+
+    private static void parseXmlMap(XmlPullParser parser, SharedPreferences.Editor editor) throws Exception {
+        int depth = 1;
+        while (depth > 0) {
+            int eventType = parser.next();
+            switch (eventType) {
+                case XmlPullParser.START_TAG: {
+                    String tag = parser.getName();
+                    String key = parser.getAttributeValue(null, "name");
+                    if (key == null) break;
+                    switch (tag) {
+                        case "string":
+                            editor.putString(key, parser.nextText());
+                            break;
+                        case "int":
+                            editor.putInt(key, Integer.parseInt(parser.getAttributeValue(null, "value")));
+                            break;
+                        case "boolean":
+                            editor.putBoolean(key, Boolean.parseBoolean(parser.getAttributeValue(null, "value")));
+                            break;
+                        case "long":
+                            editor.putLong(key, Long.parseLong(parser.getAttributeValue(null, "value")));
+                            break;
+                        case "float":
+                            editor.putFloat(key, Float.parseFloat(parser.getAttributeValue(null, "value")));
+                            break;
+                        case "set": {
+                            Set<String> set = new LinkedHashSet<>();
+                            int setDepth = 1;
+                            while (setDepth > 0) {
+                                int se = parser.next();
+                                if (se == XmlPullParser.START_TAG && "string".equals(parser.getName())) {
+                                    set.add(parser.nextText());
+                                } else if (se == XmlPullParser.END_TAG && "set".equals(parser.getName())) {
+                                    setDepth--;
+                                }
+                            }
+                            editor.putStringSet(key, set);
+                            break;
+                        }
+                    }
+                    break;
+                }
+                case XmlPullParser.END_TAG: {
+                    if ("map".equals(parser.getName())) depth--;
+                    break;
+                }
+            }
         }
     }
 
@@ -312,6 +582,29 @@ public final class TermuxSettingsBackupUtils {
                 fos.write(buf, 0, n);
             }
         }
+    }
+
+    /**
+     * Normalize a ZIP entry name by removing leading {@code ./} and {@code /} prefixes,
+     * collapsing duplicate slashes and {@code /./} segments, and rejecting path traversal.
+     * @return the normalized name, or {@code null} if the name is unsafe.
+     */
+    private static String normalizeZipEntryName(String name) {
+        if (name == null) return null;
+        name = name.replace('\\', '/');
+        while (name.startsWith("/")) name = name.substring(1);
+        while (name.startsWith("./")) name = name.substring(2);
+        if (name.equals("..") || name.startsWith("../")
+            || name.contains("/../") || name.endsWith("/..")) return null;
+        String[] parts = name.split("/");
+        StringBuilder sb = new StringBuilder();
+        for (String part : parts) {
+            if (part.isEmpty() || part.equals(".")) continue;
+            if (part.equals("..")) return null;
+            if (sb.length() > 0) sb.append('/');
+            sb.append(part);
+        }
+        return sb.toString();
     }
 
     private static String readLine(InputStream in) throws IOException {

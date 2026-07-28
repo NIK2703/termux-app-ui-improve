@@ -121,7 +121,7 @@ public class BootstrapDownloadService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
-        mState.statusMessage = getString(com.termux.R.string.bootstrap_download_status_idle);
+        mState.statusMessage = "";
         createNotificationChannel();
     }
 
@@ -213,7 +213,6 @@ public class BootstrapDownloadService extends Service {
                     getString(com.termux.R.string.bootstrap_download_status_done),
                     getString(com.termux.R.string.bootstrap_download_status_installed),
                     100, false, true, false);
-                showSuccessNotification();
                 stopForeground(true);
                 stopSelf();
             } catch (Exception e) {
@@ -221,7 +220,7 @@ public class BootstrapDownloadService extends Service {
                     getString(com.termux.R.string.bootstrap_download_status_failed),
                     e.getMessage(), 0, false, false, true);
                 showFailedNotification(e.getMessage());
-                stopForeground(true);
+                stopForeground(false);
                 stopSelf();
             } finally {
                 releaseWakeLock();
@@ -283,7 +282,6 @@ public class BootstrapDownloadService extends Service {
                     getString(com.termux.R.string.bootstrap_download_status_done),
                     getString(com.termux.R.string.bootstrap_download_status_installed),
                     100, false, true, false);
-                showSuccessNotification();
                 stopForeground(true);
                 stopSelf();
             } catch (Exception e) {
@@ -291,7 +289,7 @@ public class BootstrapDownloadService extends Service {
                     getString(com.termux.R.string.bootstrap_download_status_failed),
                     e.getMessage(), 0, false, false, true);
                 showFailedNotification(e.getMessage());
-                stopForeground(true);
+                stopForeground(false);
                 stopSelf();
             } finally {
                 releaseWakeLock();
@@ -315,23 +313,6 @@ public class BootstrapDownloadService extends Service {
         } catch (Exception e) {
             Logger.e("BootstrapDownloadService", "Failed to reload bootstrap variant", e);
         }
-    }
-
-    private void showSuccessNotification() {
-        if (!mForegroundMode) return;
-        Intent intent = new Intent(this, com.termux.app.TermuxActivity.class);
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        PendingIntent pi = PendingIntent.getActivity(this, 0, intent,
-            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-        Notification n = new Notification.Builder(this, CHANNEL_ID)
-            .setContentTitle(getString(com.termux.R.string.bootstrap_download_notification_title_success))
-            .setContentText(getString(com.termux.R.string.bootstrap_download_notification_text_success))
-            .setSmallIcon(android.R.drawable.stat_sys_download_done)
-            .setAutoCancel(true)
-            .setContentIntent(pi)
-            .build();
-        NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-        if (nm != null) nm.notify(NOTIFICATION_ID, n);
     }
 
     private void showFailedNotification(String msg) {
@@ -458,7 +439,7 @@ public class BootstrapDownloadService extends Service {
         mState.success = success;
         mState.failed = failed;
 
-        if (mForegroundMode) {
+        if (mForegroundMode && status != Status.SUCCESS && status != Status.FAILED) {
             NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
             if (nm != null)
                 nm.notify(NOTIFICATION_ID, buildNotification(statusMsg, progressMsg, percent, indeterminate));
@@ -484,8 +465,8 @@ public class BootstrapDownloadService extends Service {
         else
             b = new Notification.Builder(this);
 
-        Intent intent = new Intent(this, com.termux.installer.BootstrapSelectorActivity.class);
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        Intent intent = new Intent(this, com.termux.app.TermuxActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         PendingIntent pi = PendingIntent.getActivity(this, 0, intent,
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 

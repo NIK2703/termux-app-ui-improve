@@ -10,15 +10,12 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.view.View;
-import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ProgressBar;
-import android.widget.Spinner;
 import android.widget.TextView;
 
 import com.termux.app.TermuxInstaller;
 import com.termux.services.BootstrapDownloadService;
-import com.termux.shared.termux.TermuxBootstrap;
 
 import java.util.List;
 
@@ -31,16 +28,14 @@ public class BootstrapSelectorActivity extends Activity {
 
     private static final int REQUEST_PICK_ZIP = 1001;
     private static final int REQUEST_POST_NOTIFICATIONS = 1002;
-    private static final int REQUEST_PICK_TARGZ = 1003;
 
-    private Spinner mSourceSpinner;
+    private BootstrapSource mAutoSelectedSource;
     private Button mDownloadButton;
     private Button mPickZipButton;
-    private Button mRestoreButton;
     private Button mRetryButton;
-    private ProgressBar mProgressBar;
-    private TextView mProgressText;
     private TextView mStatusText;
+
+    private AlertDialog mProgressDialog;
 
     private List<BootstrapSource> mSources;
     private BootstrapDownloadService mService;
@@ -78,20 +73,15 @@ public class BootstrapSelectorActivity extends Activity {
 
         setContentView(com.termux.R.layout.activity_bootstrap_selector);
 
-        mSourceSpinner = findViewById(com.termux.R.id.source_spinner);
         mDownloadButton = findViewById(com.termux.R.id.download_button);
         mPickZipButton = findViewById(com.termux.R.id.pick_zip_button);
-        mRestoreButton = findViewById(com.termux.R.id.restore_backup_button);
         mRetryButton = findViewById(com.termux.R.id.retry_button);
-        mProgressBar = findViewById(com.termux.R.id.progress_bar);
-        mProgressText = findViewById(com.termux.R.id.progress_text);
         mStatusText = findViewById(com.termux.R.id.status_text);
 
         loadSources();
 
         mDownloadButton.setOnClickListener(v -> startDownload());
         mPickZipButton.setOnClickListener(v -> pickLocalZip());
-        mRestoreButton.setOnClickListener(v -> pickRestoreBackup());
         mRetryButton.setOnClickListener(v -> {
             mRetryButton.setVisibility(View.GONE);
             startDownload();
@@ -115,6 +105,12 @@ public class BootstrapSelectorActivity extends Activity {
         }
     }
 
+    @Override
+    protected void onDestroy() {
+        dismissProgressDialog();
+        super.onDestroy();
+    }
+
     private void loadSources() {
         try {
             mSources = BootstrapSources.loadFromResources(this);
@@ -122,14 +118,25 @@ public class BootstrapSelectorActivity extends Activity {
             mStatusText.setText(getString(com.termux.R.string.bootstrap_selector_error_load_sources) + ": " + e.getMessage());
             return;
         }
-        ArrayAdapter<BootstrapSource> adapter = new ArrayAdapter<>(this,
-            android.R.layout.simple_spinner_item, mSources);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        mSourceSpinner.setAdapter(adapter);
+        String targetVariant = Build.VERSION.SDK_INT >= 24 ? "apt-android-7" : "apt-android-5";
+        for (BootstrapSource s : mSources) {
+            if (s.variant.equals(targetVariant)) {
+                mAutoSelectedSource = s;
+                break;
+            }
+        }
+        if (mAutoSelectedSource == null && !mSources.isEmpty()) {
+            mAutoSelectedSource = mSources.get(0);
+        }
+        if (mAutoSelectedSource == null) {
+            mStatusText.setText(com.termux.R.string.bootstrap_selector_error_load_sources);
+        } else {
+            mStatusText.setText(com.termux.R.string.bootstrap_selector_status_default);
+        }
     }
 
     private void startDownload() {
-        if (mSourceSpinner.getSelectedItem() == null) return;
+        if (mAutoSelectedSource == null) return;
         if (Build.VERSION.SDK_INT >= 33
                 && ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS)
                     != PackageManager.PERMISSION_GRANTED) {
@@ -148,12 +155,11 @@ public class BootstrapSelectorActivity extends Activity {
     }
 
     private void doDownload() {
-        if (mSourceSpinner.getSelectedItem() == null) return;
-        BootstrapSource source = (BootstrapSource) mSourceSpinner.getSelectedItem();
+        if (mAutoSelectedSource == null) return;
         if (hasNotificationPermission()) {
-            BootstrapDownloadService.startDownload(this, source);
+            BootstrapDownloadService.startDownload(this, mAutoSelectedSource);
         } else {
-            BootstrapDownloadService.startDownloadBackground(this, source);
+            BootstrapDownloadService.startDownloadBackground(this, mAutoSelectedSource);
         }
         if (!mBound) {
             Intent intent = new Intent(this, BootstrapDownloadService.class);
@@ -171,17 +177,6 @@ public class BootstrapSelectorActivity extends Activity {
         startActivityForResult(intent, REQUEST_PICK_ZIP);
     }
 
-    private void pickRestoreBackup() {
-        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-        intent.addCategory(Intent.CATEGORY_OPENABLE);
-        intent.setType("application/gzip");
-        intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{
-            "application/gzip", "application/x-gzip", "application/x-tar",
-            "application/octet-stream"
-        });
-        startActivityForResult(intent, REQUEST_PICK_TARGZ);
-    }
-
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
@@ -196,9 +191,6 @@ public class BootstrapSelectorActivity extends Activity {
         if (requestCode == REQUEST_PICK_ZIP && resultCode == RESULT_OK && data != null) {
             Uri uri = data.getData();
             if (uri != null) confirmLocalZip(uri);
-        } else if (requestCode == REQUEST_PICK_TARGZ && resultCode == RESULT_OK && data != null) {
-            Uri uri = data.getData();
-            if (uri != null) confirmRestoreBackup(uri);
         }
     }
 
@@ -218,68 +210,9 @@ public class BootstrapSelectorActivity extends Activity {
             .show();
     }
 
-    private void confirmRestoreBackup(Uri uri) {
-        String name = null;
-        try {
-            android.database.Cursor c = getContentResolver().query(uri,
-                new String[]{android.provider.OpenableColumns.DISPLAY_NAME}, null, null, null);
-            if (c != null && c.moveToFirst()) {
-                int idx = c.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME);
-                if (idx >= 0) name = c.getString(idx);
-                c.close();
-            }
-        } catch (Exception ignored) {}
-        if (name == null) name = uri.getLastPathSegment();
-
-        new AlertDialog.Builder(this)
-            .setTitle(com.termux.R.string.bootstrap_selector_restore_title)
-            .setMessage(getString(com.termux.R.string.bootstrap_selector_restore_message, name))
-            .setPositiveButton(com.termux.R.string.bootstrap_selector_restore, (dialog, which) -> startRestore(uri))
-            .setNegativeButton(com.termux.R.string.bootstrap_selector_cancel, null)
-            .show();
-    }
-
-    private void startRestore(Uri uri) {
-        setButtonsEnabled(false);
-        mStatusText.setText(com.termux.R.string.bootstrap_selector_restoring);
-        mProgressBar.setVisibility(View.VISIBLE);
-        mProgressBar.setIndeterminate(true);
-        mProgressText.setVisibility(View.VISIBLE);
-        mProgressText.setText(com.termux.R.string.bootstrap_selector_starting_restore);
-
-        TermuxInstaller.installFromTarGz(this, uri, new TermuxInstaller.RestoreListener() {
-            @Override public void onProgress(final String message) {
-                runOnUiThread(() -> mProgressText.setText(message));
-            }
-            @Override public void onCompleted() {
-                runOnUiThread(() -> {
-                    TermuxBootstrap.initializeFromRuntime(BootstrapSelectorActivity.this,
-                        com.termux.BuildConfig.TERMUX_PACKAGE_VARIANT);
-                    finishWithSuccess();
-                });
-            }
-            @Override public void onFailed(final String message) {
-                runOnUiThread(() -> {
-                    setButtonsEnabled(true);
-                    mProgressBar.setVisibility(View.GONE);
-                    mProgressText.setVisibility(View.GONE);
-                    mProgressBar.setIndeterminate(false);
-                    mStatusText.setText(com.termux.R.string.bootstrap_selector_restore_failed);
-                    new AlertDialog.Builder(BootstrapSelectorActivity.this)
-                        .setTitle(com.termux.R.string.bootstrap_selector_restore_failed)
-                        .setMessage(message)
-                        .setPositiveButton(com.termux.R.string.bootstrap_selector_ok, null)
-                        .show();
-                });
-            }
-        });
-    }
-
     private void setButtonsEnabled(boolean enabled) {
         mDownloadButton.setEnabled(enabled);
         mPickZipButton.setEnabled(enabled);
-        mRestoreButton.setEnabled(enabled);
-        mSourceSpinner.setEnabled(enabled);
         if (enabled) mRetryButton.setVisibility(View.GONE);
     }
 
@@ -290,25 +223,72 @@ public class BootstrapSelectorActivity extends Activity {
         } catch (Exception ignored) {}
     }
 
+    private void showProgressDialog(String statusMessage, String progressMessage,
+                                    int percent, boolean indeterminate) {
+        if (mProgressDialog == null) {
+            View view = getLayoutInflater().inflate(com.termux.R.layout.dialog_bootstrap_progress, null);
+            mProgressDialog = new AlertDialog.Builder(this)
+                .setTitle(com.termux.R.string.bootstrap_progress_title)
+                .setView(view)
+                .setCancelable(false)
+                .show();
+        }
+        ProgressBar bar = mProgressDialog.findViewById(com.termux.R.id.progress_bar);
+        TextView text = mProgressDialog.findViewById(com.termux.R.id.progress_text);
+        if (bar != null) {
+            bar.setIndeterminate(indeterminate);
+            bar.setProgress(percent);
+        }
+        if (text != null) text.setText(progressMessage);
+        mStatusText.setText(statusMessage);
+    }
+
+    private void showFailedDialog(String statusMessage, String errorMessage) {
+        dismissProgressDialog();
+        new AlertDialog.Builder(this)
+            .setTitle(com.termux.R.string.bootstrap_download_status_failed)
+            .setMessage(errorMessage)
+            .setPositiveButton(com.termux.R.string.bootstrap_selector_retry, (dialog, which) -> {
+                dismissProgressDialog();
+                mRetryButton.setVisibility(View.VISIBLE);
+                setButtonsEnabled(true);
+                mStatusText.setText(statusMessage);
+            })
+            .setNegativeButton(com.termux.R.string.bootstrap_selector_cancel, (dialog, which) -> {
+                dismissProgressDialog();
+                finish();
+            })
+            .setCancelable(false)
+            .show();
+    }
+
+    private void dismissProgressDialog() {
+        if (mProgressDialog != null && mProgressDialog.isShowing()) {
+            mProgressDialog.dismiss();
+        }
+        mProgressDialog = null;
+    }
+
     private void updateUiFromState(BootstrapDownloadService.State state) {
         if (state == null) return;
 
-        mStatusText.setText(state.statusMessage);
-        mProgressText.setText(state.progressMessage);
-        mProgressBar.setIndeterminate(state.indeterminate);
-        mProgressBar.setProgress(state.percent);
-        mProgressBar.setVisibility(state.isBusy() || state.failed ? View.VISIBLE : View.GONE);
-        mProgressText.setVisibility(state.isBusy() || state.failed ? View.VISIBLE : View.GONE);
-
         boolean busy = state.isBusy();
+
+        if (state.failed) {
+            showFailedDialog(state.statusMessage, state.progressMessage);
+        } else if (busy) {
+            showProgressDialog(state.statusMessage, state.progressMessage,
+                state.percent, state.indeterminate);
+        } else if (state.success) {
+            dismissProgressDialog();
+            finishWithSuccess();
+        } else {
+            dismissProgressDialog();
+        }
+
         mDownloadButton.setEnabled(!busy);
         mPickZipButton.setEnabled(!busy);
-        mSourceSpinner.setEnabled(!busy);
         mRetryButton.setVisibility(state.failed ? View.VISIBLE : View.GONE);
-
-        if (state.success) {
-            finishWithSuccess();
-        }
     }
 
     private void finishWithSuccess() {

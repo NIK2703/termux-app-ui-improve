@@ -521,13 +521,14 @@
     <string name="bootstrap_selector_install_local_message">Um arquivo bootstrap zip local pode executar código arbitrário. Continue apenas se confiar neste arquivo.</string>
     <string name="bootstrap_selector_install">Instalar</string>
     <string name="bootstrap_selector_cancel">Cancelar</string>
-    <string name="bootstrap_selector_restore_title">Restaurar backup</string>
-    <string name="bootstrap_selector_restore_message">Restaurar ambiente Termux de:\n\n%1$s\n\nIsto substituirá qualquer prefixo Termux existente.</string>
-    <string name="bootstrap_selector_restore">Restaurar</string>
-    <string name="bootstrap_selector_restoring">Restaurando backup…</string>
-    <string name="bootstrap_selector_starting_restore">Iniciando restauração</string>
-    <string name="bootstrap_selector_restore_failed">Falha na restauração</string>
-    <string name="bootstrap_selector_ok">OK</string>
+    <string name="bootstrap_selector_title">Instalação do bootstrap do Termux</string>
+    <string name="bootstrap_selector_status_default">Escolha uma fonte de bootstrap para instalar:</string>
+    <string name="bootstrap_selector_source_label">Fonte:</string>
+    <string name="bootstrap_selector_download">Baixar bootstrap recomendado</string>
+    <string name="bootstrap_selector_pick_zip">Escolher arquivo .zip local</string>
+    <string name="bootstrap_selector_retry">Tentar novamente</string>
+    <string name="bootstrap_selector_offline">Instalar mínimo offline (shell básico)</string>
+    <string name="bootstrap_progress_title">Instalando bootstrap</string>
 
     <!-- Bootstrap Download Service -->
     <string name="bootstrap_download_status_idle">Ocioso</string>
@@ -549,14 +550,6 @@
     <string name="bootstrap_download_notification_text_success">Toque para abrir o Termux</string>
     <string name="bootstrap_download_notification_title_failed">Falha na instalação do bootstrap</string>
 
-    <!-- Bootstrap Restore (TermuxInstaller) -->
-    <string name="bootstrap_restore_error_in_progress">Instalação já em andamento</string>
-    <string name="bootstrap_restore_progress_starting">Iniciando restauração</string>
-    <string name="bootstrap_restore_progress_extracting">Extraindo backup</string>
-    <string name="bootstrap_restore_progress_validating">Validando prefixo</string>
-    <string name="bootstrap_restore_progress_writing_variant">Escrevendo a variante</string>
-    <string name="bootstrap_restore_progress_complete">Restauração concluída</string>
-    <string name="bootstrap_restore_error_failed">Falha na restauração</string>
 
     <!-- File Receiver -->
     <string name="file_receiver_bootstrap_not_installed">Bootstrap não instalado. Abra o aplicativo Termux primeiro.</string>
@@ -564,8 +557,6 @@
     <!-- Run Command Service -->
     <string name="run_command_bootstrap_not_installed">Bootstrap não instalado. Abra o aplicativo Termux para instalá-lo primeiro.</string>
 
-    <!-- Backup: restore progress via TarGzExtractor -->
-    <string name="backup_restore_progress_restoring">Restaurando: %1$d entradas, %2$d MB</string>
 
     <!-- Bootstrap install progress (TermuxInstaller) -->
     <string name="bootstrap_install_progress_verify_sha">Verificando a soma de verificação</string>
@@ -608,14 +599,6 @@
     <string name="error_bootstrap_symlink_no_parent">Link simbólico não tem pai: %1$s</string>
     <string name="error_bootstrap_symlink_escapes_root">Link simbólico escapa da raiz de extração: %1$s -&gt; %2$s</string>
     <string name="error_bootstrap_path_traversal">Travessia de caminho em entrada zip detectada: %1$s</string>
-    <string name="error_bootstrap_create_files_dir">Não é possível criar diretório de arquivos</string>
-    <string name="error_bootstrap_already_installed">Bootstrap já instalado</string>
-    <string name="error_bootstrap_create_temp_dir2">Não é possível criar diretório temporário</string>
-    <string name="error_bootstrap_open_backup_uri">Não é possível abrir URI de backup</string>
-    <string name="error_bootstrap_no_bin_dir">Backup não tem diretório bin</string>
-    <string name="error_bootstrap_bin_empty">Bin do backup está vazio</string>
-    <string name="error_bootstrap_rename_prefix2">Não é possível renomear prefixo existente para backup</string>
-    <string name="error_bootstrap_rename_temp2">Não é possível renomear temp para prefixo</string>
     <string name="error_bootstrap_no_symlinks">Nenhum SYMLINKS.txt encontrado</string>
     <string name="error_bootstrap_move_prefix">Falha ao mover staging do prefixo termux para o diretório do prefixo</string>
     <string name="error_bootstrap_embedded_lib">Biblioteca de bootstrap embutida não disponível</string>
@@ -637,16 +620,6 @@
     <string name="error_backup_io">Erro de E/S: %1$s</string>
     <string name="error_tar_exit_code">tar saiu com código %1$d</string>
 
-    <!-- TarGzExtractor error messages -->
-    <string name="error_tar_extractor_create_dir">Não é possível criar diretório: %1$s</string>
-    <string name="error_tar_extractor_symlink">link simbólico falhou: %1$s</string>
-    <string name="error_tar_extractor_parent_not_dir">Pai não é um diretório: %1$s</string>
-    <string name="error_tar_extractor_create_parent">Não é possível criar pai: %1$s</string>
-    <string name="error_tar_extractor_replace_non_dir">Não é possível substituir não-diretório por diretório: %1$s</string>
-    <string name="error_tar_extractor_replace_dir">Não é possível substituir diretório por arquivo: %1$s</string>
-    <string name="error_tar_extractor_delete">Não é possível excluir: %1$s</string>
-    <string name="error_tar_extractor_chmod">chmod falhou: %1$s</string>
-    <string name="error_tar_extractor_truncated">Entrada truncada</string>
 
     <!-- TermuxBootstrapState -->
     <string name="error_bootstrap_state_create_dir">Falha ao criar diretório etc/termux</string>
@@ -664,15 +637,13 @@
     <string name="notification_bootstrap_crash_title">Erro de Bootstrap</string>
     <string name="notification_bootstrap_crash_body">## Erro de Bootstrap\n\n%1$s</string>
 
-    <!-- TarGzExtractor (private extraction errors) -->
-    <string name="error_tar_extractor_truncated_header">Cabeçalho truncado</string>
-    <string name="error_tar_extractor_too_many_metadata">Muitas entradas de metadados</string>
-    <string name="error_tar_extractor_too_many_entries">Muitas entradas</string>
-    <string name="error_tar_extractor_negative_size">Tamanho de entrada negativo</string>
-    <string name="error_tar_extractor_entry_max_size">Entrada excede o tamanho máximo: %1$s</string>
-    <string name="error_tar_extractor_metadata_too_large">Entrada de metadados muito grande</string>
-    <string name="error_tar_extractor_archive_max_size">Arquivo excede o tamanho total máximo</string>
-    <string name="error_tar_extractor_unsupported_type">Tipo de entrada não suportado 0x%1$s: %2$s</string>
-    <string name="error_tar_extractor_empty_path">Arquivo regular com caminho vazio</string>
-    <string name="error_tar_extractor_size_mismatch">Incompatibilidade de tamanho: %1$s</string>
+    <!-- Human-readable size formatting -->
+    <string name="human_size_format" formatted="false">%.1f %s</string>
+    <string name="human_size_progress_format">%1$s / %2$s</string>
+    <string-array name="human_size_units">
+        <item>B</item>
+        <item>KB</item>
+        <item>MB</item>
+        <item>GB</item>
+    </string-array>
     </resources>

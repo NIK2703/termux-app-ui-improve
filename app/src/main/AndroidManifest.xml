@@ -129,7 +129,7 @@
             android:name=".installer.BootstrapSelectorActivity"
             android:exported="false"
             android:excludeFromRecents="true"
-            android:theme="@style/Theme.TermuxApp.DayNight.DarkActionBar"
+            android:theme="@style/Theme.TermuxApp.BootstrapSelector"
             android:configChanges="orientation|screenSize|screenLayout|keyboard|keyboardHidden|navigation" />
 
         <activity

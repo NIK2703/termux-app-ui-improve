@@ -474,6 +474,8 @@ public final class TermuxActivity extends AppCompatActivity implements TextInput
 
         super.onCreate(savedInstanceState);
 
+        setContentView(R.layout.activity_termux);
+
         if (!TermuxInstaller.isBootstrapInstalled()) {
             TermuxInstaller.cleanupInterruptedInstall();
             Intent selectorIntent = new Intent(this, com.termux.installer.BootstrapSelectorActivity.class);
@@ -481,8 +483,6 @@ public final class TermuxActivity extends AppCompatActivity implements TextInput
             mIsInvalidState = true;
             return;
         }
-
-        setContentView(R.layout.activity_termux);
 
         // Must set ADJUST_RESIZE so WindowInsetsCompat.Type.ime() works on API < 30.
         // When ADJUST_RESIZE is later overwritten (e.g. by setSoftKeyboardAlwaysHiddenFlags),

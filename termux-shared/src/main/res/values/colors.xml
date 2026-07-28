@@ -6,8 +6,8 @@
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
 
-    <color name="red_400">#FF0000</color>
-    <color name="red_800">#C4001D</color>
+    <color name="red_400">#FF000000</color>
+    <color name="red_800">#FF000000</color>
 
     <color name="grey_200">#EEEEEE</color>
     <color name="grey_400">#BDBDBD</color>
@@ -34,10 +34,7 @@
     <color name="terminal_toolbar_session_tab_bg_selected">#d0d0d0</color>
     <!-- Error text for finished-with-error session tabs; theme-aware so it stays
          readable on both light and dark tab backgrounds. -->
-    <color name="terminal_tab_text_error">#C4001D</color>
-
-    <color name="red_error">#DC143C</color>
-    <color name="red_error_link">#FC143C</color>
+    <color name="terminal_tab_text_error">#FF000000</color>
 
     <color name="blue_link_light">#0969DA</color>
     <color name="blue_link_dark">#58A6FF</color>

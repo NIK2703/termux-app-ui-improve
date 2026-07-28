@@ -4,12 +4,8 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.content.Context;
-import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
-import android.os.Handler;
-import android.os.Looper;
-import android.os.SystemClock;
 import android.system.ErrnoException;
 import android.system.Os;
 import android.system.OsConstants;
@@ -33,7 +29,6 @@ import com.termux.shared.termux.shell.command.environment.TermuxShellEnvironment
 import com.termux.installer.AbiUtils;
 import com.termux.installer.BootstrapManifest;
 import com.termux.installer.Sha256;
-import com.termux.installer.TarGzExtractor;
 import com.termux.installer.TermuxBootstrapState;
 
 import java.io.BufferedReader;
@@ -102,12 +97,6 @@ public final class TermuxInstaller {
 
     public interface InstallProgressListener {
         void onProgress(String stage, int percent);
-    }
-
-    public interface RestoreListener {
-        void onProgress(String message);
-        void onCompleted();
-        void onFailed(String message);
     }
 
     public static void installBootstrapFromZipFile(Context context, File zipFile,
@@ -440,108 +429,6 @@ public final class TermuxInstaller {
     public static class BootstrapException extends Exception {
         public BootstrapException(String message) { super(message); }
         public BootstrapException(String message, Throwable cause) { super(message, cause); }
-    }
-
-    public static void installFromTarGz(Context context, Uri tarGzUri, RestoreListener listener) {
-        Handler handler = new Handler(Looper.getMainLooper());
-        RestoreListener uiListener = wrapOnMainThread(listener, handler);
-        new Thread(() -> installFromTarGzInternal(context, tarGzUri, uiListener),
-            "termux-tar-restore").start();
-    }
-
-    private static RestoreListener wrapOnMainThread(RestoreListener l, Handler h) {
-        return new RestoreListener() {
-            @Override public void onProgress(String msg) { h.post(() -> l.onProgress(msg)); }
-            @Override public void onCompleted() { h.post(l::onCompleted); }
-            @Override public void onFailed(String msg) { h.post(() -> l.onFailed(msg)); }
-        };
-    }
-
-    private static void installFromTarGzInternal(Context context, Uri uri, RestoreListener listener) {
-        if (!sInstallInProgress.compareAndSet(false, true)) {
-            listener.onFailed(context.getString(com.termux.R.string.bootstrap_restore_error_in_progress));
-            return;
-        }
-        File tempDir = null;
-        File oldDir = null;
-        boolean success = false;
-        try {
-            listener.onProgress(context.getString(com.termux.R.string.bootstrap_restore_progress_starting));
-            File prefixDir = TERMUX_PREFIX_DIR;
-            File filesDir = prefixDir.getParentFile();
-            if (filesDir == null) filesDir = context.getFilesDir();
-            if (!filesDir.isDirectory() && !filesDir.mkdirs())
-                throw new IOException(context.getString(com.termux.R.string.error_bootstrap_create_files_dir));
-
-            cleanupInterruptedInstall();
-            if (isBootstrapInstalled())
-                throw new IOException(context.getString(com.termux.R.string.error_bootstrap_already_installed));
-
-            String uuid = UUID.randomUUID().toString();
-            tempDir = new File(filesDir, "usr.tmp-" + uuid);
-            oldDir = new File(filesDir, "usr.old-" + uuid);
-            deleteRecursive(tempDir);
-            deleteRecursive(oldDir);
-            if (!tempDir.mkdirs()) throw new IOException(context.getString(com.termux.R.string.error_bootstrap_create_temp_dir2));
-
-            listener.onProgress(context.getString(com.termux.R.string.bootstrap_restore_progress_extracting));
-
-            long[] lastUi = {0};
-            try (InputStream in = context.getContentResolver().openInputStream(uri)) {
-                if (in == null) throw new IOException(context.getString(com.termux.R.string.error_bootstrap_open_backup_uri));
-                TarGzExtractor.extract(in, tempDir, prefixDir,
-                    (name, eb, tb, ec) -> {
-                        long now = SystemClock.uptimeMillis();
-                        if (now - lastUi[0] > 200) {
-                            lastUi[0] = now;
-                            int mbytes = (int)(tb / (1024 * 1024));
-                            listener.onProgress(context.getString(
-                                com.termux.R.string.backup_restore_progress_restoring, ec, mbytes));
-                        }
-                    });
-            }
-
-            listener.onProgress(context.getString(com.termux.R.string.bootstrap_restore_progress_validating));
-            File binDir = new File(tempDir, "bin");
-            if (!binDir.isDirectory()) throw new IOException(context.getString(com.termux.R.string.error_bootstrap_no_bin_dir));
-            String[] children = binDir.list();
-            if (children == null || children.length == 0)
-                throw new IOException(context.getString(com.termux.R.string.error_bootstrap_bin_empty));
-
-            String variant = Build.VERSION.SDK_INT >= 26 ? "apt-android-7" : "apt-android-5";
-
-            listener.onProgress(context.getString(com.termux.R.string.bootstrap_restore_progress_writing_variant));
-            try { TermuxBootstrapState.writeVariantMarker(context, variant); }
-            catch (IOException e) { Logger.logError(LOG_TAG, "Failed to write marker: " + e.getMessage()); }
-            TermuxBootstrapState.setInstalledVariant(context, variant);
-
-            if (prefixDir.exists()) {
-                if (!prefixDir.renameTo(oldDir))
-                    throw new IOException(context.getString(com.termux.R.string.error_bootstrap_rename_prefix2));
-            }
-            if (!tempDir.renameTo(prefixDir)) {
-                if (oldDir.exists()) oldDir.renameTo(prefixDir);
-                throw new IOException(context.getString(com.termux.R.string.error_bootstrap_rename_temp2));
-            }
-            success = true;
-            listener.onProgress(context.getString(com.termux.R.string.bootstrap_restore_progress_complete));
-            listener.onCompleted();
-
-            if (oldDir.exists()) {
-                File old = oldDir;
-                new Thread(() -> deleteRecursive(old), "termux-old-delete").start();
-            }
-        } catch (Exception e) {
-            Logger.logError(LOG_TAG, "tar.gz restore failed: " + e.getMessage());
-            if (!success && oldDir != null && oldDir.exists() && TERMUX_PREFIX_DIR != null
-                    && !TERMUX_PREFIX_DIR.exists()) {
-                try { oldDir.renameTo(TERMUX_PREFIX_DIR); } catch (Throwable ignored) {}
-            }
-            listener.onFailed(context.getString(com.termux.R.string.bootstrap_restore_error_failed) + ": " + e.getMessage());
-        } finally {
-            if (!success) deleteRecursive(tempDir);
-            sInstallInProgress.set(false);
-        }
     }
 
     public static void setupBootstrapIfNeeded(final Activity activity, final Runnable whenDone) {

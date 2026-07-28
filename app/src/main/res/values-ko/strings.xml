@@ -548,13 +548,6 @@ $HOME/bin/termux-url-opener
     <string name="bootstrap_selector_install_local_message">로컬 부트스트랩 zip은 임의의 코드를 실행할 수 있습니다. 이 파일을 신뢰하는 경우에만 계속하십시오.</string>
     <string name="bootstrap_selector_install">설치</string>
     <string name="bootstrap_selector_cancel">취소</string>
-    <string name="bootstrap_selector_restore_title">백업 복원</string>
-    <string name="bootstrap_selector_restore_message">Termux 환경을 다음에서 복원합니다:\n\n%1$s\n\n기존 Termux 프리픽스가 대체됩니다.</string>
-    <string name="bootstrap_selector_restore">복원</string>
-    <string name="bootstrap_selector_restoring">백업 복원 중…</string>
-    <string name="bootstrap_selector_starting_restore">복원 시작 중</string>
-    <string name="bootstrap_selector_restore_failed">복원 실패</string>
-    <string name="bootstrap_selector_ok">확인</string>
 
     
     <string name="bootstrap_download_status_idle">대기</string>
@@ -577,13 +570,6 @@ $HOME/bin/termux-url-opener
     <string name="bootstrap_download_notification_title_failed">부트스트랩 설치 실패</string>
 
     
-    <string name="bootstrap_restore_error_in_progress">설치가 이미 진행 중입니다</string>
-    <string name="bootstrap_restore_progress_starting">복원 시작 중</string>
-    <string name="bootstrap_restore_progress_extracting">백업 추출 중</string>
-    <string name="bootstrap_restore_progress_validating">프리픽스 확인 중</string>
-    <string name="bootstrap_restore_progress_writing_variant">변형 기록 중</string>
-    <string name="bootstrap_restore_progress_complete">복원 완료</string>
-    <string name="bootstrap_restore_error_failed">복원 실패</string>
 
     
     <string name="file_receiver_bootstrap_not_installed">부트스트랩이 설치되지 않았습니다. 먼저 Termux 앱을 열어주세요.</string>
@@ -592,7 +578,6 @@ $HOME/bin/termux-url-opener
     <string name="run_command_bootstrap_not_installed">부트스트랩이 설치되지 않았습니다. 먼저 Termux 앱을 열어 설치하십시오.</string>
 
     
-    <string name="backup_restore_progress_restoring">복원 중: %1$d개 항목, %2$d MB</string>
 
     
     <string name="bootstrap_install_progress_verify_sha">체크섬 확인 중</string>
@@ -697,14 +682,6 @@ $HOME/bin/termux-url-opener
     <string name="error_bootstrap_symlink_no_parent">심볼릭 링크에 부모가 없음: %1$s</string>
     <string name="error_bootstrap_symlink_escapes_root">심볼릭 링크가 추출 루트를 벗어남: %1$s -&gt; %2$s</string>
     <string name="error_bootstrap_path_traversal">Zip 항목 경로 탐색이 감지됨: %1$s</string>
-    <string name="error_bootstrap_create_files_dir">파일 디렉터리를 만들 수 없습니다</string>
-    <string name="error_bootstrap_already_installed">부트스트랩이 이미 설치되었습니다</string>
-    <string name="error_bootstrap_create_temp_dir2">임시 디렉터리를 만들 수 없습니다</string>
-    <string name="error_bootstrap_open_backup_uri">백업 URI를 열 수 없습니다</string>
-    <string name="error_bootstrap_no_bin_dir">백업에 bin 디렉터리가 없습니다</string>
-    <string name="error_bootstrap_bin_empty">백업 bin이 비어 있습니다</string>
-    <string name="error_bootstrap_rename_prefix2">기존 prefix를 백업으로 이름을 변경할 수 없습니다</string>
-    <string name="error_bootstrap_rename_temp2">임시를 prefix로 이름을 변경할 수 없습니다</string>
     <string name="error_bootstrap_no_symlinks">SYMLINKS.txt가 없습니다</string>
     <string name="error_bootstrap_move_prefix">termux prefix 스테이징을 prefix 디렉터리로 이동하지 못했습니다</string>
     <string name="error_bootstrap_embedded_lib">내장 부트스트랩 라이브러리를 사용할 수 없습니다</string>
@@ -729,16 +706,6 @@ $HOME/bin/termux-url-opener
     <string name="error_tar_exit_code">tar이(가) 종료 코드 %1$d로 종료되었습니다</string>
 
     
-    <!-- TarGzExtractor error messages -->
-    <string name="error_tar_extractor_create_dir">디렉터리를 만들 수 없음: %1$s</string>
-    <string name="error_tar_extractor_symlink">심볼릭 링크 실패: %1$s</string>
-    <string name="error_tar_extractor_parent_not_dir">부모가 디렉터리가 아님: %1$s</string>
-    <string name="error_tar_extractor_create_parent">부모를 만들 수 없음: %1$s</string>
-    <string name="error_tar_extractor_replace_non_dir">디렉터리가 아닌 것을 디렉터리로 대체할 수 없음: %1$s</string>
-    <string name="error_tar_extractor_replace_dir">디렉터리를 파일로 대체할 수 없음: %1$s</string>
-    <string name="error_tar_extractor_delete">삭제할 수 없음: %1$s</string>
-    <string name="error_tar_extractor_chmod">chmod 실패: %1$s</string>
-    <string name="error_tar_extractor_truncated">잘린 항목</string>
 
     
     <!-- TermuxBootstrapState -->
@@ -762,15 +729,27 @@ $HOME/bin/termux-url-opener
     <string name="notification_bootstrap_crash_body">## 부트스트랩 오류\n\n%1$s</string>
 
     
-    <!-- TarGzExtractor (private extraction errors) -->
-    <string name="error_tar_extractor_truncated_header">잘린 헤더</string>
-    <string name="error_tar_extractor_too_many_metadata">메타데이터 항목이 너무 많습니다</string>
-    <string name="error_tar_extractor_too_many_entries">항목이 너무 많습니다</string>
-    <string name="error_tar_extractor_negative_size">음수 항목 크기</string>
-    <string name="error_tar_extractor_entry_max_size">항목이 최대 크기 초과: %1$s</string>
-    <string name="error_tar_extractor_metadata_too_large">메타데이터 항목이 너무 큼</string>
-    <string name="error_tar_extractor_archive_max_size">아카이브가 최대 총 크기 초과</string>
-    <string name="error_tar_extractor_unsupported_type">지원되지 않는 항목 유형 0x%1$s: %2$s</string>
-    <string name="error_tar_extractor_empty_path">빈 경로의 일반 파일</string>
-    <string name="error_tar_extractor_size_mismatch">크기 불일치: %1$s</string>
+    <!-- Bootstrap/backup strings added for i18n completeness -->
+    <string name="bootstrap_progress_title">부트스트랩 설치 중</string>
+    <string name="bootstrap_selector_title">Termux 부트스트랩 설치</string>
+    <string name="bootstrap_selector_status_default">설치할 부트스트랩 소스를 선택하세요:</string>
+    <string name="bootstrap_selector_source_label">소스:</string>
+    <string name="bootstrap_selector_download">권장 부트스트랩 다운로드</string>
+    <string name="bootstrap_selector_pick_zip">로컬 .zip 파일 선택</string>
+    <string name="bootstrap_selector_retry">다시 시도</string>
+    <string name="bootstrap_selector_offline">최소 오프라인 설치 (기본 셸)</string>
+    <string name="human_size_format" formatted="false">%.1f %s</string>
+    <string name="human_size_progress_format">%1$s / %2$s</string>
+    <string-array name="human_size_units">
+        <item>B</item>
+        <item>KB</item>
+        <item>MB</item>
+        <item>GB</item>
+    </string-array>
+    <string name="termux_preferences_title">Termux</string>
+    <string name="termux_api_preferences_title">Termux:API</string>
+    <string name="termux_float_preferences_title">Termux:Float</string>
+    <string name="termux_tasker_preferences_title">Termux:Tasker</string>
+    <string name="termux_widget_preferences_title">Termux:Widget</string>
+
 </resources>

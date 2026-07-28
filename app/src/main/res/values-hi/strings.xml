@@ -473,13 +473,6 @@
     <string name="bootstrap_selector_install_local_message">स्थानीय बूटस्ट्रैप zip मनमाना कोड निष्पादित कर सकता है। केवल तभी जारी रखें यदि आप इस फ़ाइल पर भरोसा करते हैं।</string>
     <string name="bootstrap_selector_install">इंस्टॉल करें</string>
     <string name="bootstrap_selector_cancel">रद्द करें</string>
-    <string name="bootstrap_selector_restore_title">बैकअप पुनर्स्थापित करें</string>
-    <string name="bootstrap_selector_restore_message">Termux वातावरण को इससे पुनर्स्थापित करें:\n\n%1$s\n\nयह किसी भी मौजूदा Termux प्रीफ़िक्स को बदल देगा।</string>
-    <string name="bootstrap_selector_restore">पुनर्स्थापित करें</string>
-    <string name="bootstrap_selector_restoring">बैकअप पुनर्स्थापित हो रहा है…</string>
-    <string name="bootstrap_selector_starting_restore">पुनर्स्थापना शुरू हो रही है</string>
-    <string name="bootstrap_selector_restore_failed">पुनर्स्थापना विफल</string>
-    <string name="bootstrap_selector_ok">ठीक है</string>
 
     
     <string name="bootstrap_download_status_idle">निष्क्रिय</string>
@@ -502,19 +495,11 @@
     <string name="bootstrap_download_notification_title_failed">बूटस्ट्रैप इंस्टॉलेशन विफल</string>
 
     
-    <string name="bootstrap_restore_error_in_progress">इंस्टॉलेशन पहले से चल रहा है</string>
-    <string name="bootstrap_restore_progress_starting">पुनर्स्थापना शुरू हो रही है</string>
-    <string name="bootstrap_restore_progress_extracting">बैकअप निकाला जा रहा है</string>
-    <string name="bootstrap_restore_progress_validating">प्रीफ़िक्स मान्य किया जा रहा है</string>
-    <string name="bootstrap_restore_progress_writing_variant">वैरिएंट लिखा जा रहा है</string>
-    <string name="bootstrap_restore_progress_complete">पुनर्स्थापना पूर्ण</string>
-    <string name="bootstrap_restore_error_failed">पुनर्स्थापना विफल</string>
 
     <string name="file_receiver_bootstrap_not_installed">बूटस्ट्रैप इंस्टॉल नहीं है। कृपया पहले Termux ऐप खोलें।</string>
 
     <string name="run_command_bootstrap_not_installed">बूटस्ट्रैप इंस्टॉल नहीं है। कृपया इसे इंस्टॉल करने के लिए पहले Termux ऐप खोलें।</string>
 
-    <string name="backup_restore_progress_restoring">पुनर्स्थापित हो रहा है: %1$d प्रविष्टियाँ, %2$d MB</string>
 
     
     <string name="bootstrap_install_progress_verify_sha">चेकसम सत्यापित किया जा रहा है</string>
@@ -624,14 +609,6 @@
     <string name="error_bootstrap_symlink_no_parent">सिमलिंक का कोई पैरेंट नहीं है: %1$s</string>
     <string name="error_bootstrap_symlink_escapes_root">सिमलिंक निष्कर्षण रूट से बाहर जाता है: %1$s -&gt; %2$s</string>
     <string name="error_bootstrap_path_traversal">Zip प्रविष्टि पथ ट्रैवर्सल का पता चला: %1$s</string>
-    <string name="error_bootstrap_create_files_dir">फ़ाइलें निर्देशिका नहीं बना सकता</string>
-    <string name="error_bootstrap_already_installed">बूटस्ट्रैप पहले से इंस्टॉल है</string>
-    <string name="error_bootstrap_create_temp_dir2">अस्थायी निर्देशिका नहीं बना सकता</string>
-    <string name="error_bootstrap_open_backup_uri">बैकअप URI नहीं खोल सकता</string>
-    <string name="error_bootstrap_no_bin_dir">बैकअप में कोई bin निर्देशिका नहीं है</string>
-    <string name="error_bootstrap_bin_empty">बैकअप bin खाली है</string>
-    <string name="error_bootstrap_rename_prefix2">मौजूदा प्रीफ़िक्स का नाम बदलकर बैकअप नहीं कर सकता</string>
-    <string name="error_bootstrap_rename_temp2">अस्थायी का नाम बदलकर प्रीफ़िक्स नहीं कर सकता</string>
     <string name="error_bootstrap_no_symlinks">कोई SYMLINKS.txt नहीं मिला</string>
     <string name="error_bootstrap_move_prefix">Termux प्रीफ़िक्स स्टेजिंग को प्रीफ़िक्स निर्देशिका में ले जाना विफल</string>
     <string name="error_bootstrap_embedded_lib">एम्बेडेड बूटस्ट्रैप लाइब्रेरी उपलब्ध नहीं है</string>
@@ -653,16 +630,6 @@
     <string name="error_backup_io">I/O त्रुटि: %1$s</string>
     <string name="error_tar_exit_code">tar कोड %1$d के साथ बाहर निकला</string>
 
-    <!-- TarGzExtractor error messages -->
-    <string name="error_tar_extractor_create_dir">निर्देशिका नहीं बना सकता: %1$s</string>
-    <string name="error_tar_extractor_symlink">सिमलिंक विफल: %1$s</string>
-    <string name="error_tar_extractor_parent_not_dir">पैरेंट निर्देशिका नहीं है: %1$s</string>
-    <string name="error_tar_extractor_create_parent">पैरेंट नहीं बना सकता: %1$s</string>
-    <string name="error_tar_extractor_replace_non_dir">गैर-निर्देशिका को निर्देशिका से बदल नहीं सकता: %1$s</string>
-    <string name="error_tar_extractor_replace_dir">निर्देशिका को फ़ाइल से बदल नहीं सकता: %1$s</string>
-    <string name="error_tar_extractor_delete">हटा नहीं सकता: %1$s</string>
-    <string name="error_tar_extractor_chmod">chmod विफल: %1$s</string>
-    <string name="error_tar_extractor_truncated">काटी गई प्रविष्टि</string>
 
     <!-- TermuxBootstrapState -->
     <string name="error_bootstrap_state_create_dir">etc/termux निर्देशिका बनाने में विफल</string>
@@ -680,15 +647,22 @@
     <string name="notification_bootstrap_crash_title">बूटस्ट्रैप त्रुटि</string>
     <string name="notification_bootstrap_crash_body">## बूटस्ट्रैप त्रुटि\n\n%1$s</string>
 
-    <!-- TarGzExtractor (private extraction errors) -->
-    <string name="error_tar_extractor_truncated_header">काटा गया हेडर</string>
-    <string name="error_tar_extractor_too_many_metadata">बहुत अधिक मेटाडेटा प्रविष्टियाँ</string>
-    <string name="error_tar_extractor_too_many_entries">बहुत अधिक प्रविष्टियाँ</string>
-    <string name="error_tar_extractor_negative_size">नकारात्मक प्रविष्टि आकार</string>
-    <string name="error_tar_extractor_entry_max_size">प्रविष्टि अधिकतम आकार से अधिक है: %1$s</string>
-    <string name="error_tar_extractor_metadata_too_large">मेटाडेटा प्रविष्टि बहुत बड़ी है</string>
-    <string name="error_tar_extractor_archive_max_size">संग्रह अधिकतम कुल आकार से अधिक है</string>
-    <string name="error_tar_extractor_unsupported_type">असमर्थित प्रविष्टि प्रकार 0x%1$s: %2$s</string>
-    <string name="error_tar_extractor_empty_path">खाली पथ वाली सामान्य फ़ाइल</string>
-    <string name="error_tar_extractor_size_mismatch">आकार बेमेल: %1$s</string>
+    <!-- Bootstrap/backup strings added for i18n completeness -->
+    <string name="bootstrap_progress_title">बूटस्ट्रैप इंस्टॉल हो रहा है</string>
+    <string name="bootstrap_selector_download">अनुशंसित बूटस्ट्रैप डाउनलोड करें</string>
+    <string name="bootstrap_selector_offline">न्यूनतम ऑफ़लाइन इंस्टॉल करें (मूल शेल)</string>
+    <string name="bootstrap_selector_pick_zip">स्थानीय .zip फ़ाइल चुनें</string>
+    <string name="bootstrap_selector_retry">पुनः प्रयास करें</string>
+    <string name="bootstrap_selector_source_label">स्रोत:</string>
+    <string name="bootstrap_selector_status_default">इंस्टॉल करने के लिए बूटस्ट्रैप स्रोत चुनें:</string>
+    <string name="bootstrap_selector_title">Termux बूटस्ट्रैप इंस्टॉलेशन</string>
+    <string name="human_size_format" formatted="false">%.1f %s</string>
+    <string name="human_size_progress_format">%1$s / %2$s</string>
+    <string-array name="human_size_units">
+        <item>B</item>
+        <item>KB</item>
+        <item>MB</item>
+        <item>GB</item>
+    </string-array>
+
 </resources>
