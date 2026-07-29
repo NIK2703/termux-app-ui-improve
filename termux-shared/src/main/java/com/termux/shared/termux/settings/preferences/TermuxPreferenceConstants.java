@@ -325,6 +325,10 @@ public final class TermuxPreferenceConstants {
         public static final boolean DEFAULT_VALUE_TERMINAL_CURSOR_BLINK_ENABLED = TermuxPropertyConstants.DEFAULT_IVALUE_TERMINAL_CURSOR_BLINK_ENABLED;
 
 
+        public static final String KEY_SCROLL_ON_NEW_OUTPUT = "scroll-on-new-output";
+        public static final boolean DEFAULT_VALUE_SCROLL_ON_NEW_OUTPUT = false;
+
+
         public static final String KEY_TERMINAL_CURSOR_STYLE = "terminal-cursor-style";
         public static final int DEFAULT_VALUE_TERMINAL_CURSOR_STYLE = TermuxPropertyConstants.DEFAULT_IVALUE_TERMINAL_CURSOR_STYLE;
 

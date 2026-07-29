@@ -106,6 +106,13 @@
 
 
         <SwitchPreferenceCompat
+            app:key="scroll-on-new-output"
+            app:title="@string/scroll_on_new_output_title"
+            app:summary="@string/scroll_on_new_output_summary"
+            android:persistent="false"
+            app:iconSpaceReserved="false" />
+
+        <SwitchPreferenceCompat
             app:key="terminal-cursor-blink-enabled"
             app:title="@string/terminal_cursor_blink_enabled_title"
             app:defaultValue="false"

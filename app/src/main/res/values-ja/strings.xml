@@ -459,6 +459,10 @@
     <string name="disable_terminal_session_change_toast_summary">ターミナルセッションを切り替えるときにトーストを表示しません。</string>
 
     
+    <string name="scroll_on_new_output_title">新規出力時にスクロール</string>
+    <string name="scroll_on_new_output_summary">新しいターミナル出力があったときに自動的に最下部までスクロールします。</string>
+
+    
     <string name="terminal_onclick_url_open_title">クリックでURLを開く</string>
     <string name="terminal_onclick_url_open_summary">タップしたときにターミナルトランスクリプト内のURLを開きます。</string>
 

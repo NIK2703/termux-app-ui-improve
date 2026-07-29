@@ -2527,6 +2527,10 @@ public final class TerminalEmulator {
         return mAutoScrollDisabled;
     }
 
+    public void setAutoScrollDisabled(boolean disabled) {
+        mAutoScrollDisabled = disabled;
+    }
+
     public void toggleAutoScrollDisabled() {
         mAutoScrollDisabled = !mAutoScrollDisabled;
     }

@@ -88,6 +88,42 @@ public final class TerminalView extends View {
     /** What was left in from scrolling movement. */
     float mScrollRemainder;
 
+    // ── Fling / impulse scroll with touch interaction ──
+
+    /** Currently posted fling animation frame. */
+    private Runnable mFlingRunnable;
+
+    /** MotionEvent copy used during fling (for mouse wheel coordinates). */
+    private MotionEvent mFlingEvent;
+
+    /** True when fling should send relative deltas (mouse tracking mode). */
+    private boolean mFlingDeltaMode;
+
+    /** Mouse tracking state captured at fling start. */
+    private boolean mFlingMouseTrackingAtStart;
+
+    /** Last scroller Y used in delta mode. */
+    private int mFlingLastY;
+
+    /** Raw gesture-space velocity of the current fling. */
+    private float mFlingRawVelocity;
+
+    /** Residual fling velocity captured when user touched during active fling. */
+    private float mCapturedFlingVelocityY;
+
+    /** Time when residual velocity was captured. */
+    private long mCapturedFlingTime;
+
+    /** Minimum fling velocity from ViewConfiguration. */
+    private int mMinFlingVelocity;
+
+    /** Maximum combined fling velocity (raw gesture px/s). */
+    private float mMaxCombinedFlingVelocity;
+
+    private static final float FLING_VELOCITY_SCALE = 0.25f;
+    private static final float FLING_RESIDUAL_FACTOR = 0.6f;
+    private static final float FLING_CAPTURE_TAU_MS = 150f;
+
     /**
      * Axis lock for the current finger gesture. Once the dominant direction is decided by the
      * first significant displacement, it is locked until the next {@code ACTION_DOWN} so an
@@ -202,9 +238,8 @@ public final class TerminalView extends View {
             @Override
             public boolean onUp(MotionEvent event) {
                 mScrollRemainder = 0.0f;
+                clearCapturedFlingVelocity();
                 if (mEmulator != null && mEmulator.isMouseTrackingActive() && !event.isFromSource(InputDevice.SOURCE_MOUSE) && !isSelectingText() && !scrolledWithFinger) {
-                    // Quick event processing when mouse tracking is active - do not wait for check of double tapping
-                    // for zooming.
                     sendMouseEventCode(event, TerminalEmulator.MOUSE_LEFT_BUTTON, true);
                     sendMouseEventCode(event, TerminalEmulator.MOUSE_LEFT_BUTTON, false);
                     return true;
@@ -238,10 +273,7 @@ public final class TerminalView extends View {
                     // which we do not do for touch input, only mouse in onTouchEvent().
                     sendMouseEventCode(e, TerminalEmulator.MOUSE_LEFT_BUTTON_MOVED, true);
                 } else {
-                    // Lock the scroll axis for this finger once a decisive displacement is seen, so a
-                    // slightly diagonal drag is not re-interpreted by the parent ViewPager2 as a
-                    // horizontal session swipe (and vice versa). The terminal only ever scrolls
-                    // vertically (history); a horizontal-dominant gesture is left to the pager.
+                    interruptFlingForNewTouch();
                     if (mScrollAxis == SCROLL_AXIS_UNDECIDED) {
                         float totalX = Math.abs(e.getX() - mScrollDownX);
                         float totalY = Math.abs(e.getY() - mScrollDownY);
@@ -271,6 +303,7 @@ public final class TerminalView extends View {
             @Override
             public boolean onScale(float focusX, float focusY, float scale) {
                 if (mEmulator == null || isSelectingText()) return true;
+                stopFlingAndClear();
                 mScaleFactor *= scale;
                 mScaleFactor = mClient.onScale(mScaleFactor);
                 return true;
@@ -279,56 +312,18 @@ public final class TerminalView extends View {
             @Override
             public boolean onFling(final MotionEvent e2, float velocityX, float velocityY) {
                 if (mEmulator == null) return true;
-                // If this finger was locked to a horizontal (session-paging) axis, let the ViewPager2
-                // handle the fling instead of scrolling terminal history.
-                if (mScrollAxis == SCROLL_AXIS_HORIZONTAL) return true;
-                // Do not start scrolling until last fling has been taken care of:
-                if (!mScroller.isFinished()) return true;
-
-                final boolean mouseTrackingAtStartOfFling = mEmulator.isMouseTrackingActive();
-                float SCALE = 0.25f;
-                if (mouseTrackingAtStartOfFling) {
-                    mScroller.fling(0, 0, 0, -(int) (velocityY * SCALE), 0, 0, -mEmulator.mRows / 2, mEmulator.mRows / 2);
-                } else {
-                    mScroller.fling(0, mTopRow, 0, -(int) (velocityY * SCALE), 0, 0, -mEmulator.getScreen().getActiveTranscriptRows(), 0);
-                }
-
-                post(new Runnable() {
-                    private int mLastY = 0;
-
-                    @Override
-                    public void run() {
-                        if (mouseTrackingAtStartOfFling != mEmulator.isMouseTrackingActive()) {
-                            mScroller.abortAnimation();
-                            return;
-                        }
-                        if (mScroller.isFinished()) return;
-                        boolean more = mScroller.computeScrollOffset();
-                        int newY = mScroller.getCurrY();
-                        int diff = mouseTrackingAtStartOfFling ? (newY - mLastY) : (newY - mTopRow);
-                        doScroll(e2, diff);
-                        mLastY = newY;
-                        if (more) post(this);
-                    }
-                });
-
-                return true;
+                scrolledWithFinger = true;
+                return startFling(e2, velocityX, velocityY);
             }
 
             @Override
             public boolean onDown(float x, float y) {
-                // Reset axis lock for the new finger gesture and hand control back to the parent
-                // (ViewPager2) so a fresh horizontal session swipe is not blocked by a leftover lock.
+                interruptFlingForNewTouch();
+                scrolledWithFinger = false;
                 mScrollAxis = SCROLL_AXIS_UNDECIDED;
                 mScrollDownX = x;
                 mScrollDownY = y;
                 if (getParent() != null) getParent().requestDisallowInterceptTouchEvent(false);
-                // Why is true not returned here?
-                // https://developer.android.com/training/gestures/detector.html#detect-a-subset-of-supported-gestures
-                // Although setting this to true still does not solve the following errors when long pressing in terminal view text area
-                // ViewDragHelper: Ignoring pointerId=0 because ACTION_DOWN was not received for this pointer before ACTION_MOVE
-                // Commenting out the call to mGestureDetector.onTouchEvent(event) in GestureAndScaleRecognizer#onTouchEvent() removes
-                // the error logging, so issue is related to GestureDetector
                 return false;
             }
 
@@ -341,6 +336,7 @@ public final class TerminalView extends View {
             @Override
             public void onLongPress(MotionEvent event) {
                 if (mGestureRecognizer.isInProgress()) return;
+                stopFlingAndClear();
                 if (mClient.onLongPress(event)) return;
                 if (!isSelectingText()) {
                     performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
@@ -350,8 +346,8 @@ public final class TerminalView extends View {
 
             @Override
             public void onCancel(MotionEvent event) {
-                // The parent (ViewPager2) stole the gesture via ACTION_CANCEL mid-drag. Drop the axis
-                // lock and hand control back so the next gesture starts clean.
+                stopFlingAndClear();
+                scrolledWithFinger = false;
                 mScrollAxis = SCROLL_AXIS_UNDECIDED;
                 if (getParent() != null) getParent().requestDisallowInterceptTouchEvent(false);
             }
@@ -359,7 +355,10 @@ public final class TerminalView extends View {
         mScroller = new Scroller(context);
         AccessibilityManager am = (AccessibilityManager) context.getSystemService(Context.ACCESSIBILITY_SERVICE);
         mAccessibilityEnabled = am.isEnabled();
-        mScrollAxisSlop = ViewConfiguration.get(context).getScaledTouchSlop();
+        ViewConfiguration vc = ViewConfiguration.get(context);
+        mScrollAxisSlop = vc.getScaledTouchSlop();
+        mMinFlingVelocity = vc.getScaledMinimumFlingVelocity();
+        mMaxCombinedFlingVelocity = vc.getScaledMaximumFlingVelocity() * 1.75f;
 
         // Interactive scrollbar paint
         mScrollbarWidth = (int) (24 * context.getResources().getDisplayMetrics().density + 0.5f);
@@ -405,6 +404,7 @@ public final class TerminalView extends View {
      */
     public boolean attachSession(TerminalSession session) {
         if (session == mTermSession) return false;
+        stopFlingAndClear();
         mTopRow = 0;
 
         mTermSession = session;
@@ -579,9 +579,10 @@ public final class TerminalView extends View {
         int rowsInHistory = mEmulator.getScreen().getActiveTranscriptRows();
         if (mTopRow < -rowsInHistory) mTopRow = -rowsInHistory;
 
-        if (isSelectingText() || mEmulator.isAutoScrollDisabled()) {
+        if (mTopRow == 0) {
+            skipScrolling = true;
+        } else if (isSelectingText() || mEmulator.isAutoScrollDisabled()) {
 
-            // Do not scroll when selecting text.
             int rowShift = mEmulator.getScrollCounter();
             if (-mTopRow + rowShift > rowsInHistory) {
                 // .. unless we're hitting the end of history transcript, in which
@@ -689,6 +690,205 @@ public final class TerminalView extends View {
             }
         }
         mEmulator.sendMouseEvent(button, x, y, pressed);
+    }
+
+    // ── Fling / impulse scroll helpers ──
+
+    private boolean isFlingActive() {
+        return mFlingRunnable != null && !mScroller.isFinished();
+    }
+
+    private void stopFlingAnimation() {
+        if (mFlingRunnable != null) {
+            removeCallbacks(mFlingRunnable);
+            mFlingRunnable = null;
+        }
+        mScroller.forceFinished(true);
+        mFlingRawVelocity = 0f;
+        mFlingDeltaMode = false;
+        mFlingMouseTrackingAtStart = false;
+        mFlingLastY = 0;
+        recycleFlingEvent();
+    }
+
+    private void stopFlingAndClear() {
+        stopFlingAnimation();
+        clearCapturedFlingVelocity();
+    }
+
+    public void stopFling() {
+        stopFlingAndClear();
+    }
+
+    private void clearCapturedFlingVelocity() {
+        mCapturedFlingVelocityY = 0f;
+        mCapturedFlingTime = 0;
+    }
+
+    private void captureCurrentFlingVelocity() {
+        if (!isFlingActive()) return;
+        float scrollerVelocity = mScroller.getCurrVelocity();
+        if (scrollerVelocity != 0f) {
+            mCapturedFlingVelocityY = -scrollerVelocity / FLING_VELOCITY_SCALE;
+        } else if (mFlingRawVelocity != 0f) {
+            mCapturedFlingVelocityY = mFlingRawVelocity;
+        } else {
+            return;
+        }
+        mCapturedFlingTime = SystemClock.uptimeMillis();
+    }
+
+    private void interruptFlingForNewTouch() {
+        if (!isFlingActive()) return;
+        captureCurrentFlingVelocity();
+        stopFlingAnimation();
+        mScrollRemainder = 0f;
+    }
+
+    private float getDecayedCapturedVelocity(long now) {
+        if (mCapturedFlingVelocityY == 0f) return 0f;
+        long dt = now - mCapturedFlingTime;
+        if (dt <= 0) return mCapturedFlingVelocityY;
+        if (dt > FLING_CAPTURE_TAU_MS * 4f) return 0f;
+        double decay = Math.exp(-dt / (double) FLING_CAPTURE_TAU_MS);
+        return (float) (mCapturedFlingVelocityY * decay);
+    }
+
+    private float combineFlingVelocity(float residual, float gesture) {
+        if (residual == 0f) return clampFlingVelocity(gesture);
+        if (gesture == 0f) return 0f;
+        float result;
+        if (Math.signum(residual) == Math.signum(gesture)) {
+            result = gesture + residual * FLING_RESIDUAL_FACTOR;
+        } else {
+            result = gesture + residual;
+            if (Math.abs(result) < mMinFlingVelocity) result = 0f;
+        }
+        return clampFlingVelocity(result);
+    }
+
+    private float clampFlingVelocity(float velocity) {
+        if (velocity > mMaxCombinedFlingVelocity) return mMaxCombinedFlingVelocity;
+        if (velocity < -mMaxCombinedFlingVelocity) return -mMaxCombinedFlingVelocity;
+        return velocity;
+    }
+
+    private void recycleFlingEvent() {
+        if (mFlingEvent != null) {
+            mFlingEvent.recycle();
+            mFlingEvent = null;
+        }
+    }
+
+    private boolean startFling(MotionEvent e, float velocityX, float velocityY) {
+        if (mEmulator == null) return true;
+        if (mScrollAxis == SCROLL_AXIS_UNDECIDED) {
+            if (Math.abs(velocityY) >= Math.abs(velocityX)) {
+                mScrollAxis = SCROLL_AXIS_VERTICAL;
+            } else {
+                mScrollAxis = SCROLL_AXIS_HORIZONTAL;
+            }
+        }
+        if (mScrollAxis == SCROLL_AXIS_HORIZONTAL) {
+            stopFlingAndClear();
+            return true;
+        }
+        if (isFlingActive() && mCapturedFlingVelocityY == 0f) {
+            captureCurrentFlingVelocity();
+        }
+        long now = SystemClock.uptimeMillis();
+        float residual = getDecayedCapturedVelocity(now);
+        float rawVelocity = combineFlingVelocity(residual, velocityY);
+        clearCapturedFlingVelocity();
+        MotionEvent newFlingEvent = MotionEvent.obtain(e);
+        stopFlingAnimation();
+        if (Math.abs(rawVelocity) < mMinFlingVelocity) {
+            newFlingEvent.recycle();
+            return true;
+        }
+        int scrollerVelocityY = -Math.round(rawVelocity * FLING_VELOCITY_SCALE);
+        if (scrollerVelocityY == 0) {
+            newFlingEvent.recycle();
+            return true;
+        }
+        boolean mouseTracking = mEmulator.isMouseTrackingActive();
+        int startY, minY, maxY;
+        boolean deltaMode;
+        if (mouseTracking) {
+            deltaMode = true;
+            startY = 0;
+            int range = Math.max(1, mEmulator.mRows / 2);
+            minY = -range;
+            maxY = range;
+        } else {
+            int transcriptRows = mEmulator.getScreen().getActiveTranscriptRows();
+            if (transcriptRows <= 0) {
+                newFlingEvent.recycle();
+                return true;
+            }
+            deltaMode = false;
+            startY = Math.min(0, Math.max(-transcriptRows, mTopRow));
+            minY = -transcriptRows;
+            maxY = 0;
+        }
+        mFlingMouseTrackingAtStart = mouseTracking;
+        mFlingDeltaMode = deltaMode;
+        mFlingLastY = startY;
+        mFlingRawVelocity = rawVelocity;
+        mFlingEvent = newFlingEvent;
+        mScroller.fling(0, startY, 0, scrollerVelocityY, 0, 0, minY, maxY);
+        mFlingRunnable = new Runnable() {
+            @Override
+            public void run() {
+                runFlingFrame();
+            }
+        };
+        postOnAnimation(mFlingRunnable);
+        return true;
+    }
+
+    private void runFlingFrame() {
+        if (mEmulator == null || mFlingEvent == null) {
+            stopFlingAnimation();
+            return;
+        }
+        if (mEmulator.isMouseTrackingActive() != mFlingMouseTrackingAtStart) {
+            stopFlingAnimation();
+            return;
+        }
+        boolean more = mScroller.computeScrollOffset();
+        int newY = mScroller.getCurrY();
+        int diff;
+        if (mFlingDeltaMode) {
+            diff = newY - mFlingLastY;
+            mFlingLastY = newY;
+        } else {
+            diff = newY - mTopRow;
+        }
+        if (diff != 0) {
+            doScroll(mFlingEvent, diff);
+        }
+        if (more) {
+            postOnAnimation(mFlingRunnable);
+        } else {
+            stopFlingAnimation();
+        }
+    }
+
+    public void accelerateFling(float velocityY) {
+        if (mEmulator == null) return;
+        if (isFlingActive() && mCapturedFlingVelocityY == 0f) {
+            captureCurrentFlingVelocity();
+        }
+        MotionEvent e;
+        if (mFlingEvent != null) {
+            e = MotionEvent.obtain(mFlingEvent);
+        } else {
+            long now = SystemClock.uptimeMillis();
+            e = MotionEvent.obtain(now, now, MotionEvent.ACTION_MOVE, getWidth() / 2f, getHeight() / 2f, 0);
+        }
+        startFling(e, 0f, velocityY);
+        e.recycle();
     }
 
     /** Perform a scroll, either from dragging the screen or by scrolling a mouse wheel. */
@@ -815,6 +1015,7 @@ public final class TerminalView extends View {
             if (event.getAction() == MotionEvent.ACTION_DOWN && getParent() != null) {
                 getParent().requestDisallowInterceptTouchEvent(false);
             }
+            stopFlingAndClear();
             return true;
         }
         final int action = event.getAction();
@@ -847,12 +1048,12 @@ public final class TerminalView extends View {
                     case MotionEvent.ACTION_UP:
                     case MotionEvent.ACTION_CANCEL:
                         mScrollbarDragging = false;
+                        if (getParent() != null) getParent().requestDisallowInterceptTouchEvent(false);
                         invalidate();
                         return true;
                 }
             } else if (action == MotionEvent.ACTION_DOWN && isOnThumb(event.getX(), event.getY())) {
-                // Lock vertical scroll axis for the whole drag — don't let
-                // ViewPager2 interpret this touch as a page swipe.
+                stopFlingAndClear();
                 if (getParent() != null) getParent().requestDisallowInterceptTouchEvent(true);
                 mScrollbarDragging = true;
                 // Don't jump the thumb — record current position; MOVE applies
@@ -1248,6 +1449,7 @@ public final class TerminalView extends View {
         int newRows = Math.max(4, (viewHeight - mRenderer.mFontLineSpacingAndAscent) / mRenderer.mFontLineSpacing);
 
         if (mEmulator == null || (newColumns != mEmulator.mColumns || newRows != mEmulator.mRows)) {
+            stopFlingAndClear();
             mTermSession.updateSize(newColumns, newRows, (int) mRenderer.getFontWidth(), mRenderer.getFontLineSpacing());
             mEmulator = mTermSession.getEmulator();
             mClient.onEmulatorSet();
@@ -1746,6 +1948,8 @@ public final class TerminalView extends View {
     }
 
     public void startTextSelectionMode(MotionEvent event) {
+        stopFlingAndClear();
+
         if (!requestFocus()) {
             return;
         }
@@ -1781,6 +1985,8 @@ public final class TerminalView extends View {
     @Override
     protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();
+
+        stopFlingAndClear();
 
         if (mTextSelectionCursorController != null) {
             // Might solve the following exception

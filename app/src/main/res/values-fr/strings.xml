@@ -416,6 +416,9 @@
     <string name="disable_terminal_session_change_toast_title">Désactiver le toast de changement de session</string>
     <string name="disable_terminal_session_change_toast_summary">Ne pas afficher de toast lors du changement de session terminal.</string>
 
+    <string name="scroll_on_new_output_title">Défilement automatique</string>
+    <string name="scroll_on_new_output_summary">Faire défiler automatiquement vers le bas à l\'arrivée de nouvelles lignes.</string>
+
     
     <string name="empty_value_summary">Non défini</string>
 

@@ -473,6 +473,9 @@
     <string name="disable_terminal_session_change_toast_title">禁用切换会话提示</string>
     <string name="disable_terminal_session_change_toast_summary">切换终端会话时不显示提示。</string>
 
+    <string name="scroll_on_new_output_title">新输出时自动滚动</string>
+    <string name="scroll_on_new_output_summary">当终端有新输出时自动滚动到底部。</string>
+
     <string name="terminal_onclick_url_open_title">点击打开链接</string>
     <string name="terminal_onclick_url_open_summary">点击终端回滚中的链接时打开。</string>
 

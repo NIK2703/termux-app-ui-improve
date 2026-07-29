@@ -1159,7 +1159,11 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
             // The live emulator color array is re-synced to COLOR_SCHEME by
             // applyTerminalColorScheme() (invoked from checkForFontAndColors(), which runs again in
             // onServiceConnected() once the session is attached after a recreate()).
-            mActivity.getWindow().getDecorView().setBackgroundColor(session.getEmulator().mColors.mCurrentColors[TextStyle.COLOR_INDEX_BACKGROUND]);
+            int bg = session.getEmulator().mColors.mCurrentColors[TextStyle.COLOR_INDEX_BACKGROUND];
+            mActivity.getWindow().getDecorView().setBackgroundColor(bg);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                mActivity.getWindow().setStatusBarColor(bg);
+            }
         }
     }
 

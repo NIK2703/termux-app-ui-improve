@@ -541,7 +541,7 @@ public final class TermuxActivityPopupController {
         TerminalView terminalView = mHost.getTerminalView();
         if (terminalView == null) return;
 
-        TermuxActivityViewHelper.buildContextMenu(menu, mContext.getResources(), terminalView,
+        TermuxActivityViewHelper.buildContextMenu(menu, mContext, mContext.getResources(), terminalView,
             currentSession.getPid(), currentSession.isRunning(), mHost.isKeepScreenOn());
     }
 

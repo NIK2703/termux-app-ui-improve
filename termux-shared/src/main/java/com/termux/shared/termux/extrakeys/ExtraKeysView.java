@@ -25,6 +25,7 @@ import android.text.TextUtils;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -323,6 +324,15 @@ public final class ExtraKeysView extends GridLayout implements SpecialButtonStat
     /** The base font size in sp for button labels. Defaults to 14. */
     private int mBaseFontSizeSp = 14;
 
+    /** Cached fitted font size from last successful dynamic font calculation. -1 = not yet computed. */
+    private float mCachedFittedFontSp = -1f;
+
+    /** Original display text for each button before all-caps transformation. */
+    private final ArrayMap<MaterialButton, String> mOriginalButtonTexts = new ArrayMap<>();
+
+    /** Tag key for storing {@link ExtraKeyButton} on each MaterialButton. */
+    private static final int TAG_EXTRA_KEY_INFO = R.id.tag_extra_key_info;
+
 
     /**
      * Defines the duration in milliseconds before a press turns into a long press. The default
@@ -580,20 +590,62 @@ public final class ExtraKeysView extends GridLayout implements SpecialButtonStat
 
     /** Set {@link #mButtonTextAllCaps}. */
     public void setButtonTextAllCaps(boolean buttonTextAllCaps) {
+        if (mButtonTextAllCaps == buttonTextAllCaps) return;
         mButtonTextAllCaps = buttonTextAllCaps;
+        mCachedFittedFontSp = -1f;
+        for (int i = 0; i < getChildCount(); i++) {
+            View child = getChildAt(i);
+            if (child instanceof MaterialButton) {
+                MaterialButton btn = (MaterialButton) child;
+                String original = mOriginalButtonTexts.get(btn);
+                if (original == null) {
+                    CharSequence t = btn.getText();
+                    original = t != null ? t.toString() : "";
+                    mOriginalButtonTexts.put(btn, original);
+                }
+                btn.setText(getDisplayTextForCurrentCapsMode(original));
+                btn.setAllCaps(false);
+            }
+        }
+        post(this::applyDynamicFontAfterLayout);
     }
 
     public void setDynamicFontSize(boolean enabled) {
+        if (mDynamicFontSize == enabled) return;
         mDynamicFontSize = enabled;
+        if (!enabled) {
+            mCachedFittedFontSp = -1f;
+            // Reset all buttons to base font immediately when dynamic is turned off
+            for (int i = 0; i < getChildCount(); i++) {
+                View child = getChildAt(i);
+                if (child instanceof MaterialButton) {
+                    ((MaterialButton) child).setTextSize(TypedValue.COMPLEX_UNIT_SP, mBaseFontSizeSp);
+                }
+            }
+        }
+        // Run immediately if layout is ready, otherwise post.
+        // Synchronous execution avoids races with activity recreate() destroying the view.
+        if (getWidth() > 0 && getColumnCount() > 0) {
+            applyDynamicFontAfterLayout();
+        } else {
+            post(this::applyDynamicFontAfterLayout);
+        }
     }
 
     public void setBaseFontSizeSp(int sp) {
+        if (mBaseFontSizeSp == sp) return;
         mBaseFontSizeSp = sp;
+        mCachedFittedFontSp = -1f;
+        post(this::applyDynamicFontAfterLayout);
     }
 
     public void setButtonMargins(float dp) {
         mButtonMarginHorizontalDp = dp;
         mButtonMarginVerticalDp = dp;
+    }
+
+    public void requestDynamicFontUpdate() {
+        post(this::applyDynamicFontAfterLayout);
     }
 
 
@@ -665,6 +717,7 @@ public final class ExtraKeysView extends GridLayout implements SpecialButtonStat
 
         stopScheduledExecutors();
         mButtonPool.clear();
+        mOriginalButtonTexts.clear();
         for (int i = 0; i < getChildCount(); i++) {
             View child = getChildAt(i);
             if (child instanceof MaterialButton) {
@@ -703,17 +756,34 @@ public final class ExtraKeysView extends GridLayout implements SpecialButtonStat
                     button.setOnClickListener(null);
                     button.setOnTouchListener(null);
                     button.setTag(null);
+                    button.setTag(TAG_EXTRA_KEY_INFO, null);
                     button.setPressed(false);
                 } else {
                     button = createDefaultMaterialButton(getContext());
                 }
-                button.setText(buttonInfo.getDisplay());
-                button.setAllCaps(mButtonTextAllCaps);
+                String originalDisplay = buttonInfo.getDisplay();
+                String displayText = getDisplayTextForCurrentCapsMode(originalDisplay);
+                mOriginalButtonTexts.put(button, originalDisplay);
+                button.setText(displayText);
+                button.setAllCaps(false);
+                button.setTag(TAG_EXTRA_KEY_INFO, buttonInfo);
                 // Initial font size — will be refined by applyDynamicFontAfterLayout() post-layout
-                button.setTextSize(TypedValue.COMPLEX_UNIT_SP, mBaseFontSizeSp);
-
-                String displayText = buttonInfo.getDisplay();
                 boolean isSingleChar = displayText != null && displayText.codePointCount(0, displayText.length()) == 1;
+                boolean isMacroButton = displayText != null && (buttonInfo.isMacro() || buttonInfo.hasDelay());
+                float initialFontSp;
+                if (isSingleChar) {
+                    initialFontSp = mBaseFontSizeSp;
+                } else if (mDynamicFontSize && mCachedFittedFontSp > 0) {
+                    initialFontSp = isMacroButton
+                        ? Math.max(mCachedFittedFontSp - 2f, 8f)
+                        : Math.max(mCachedFittedFontSp, 8f);
+                } else {
+                    initialFontSp = isMacroButton
+                        ? Math.max(mBaseFontSizeSp - 2f, 8f)
+                        : mBaseFontSizeSp;
+                }
+                button.setTextSize(TypedValue.COMPLEX_UNIT_SP, initialFontSp);
+
                 if (isSingleChar) {
                     button.setMaxLines(1);
                     button.setSingleLine(true);
@@ -722,13 +792,13 @@ public final class ExtraKeysView extends GridLayout implements SpecialButtonStat
                     button.setSingleLine(false);
                     button.setHorizontallyScrolling(false);
 
-                    // Calculate max lines from available height using base font size
+                    // Calculate max lines from available height using the actual initial font size
                     int vMarginPx = (int) (mButtonMarginVerticalDp * mDensity);
                     int buttonH = (int) (heightPx + 0.5f) - 2 * vMarginPx;
                     int textAreaH = buttonH;
 
                     mMeasPaint.setTypeface(button.getPaint().getTypeface());
-                    mMeasPaint.setTextSize(TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, mBaseFontSizeSp, getResources().getDisplayMetrics()));
+                    mMeasPaint.setTextSize(TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, initialFontSp, getResources().getDisplayMetrics()));
                     int lineHeight = mMeasPaint.getFontMetricsInt(null);
                     float lineSpacing = button.getLineSpacingMultiplier();
                     if (lineSpacing > 0f) lineHeight = (int) (lineHeight * lineSpacing);
@@ -922,9 +992,15 @@ public final class ExtraKeysView extends GridLayout implements SpecialButtonStat
                 addView(button);
             }
         }
-        // Defer font sizing and macro text truncation to after layout
-        post(this::applyDynamicFontAfterLayout);
+
+        // Conditional post: only when cache is empty (fresh view after recreate).
+        // The 3 explicit triggers (columnCount/baseFont/dynamicFont toggle) handle the rest.
+        if (mDynamicFontSize && mCachedFittedFontSp <= 0) {
+            post(this::applyDynamicFontAfterLayout);
+        }
     }
+
+
 
 
 
@@ -1082,8 +1158,8 @@ public final class ExtraKeysView extends GridLayout implements SpecialButtonStat
             button = createDefaultMaterialButton(getContext());
             button.setTextColor(mButtonTextColor);
         }
-        button.setText(extraButton.getDisplay());
-        button.setAllCaps(mButtonTextAllCaps);
+        button.setText(getDisplayTextForCurrentCapsMode(extraButton.getDisplay()));
+        button.setAllCaps(false);
         button.setWidth(width);
         button.setHeight(height);
         button.setBackgroundTintList(mButtonActiveBgTint);
@@ -1140,6 +1216,12 @@ public final class ExtraKeysView extends GridLayout implements SpecialButtonStat
      * This ensures the text area equals the button area for accurate multi-line
      * measurement. Boilerplate is defined once here instead of at every creation site.
      */
+    private String getDisplayTextForCurrentCapsMode(@Nullable String originalText) {
+        if (originalText == null) return "";
+        if (!mButtonTextAllCaps) return originalText;
+        return originalText.toUpperCase(Locale.ROOT);
+    }
+
     static MaterialButton createDefaultMaterialButton(Context context) {
         MaterialButton button = new MaterialButton(context, null, android.R.attr.buttonBarButtonStyle);
         button.setPadding(0, 0, 0, 0);
@@ -1302,6 +1384,7 @@ public final class ExtraKeysView extends GridLayout implements SpecialButtonStat
         float fittedFontSp = findFittingFontSizeSp(
                 mMeasPaint, testString, buttonW,
                 maxFontSp, minFontSp, metrics);
+        mCachedFittedFontSp = fittedFontSp;
 
         // Button height for maxLines recalculation
         int cellH = getRowCount() > 0 ? getHeight() / getRowCount() : 0;
@@ -1327,13 +1410,12 @@ public final class ExtraKeysView extends GridLayout implements SpecialButtonStat
                 continue;
             }
 
-            // Multi-char: apply fitted font size
-            float actualFontSp = fittedFontSp;
-
-            // Additional margin for macro buttons (more text to fit)
-            if (display.contains(" ")) {
-                actualFontSp = Math.max(actualFontSp - 2f, minFontSp);
-            }
+            // Multi-char: macro buttons get -2sp extra breathing room
+            boolean isMacroButton = false;
+            Object tagInfo = button.getTag(TAG_EXTRA_KEY_INFO);
+            if (tagInfo instanceof ExtraKeyButton)
+                isMacroButton = ((ExtraKeyButton) tagInfo).isMacro() || ((ExtraKeyButton) tagInfo).hasDelay();
+            float actualFontSp = isMacroButton ? Math.max(fittedFontSp - 2f, minFontSp) : fittedFontSp;
 
             button.setTextSize(TypedValue.COMPLEX_UNIT_SP, actualFontSp);
 

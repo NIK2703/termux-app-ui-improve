@@ -447,6 +447,8 @@
     <string name="disable_hardware_keyboard_shortcuts_summary">تجاهل اختصارات لوحة المفاتيح من لوحة مفاتيح فعلية/خارجية.</string>
     <string name="disable_terminal_session_change_toast_title">تعطيل رسالة تغيير الجلسة</string>
     <string name="disable_terminal_session_change_toast_summary">عدم إظهار رسالة منبثقة عند تبديل جلسات الطرفية.</string>
+    <string name="scroll_on_new_output_title">التمرير عند المخرجات الجديدة</string>
+    <string name="scroll_on_new_output_summary">التمرير تلقائيًا إلى الأسفل عند وصول مخرجات طرفية جديدة.</string>
     <string name="terminal_onclick_url_open_title">فتح URL عند النقر</string>
     <string name="terminal_onclick_url_open_summary">فتح عناوين URL في سجل الطرفية عند النقر عليها.</string>
     <string name="fullscreen_title">ملء الشاشة</string>

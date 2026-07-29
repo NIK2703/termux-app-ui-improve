@@ -85,6 +85,7 @@ public class ExtraKeysEditorFragment extends TermuxPreferenceFragmentBase {
                 if (cols < 1) cols = 1;
                 mCols = cols;
                 rebuildPreview();
+                if (mPreviewView != null) mPreviewView.requestDynamicFontUpdate();
                 save();
                 return true;
             });
@@ -166,8 +167,10 @@ public class ExtraKeysEditorFragment extends TermuxPreferenceFragmentBase {
         SwitchPreferenceCompat dynFontPref = findPreference("extra-keys-dynamic-font-size");
         if (dynFontPref != null) {
             dynFontPref.setOnPreferenceChangeListener((preference, newValue) -> {
-                mPrefs.setExtraKeysDynamicFontSize((Boolean) newValue);
+                boolean enabled = (Boolean) newValue;
+                mPrefs.setExtraKeysDynamicFontSize(enabled);
                 rebuildPreview();
+                if (mPreviewView != null) mPreviewView.setDynamicFontSize(enabled);
                 TermuxActivity.updateTermuxActivityStyling(requireContext(), true);
                 return true;
             });
@@ -181,7 +184,6 @@ public class ExtraKeysEditorFragment extends TermuxPreferenceFragmentBase {
                 int size = (Integer) newValue;
                 mPrefs.setExtraKeysFontSize(size);
                 if (mPreviewView != null) mPreviewView.setBaseFontSizeSp(size);
-                rebuildPreview();
                 TermuxActivity.updateTermuxActivityStyling(requireContext(), true);
                 return true;
             });

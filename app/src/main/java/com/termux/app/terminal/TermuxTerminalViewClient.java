@@ -28,6 +28,7 @@ import com.termux.shared.termux.terminal.TermuxTerminalViewClientBase;
 import com.termux.shared.termux.extrakeys.SpecialButton;
 import com.termux.shared.android.AndroidUtils;
 import com.termux.shared.termux.TermuxConstants;
+import com.termux.shared.termux.settings.preferences.TermuxAppSharedPreferences;
 import com.termux.shared.activities.ReportActivity;
 import com.termux.shared.models.ReportInfo;
 import com.termux.app.models.UserAction;
@@ -176,6 +177,13 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
      */
     @Override
     public void onEmulatorSet() {
+        TerminalView terminalView = mActivity.getTerminalView();
+        if (terminalView != null && terminalView.mEmulator != null) {
+            TermuxAppSharedPreferences prefs = TermuxAppSharedPreferences.build(mActivity, true);
+            boolean disabled = !prefs.isScrollOnNewOutputEnabled();
+            terminalView.mEmulator.setAutoScrollDisabled(disabled);
+        }
+
         if (!mTerminalCursorBlinkerStateAlreadySet) {
             // Start terminal cursor blinking if enabled
             // We need to wait for the first session to be attached that's set in

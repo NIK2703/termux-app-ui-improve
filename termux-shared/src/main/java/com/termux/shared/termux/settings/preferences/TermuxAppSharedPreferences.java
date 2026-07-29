@@ -429,6 +429,18 @@ public class TermuxAppSharedPreferences extends AppSharedPreferences {
     }
 
 
+    public boolean isScrollOnNewOutputEnabled() {
+        return SharedPreferenceUtils.getBoolean(mSharedPreferences,
+            TERMUX_APP.KEY_SCROLL_ON_NEW_OUTPUT,
+            TERMUX_APP.DEFAULT_VALUE_SCROLL_ON_NEW_OUTPUT);
+    }
+
+    public void setScrollOnNewOutputEnabled(boolean value) {
+        SharedPreferenceUtils.setBoolean(mSharedPreferences,
+            TERMUX_APP.KEY_SCROLL_ON_NEW_OUTPUT, value, false);
+    }
+
+
     public boolean shouldSoftKeyboardBeHiddenOnStartup() {
         return SharedPreferenceUtils.getBoolean(mSharedPreferences, TERMUX_APP.KEY_HIDE_SOFT_KEYBOARD_ON_STARTUP, TERMUX_APP.DEFAULT_VALUE_HIDE_SOFT_KEYBOARD_ON_STARTUP);
     }

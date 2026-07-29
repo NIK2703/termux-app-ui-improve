@@ -988,6 +988,7 @@ public final class TermuxActivity extends AppCompatActivity implements TextInput
         extraKeysView.setExtraKeysViewClient(mTermuxTerminalExtraKeys);
         extraKeysView.setButtonTextAllCaps(mProperties.shouldExtraKeysTextBeAllCaps());
         extraKeysView.setDynamicFontSize(getPreferences().isExtraKeysDynamicFontSizeEnabled(this));
+        extraKeysView.setRuntimeEdgeIndicatorsEnabled(getPreferences().isExtraKeysEdgeIndicatorsEnabled());
         setExtraKeysView(extraKeysView);
 
         // apply extra keys fix if enabled in prefs
@@ -1831,10 +1832,13 @@ public final class TermuxActivity extends AppCompatActivity implements TextInput
         int schemeBg = csm.getSchemeBackground();
         boolean isLight = csm.isSchemeLight();
 
-        // Window background follows the scheme; status-bar icons follow its lightness.
+        // Window background follows the scheme; status-bar background and icons follow the scheme.
         Window window = getWindow();
         if (window != null) {
             window.getDecorView().setBackgroundColor(schemeBg);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                window.setStatusBarColor(schemeBg);
+            }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 int flags = window.getDecorView().getSystemUiVisibility();
                 if (isLight) {

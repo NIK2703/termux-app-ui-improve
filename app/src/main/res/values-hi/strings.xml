@@ -419,6 +419,8 @@
     <string name="disable_hardware_keyboard_shortcuts_summary">हार्डवेयर/बाहरी कीबोर्ड से कीबोर्ड शॉर्टकट अनदेखा करें।</string>
     <string name="disable_terminal_session_change_toast_title">सत्र परिवर्तन सूचना अक्षम करें</string>
     <string name="disable_terminal_session_change_toast_summary">टर्मिनल सत्र स्विच करते समय सूचना न दिखाएँ।</string>
+    <string name="scroll_on_new_output_title">नए आउटपुट पर स्क्रॉल करें</string>
+    <string name="scroll_on_new_output_summary">नया टर्मिनल आउटपुट आने पर अपने आप नीचे स्क्रॉल हो जाता है।</string>
     <string name="terminal_onclick_url_open_title">क्लिक पर URL खोलें</string>
     <string name="terminal_onclick_url_open_summary">टर्मिनल ट्रांसक्रिप्ट में URL टैप करने पर खोलें।</string>
     <string name="fullscreen_title">पूर्ण स्क्रीन</string>

@@ -193,6 +193,9 @@ public class DisplayPreferencesFragment extends TermuxPreferenceFragmentBase {
 
         configureSeekBarInt("terminal-margin-vertical", prefs.getTerminalMarginVertical(),
             value -> prefs.setTerminalMarginVertical(value));
+
+        configureSwitch("scroll-on-new-output", prefs.isScrollOnNewOutputEnabled(),
+            value -> prefs.setScrollOnNewOutputEnabled(value));
     }
 
     private void configureSeekBarInt(String key, int current,

@@ -442,6 +442,10 @@
     <string name="disable_terminal_session_change_toast_summary">Jangan tampilkan toast saat mengganti sesi terminal.</string>
 
     
+    <string name="scroll_on_new_output_title">Gulir saat keluaran baru</string>
+    <string name="scroll_on_new_output_summary">Gulir otomatis ke bawah saat keluaran terminal baru tiba.</string>
+
+    
     <string name="terminal_onclick_url_open_title">Buka URL saat diklik</string>
     <string name="terminal_onclick_url_open_summary">Buka URL di transkrip terminal saat diketuk.</string>
 

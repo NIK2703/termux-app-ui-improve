@@ -392,6 +392,8 @@
     <string name="disable_hardware_keyboard_shortcuts_title">Deshabilitar atajos de teclado físico</string>
     <string name="disable_terminal_session_change_toast_summary">No mostrar un aviso al cambiar de sesión de terminal.</string>
     <string name="disable_terminal_session_change_toast_title">Deshabilitar aviso de cambio de sesión</string>
+    <string name="scroll_on_new_output_title">Desplazar al recibir nueva salida</string>
+    <string name="scroll_on_new_output_summary">Desplazar automáticamente al final cuando llegue nueva salida del terminal.</string>
     <string name="empty_value_summary">No establecido</string>
     <string name="enforce_char_based_input_summary">Forzar que los caracteres se envíen un byte a la vez.</string>
     <string name="enforce_char_based_input_title">Forzar entrada basada en caracteres</string>

@@ -436,6 +436,9 @@
     <string name="disable_terminal_session_change_toast_title">Sitzungswechsel-Toast deaktivieren</string>
     <string name="disable_terminal_session_change_toast_summary">Keinen Toast beim Wechseln von Terminalsitzungen anzeigen.</string>
 
+    <string name="scroll_on_new_output_title">Bei neuer Ausgabe scrollen</string>
+    <string name="scroll_on_new_output_summary">Beim Eintreffen neuer Terminalausgabe automatisch nach unten scrollen.</string>
+
     <string name="terminal_onclick_url_open_title">URL bei Klick öffnen</string>
     <string name="terminal_onclick_url_open_summary">URLs im Terminal-Protokoll bei Antippen öffnen.</string>
 

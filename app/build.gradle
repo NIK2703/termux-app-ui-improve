@@ -45,14 +45,15 @@ android {
     defaultConfig {
         minSdkVersion project.properties.minSdkVersion.toInteger()
         targetSdkVersion project.properties.targetSdkVersion.toInteger()
-        versionCode 118010 // 0.118.0 base + mod release 10
+        versionCode 118011 // 0.118.0 base + mod release 11
 
-        versionName "0.118.0+enhanced.10" // base Termux version + mod release 10
+        versionName "0.118.0+enhanced.11" // base Termux version + mod release 11
         if (appVersionName) versionName = appVersionName
         validateVersionName(versionName)
 
         // Restrict every native build (app + library modules) to the configured ABIs.
-        // When per-ABI split APKs are enabled, abiFilters must be left unset (splits own the ABIs).
+        // Only set ndk abiFilters when splits are disabled — AGP 8.13+ rejects ndk.abiFilters
+        // alongside splits.abi.include even when they match.
         if (!splitAPKsForReleaseBuilds.toBoolean()) {
             ndk {
                 abiFilters(*project.ext.abiList)
@@ -76,7 +77,7 @@ android {
             // Per-ABI split APKs: one apk per architecture, no universal.
             enable splitAPKsForReleaseBuilds.toBoolean()
             reset ()
-            include 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'
+            include(*project.ext.abiList)
             universalApk false
         }
     }

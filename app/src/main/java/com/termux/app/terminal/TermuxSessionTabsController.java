@@ -317,7 +317,9 @@ public class TermuxSessionTabsController {
 
             // Text colour: red for finished-with-error sessions, otherwise scheme foreground.
             boolean sessionRunning = terminalSession.isRunning();
-            if (!sessionRunning && terminalSession.getExitStatus() != 0) {
+            boolean isErrorTab = !sessionRunning && terminalSession.getExitStatus() != 0;
+            tabView.setTag(R.id.session_tab_error_tag, isErrorTab);
+            if (isErrorTab) {
                 int errorColor = androidx.core.content.ContextCompat.getColor(
                     mActivity, com.termux.shared.R.color.terminal_tab_text_error);
                 titleView.setTextColor(errorColor);
@@ -796,14 +798,13 @@ public class TermuxSessionTabsController {
         mSchemeApplied = true;
 
         if (mTabsContainer == null) return;
-        int errorColor = androidx.core.content.ContextCompat.getColor(
-                mActivity, com.termux.shared.R.color.terminal_tab_text_error);
+        Boolean errorTag = Boolean.TRUE;
         for (int i = 0; i < getTabCount(); i++) {
             View tabView = getTabAt(i);
             TextView title = tabView.findViewById(R.id.session_tab_title);
             ImageButton close = tabView.findViewById(R.id.session_tab_close);
             // Error (finished-with-exit) tabs keep their red color; normal tabs use the scheme fg.
-            if (title != null && title.getCurrentTextColor() != errorColor) {
+            if (title != null && !errorTag.equals(tabView.getTag(R.id.session_tab_error_tag))) {
                 title.setTextColor(textColor);
             }
             if (close != null) {

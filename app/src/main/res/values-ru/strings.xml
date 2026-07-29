@@ -286,11 +286,11 @@
     <!-- Settings Backup / Restore (RU) -->
     <string name="backup_restore_full_data_category_title">Все данные</string>
     <string name="backup_restore_settings_category_title">Настройки приложения</string>
-    <string name="backup_settings_title">Сохранить настройки</string>
-    <string name="backup_settings_summary">Сохранить настройки, тему, шрифт и раскладку кнопок (небольшой файл)</string>
+    <string name="backup_settings_title">Резервное копирование настроек</string>
+    <string name="backup_settings_summary">Резервное копирование настроек, темы, шрифта и раскладки кнопок</string>
     <string name="restore_settings_title">Восстановить настройки</string>
     <string name="restore_settings_summary">Восстановить настройки, тему, шрифт и раскладку кнопок</string>
-    <string name="settings_backup_warning">Будут сохранены настройки приложения Termux (настройки, цветовая схема, шрифт, раскладка доп. кнопок) в небольшой файл резервной копии.\n\nВыберите файл назначения.</string>
+    <string name="settings_backup_warning">Будут сохранены настройки приложения Termux (настройки, цветовая схема, шрифт, раскладка доп. кнопок) в файл резервной копии.\n\nВыберите файл назначения.</string>
     <string name="settings_restore_warning">Будут восстановлены настройки приложения Termux из файла резервной копии. Текущие настройки будут перезаписаны.</string>
     <string name="settings_backup_progress">Сохранение настроек…</string>
     <string name="settings_restore_progress">Восстановление настроек…</string>
@@ -516,6 +516,9 @@
 
     <string name="disable_terminal_session_change_toast_title">Не показывать уведомление о смене сессии</string>
     <string name="disable_terminal_session_change_toast_summary">Не показывать всплывающее сообщение при переключении сессий терминала.</string>
+
+    <string name="scroll_on_new_output_title">Автопрокрутка при новом выводе</string>
+    <string name="scroll_on_new_output_summary">Автоматически прокручивать вниз при поступлении новых данных в терминале.</string>
 
     <string name="terminal_onclick_url_open_title">Открывать ссылки по нажатию</string>
     <string name="terminal_onclick_url_open_summary">Открывать ссылки в буфере терминала при нажатии.</string>

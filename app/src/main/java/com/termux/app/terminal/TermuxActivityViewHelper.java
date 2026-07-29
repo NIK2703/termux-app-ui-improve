@@ -1,6 +1,7 @@
 package com.termux.app.terminal;
 
 import android.app.Activity;
+import android.content.Context;
 import android.view.ContextMenu;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -17,6 +18,8 @@ import com.termux.R;
 import com.termux.app.TermuxActivity;
 import com.termux.app.terminal.io.autocomplete.DirectoryHistoryPopupController;
 import com.termux.shared.activity.media.AppCompatActivityUtils;
+import com.termux.shared.android.PackageUtils;
+import com.termux.shared.termux.TermuxConstants;
 import com.termux.shared.termux.interact.TextInputDialogUtils;
 import com.termux.shared.termux.theme.TermuxThemeUtils;
 import com.termux.shared.theme.NightMode;
@@ -138,7 +141,7 @@ public class TermuxActivityViewHelper {
         TerminalView terminalView = mActivity.getTerminalView();
         if (terminalView == null) return;
 
-        buildContextMenu(menu, mActivity.getResources(), terminalView,
+        buildContextMenu(menu, mActivity, mActivity.getResources(), terminalView,
             currentSession.getPid(), currentSession.isRunning(),
             mActivity.getPreferences().shouldKeepScreenOn());
     }
@@ -150,7 +153,8 @@ public class TermuxActivityViewHelper {
      * in as parameters. The host-specific {@code onContextItemSelected} implementations still own
      * how each item is serviced and must use the same ids.
      */
-    static void buildContextMenu(@NonNull ContextMenu menu, @NonNull android.content.res.Resources resources,
+    static void buildContextMenu(@NonNull ContextMenu menu, @NonNull Context context,
+                                 @NonNull android.content.res.Resources resources,
                                  @NonNull TerminalView terminalView, int sessionPid, boolean sessionRunning,
                                  boolean keepScreenOn) {
         boolean autoFillEnabled = terminalView.isAutoFillEnabled();
@@ -167,8 +171,12 @@ public class TermuxActivityViewHelper {
         menu.add(Menu.NONE, CONTEXT_MENU_KILL_PROCESS_ID, Menu.NONE,
             resources.getString(R.string.action_kill_process, sessionPid))
             .setEnabled(sessionRunning);
-        menu.add(Menu.NONE, CONTEXT_MENU_STYLING_ID, Menu.NONE, R.string.action_style_terminal);
-        menu.add(Menu.NONE, CONTEXT_MENU_FONT_ID, Menu.NONE, R.string.action_font_terminal);
+        boolean stylingInstalled = PackageUtils.getContextForPackage(context,
+            TermuxConstants.TERMUX_STYLING_PACKAGE_NAME) != null;
+        if (stylingInstalled) {
+            menu.add(Menu.NONE, CONTEXT_MENU_STYLING_ID, Menu.NONE, R.string.action_style_terminal);
+            menu.add(Menu.NONE, CONTEXT_MENU_FONT_ID, Menu.NONE, R.string.action_font_terminal);
+        }
         menu.add(Menu.NONE, CONTEXT_MENU_TOGGLE_KEEP_SCREEN_ON, Menu.NONE, R.string.action_toggle_keep_screen_on)
             .setCheckable(true).setChecked(keepScreenOn);
         menu.add(Menu.NONE, CONTEXT_MENU_HELP_ID, Menu.NONE, R.string.action_open_help);

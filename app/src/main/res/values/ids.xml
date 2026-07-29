@@ -5,4 +5,6 @@
     <item name="session_tab_session_tag" type="id" />
     <!-- Tag marking a tab view that is currently playing its close animation. -->
     <item name="session_tab_closing_tag" type="id" />
+    <!-- Tag marking a tab view whose session finished with a non-zero exit status (error). -->
+    <item name="session_tab_error_tag" type="id" />
 </resources>

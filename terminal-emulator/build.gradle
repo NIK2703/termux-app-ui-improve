@@ -86,4 +86,10 @@ afterEvaluate {
             }
         }
     }
+
+    // aarch64 Linux fix: AGP's stripReleaseDebugSymbols now uses the native
+    // linux-aarch64 llvm-strip via a symlink at
+    //   $NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip
+    // (pointed at toolchains/llvm/prebuilt/linux-aarch64/bin/llvm-strip).
+    // That fix was applied 2026-07-29; no Gradle workaround needed here.
 }

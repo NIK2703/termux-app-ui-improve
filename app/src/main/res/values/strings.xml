@@ -571,6 +571,9 @@
     <string name="disable_terminal_session_change_toast_title">Disable session change toast</string>
     <string name="disable_terminal_session_change_toast_summary">Do not show a toast when switching terminal sessions.</string>
 
+    <string name="scroll_on_new_output_title">Scroll on new output</string>
+    <string name="scroll_on_new_output_summary">Automatically scroll to the bottom when new terminal output arrives.</string>
+
     <string name="terminal_onclick_url_open_title">Open URL on click</string>
     <string name="terminal_onclick_url_open_summary">Open URLs in the terminal transcript when tapped.</string>
 

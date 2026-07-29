@@ -468,6 +468,10 @@
     <string name="disable_terminal_session_change_toast_summary">Terminal oturumları arasında geçiş yaparken bildirim gösterme.</string>
 
     
+    <string name="scroll_on_new_output_title">Yeni çıktıda kaydır</string>
+    <string name="scroll_on_new_output_summary">Yeni terminal çıktısı geldiğinde otomatik olarak en alta kaydır.</string>
+
+    
     <string name="terminal_onclick_url_open_title">Tıklamada URL aç</string>
     <string name="terminal_onclick_url_open_summary">Terminal dökümünde URL\'lere dokunulduğunda aç.</string>
 
