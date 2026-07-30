@@ -14,6 +14,8 @@ import android.util.Log;
 import android.util.Pair;
 import android.view.WindowManager;
 
+import androidx.annotation.Nullable;
+
 import com.termux.R;
 import com.termux.shared.file.FileUtils;
 import com.termux.shared.termux.crash.TermuxCrashUtils;
@@ -43,7 +45,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.List;
@@ -62,6 +66,22 @@ import static com.termux.shared.termux.TermuxConstants.TERMUX_STAGING_PREFIX_DIR
 public final class TermuxInstaller {
 
     private static final String LOG_TAG = "TermuxInstaller";
+    private static final String DEBUG_LOG_PATH = "/storage/emulated/0/Download/termux-bootstrap-debug.log";
+
+    // ── File-based debug logger ──
+
+    private static void debugLog(String msg) {
+        String line = java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT, java.text.DateFormat.MEDIUM)
+            .format(new java.util.Date()) + " [" + LOG_TAG + "] " + msg + "\n";
+        try (java.io.FileWriter fw = new java.io.FileWriter(DEBUG_LOG_PATH, true)) {
+            fw.write(line);
+        } catch (Exception ignored) {}
+        Logger.logInfo(LOG_TAG, msg);
+    }
+
+    private static void debugLogError(String msg, Throwable t) {
+        debugLog(msg + ": " + android.util.Log.getStackTraceString(t));
+    }
 
     private static final long MAX_TOTAL_UNCOMPRESSED_SIZE = 512L * 1024 * 1024;
     private static final int MAX_ENTRIES = 50000;
@@ -70,6 +90,376 @@ public final class TermuxInstaller {
 
     private static final AtomicBoolean sInstallInProgress = new AtomicBoolean(false);
 
+    // ── Bootstrap package-name substitution (fork support) ──
+
+    /** The package name that the bootstrap zip expects (from termux-packages). */
+    static final String BOOTSTRAP_TARGET_PKG = TermuxConstants.TERMUX_BOOTSTRAP_TARGET_PACKAGE_NAME;
+
+    /** Whether the actual app package differs from the bootstrap target package. */
+    private static boolean needsPackageSubstitution(Context context) {
+        return !BOOTSTRAP_TARGET_PKG.equals(context.getPackageName());
+    }
+
+    /** Prefix path inside the bootstrap zip (always points to the target package). */
+    private static String getBootstrapPrefixPath() {
+        return "/data/data/" + BOOTSTRAP_TARGET_PKG + "/files/usr";
+    }
+
+    /** Prefix path that the actual app expects at runtime. */
+    private static String getActualPrefixPath(Context context) {
+        return "/data/data/" + context.getPackageName() + "/files/usr";
+    }
+
+    /** Data-dir path inside the bootstrap zip. */
+    private static String getBootstrapDataDirPath() {
+        return "/data/data/" + BOOTSTRAP_TARGET_PKG;
+    }
+
+    /** Data-dir path that the actual app uses. */
+    private static String getActualDataDirPath(Context context) {
+        return "/data/data/" + context.getPackageName();
+    }
+
+    /** Bootstrap files dir, e.g. /data/data/com.termux/files (27 bytes). */
+    private static String getBootstrapFilesDirPath() {
+        return "/data/data/" + BOOTSTRAP_TARGET_PKG + "/files";
+    }
+
+    /** Actual files dir, normalized to /data/data/<pkg>/files. */
+    private static String getActualFilesDirPath(Context context) {
+        return context.getFilesDir().getAbsolutePath().replaceFirst("^/data/user/0/", "/data/data/");
+    }
+
+    /**
+     * Same-length compatibility path for ELF patching.
+     *
+     * For com.termux.debug:
+     *   old: /data/data/com.termux/files         27 bytes
+     *   new: /data/data/com.termux.debug         27 bytes ← SAME LENGTH
+     *
+     * Symlinks from the compat dir to the real files dir resolve at runtime.
+     *
+     * @return same-length path, or null if lengths differ and padding is impossible.
+     */
+    @Nullable
+    private static String getCompatFilesDirPath(Context context) {
+        String oldFiles = getBootstrapFilesDirPath();
+        String actualData = getActualDataDirPath(context);
+
+        if (actualData.length() == oldFiles.length()) {
+            return actualData;
+        }
+
+        if (actualData.length() < oldFiles.length()) {
+            int needed = oldFiles.length() - actualData.length() - 1;
+            if (needed >= 1) {
+                return actualData + "/" + "x".repeat(needed);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Replace all occurrences of bootstrap paths with actual paths in a string.
+     * Uses boundary-aware replacement to prevent partial-substring corruption.
+     */
+    private static String replacePrefixInString(String s, String oldPrefix, String newPrefix,
+            String oldDataDir, String newDataDir) {
+        if (s == null || s.isEmpty()) return s;
+        s = replacePathPrefix(s, oldPrefix, newPrefix);
+        s = replacePathPrefix(s, oldDataDir, newDataDir);
+        return s;
+    }
+
+    // ── Boundary-aware string replacement ──
+
+    private static boolean isPathBoundaryChar(char c) {
+        return c == '/' || c == '\0' || c == ':' || c == ' ' || c == '\t'
+            || c == '\r' || c == '\n' || c == '"' || c == '\'' || c == '('
+            || c == ')' || c == '[' || c == ']' || c == '<' || c == '>'
+            || c == ',' || c == ';';
+    }
+
+    private static boolean isPathBoundaryByte(byte b) {
+        return b == (byte) '/' || b == (byte) '\0' || b == (byte) ':'
+            || b == (byte) ' ' || b == (byte) '\t' || b == (byte) '\r'
+            || b == (byte) '\n' || b == (byte) '"' || b == (byte) '\''
+            || b == (byte) '(' || b == (byte) ')' || b == (byte) '['
+            || b == (byte) ']' || b == (byte) '<' || b == (byte) '>'
+            || b == (byte) ',' || b == (byte) ';';
+    }
+
+    /**
+     * Replace oldPrefix with newPrefix only when oldPrefix ends at a path boundary.
+     * Prevents corruption like com.termux.debug → com.termux.debug.debug.
+     */
+    private static String replacePathPrefix(String text, String oldPrefix, String newPrefix) {
+        if (text == null || text.isEmpty() || oldPrefix.equals(newPrefix)) return text;
+        StringBuilder sb = new StringBuilder(text.length() + 64);
+        int pos = 0;
+        while (pos < text.length()) {
+            int idx = text.indexOf(oldPrefix, pos);
+            if (idx < 0) {
+                sb.append(text, pos, text.length());
+                break;
+            }
+            int end = idx + oldPrefix.length();
+            boolean boundary = end >= text.length() || isPathBoundaryChar(text.charAt(end));
+            if (boundary) {
+                sb.append(text, pos, idx);
+                sb.append(newPrefix);
+                pos = end;
+            } else {
+                sb.append(text, pos, end);
+                pos = end;
+            }
+        }
+        return sb.toString();
+    }
+
+    // ── Helpers ──
+
+    private static boolean isSymlink(File file) {
+        try {
+            return OsConstants.S_ISLNK(Os.lstat(file.getAbsolutePath()).st_mode);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * Same-length byte-level replacement in a byte array.
+     * Only replaces when oldBytes and newBytes have identical length.
+     */
+    private static byte[] replaceBytesSameLength(byte[] data, byte[] oldBytes, byte[] newBytes) {
+        if (oldBytes.length != newBytes.length || oldBytes.length == 0) return data;
+        byte[] result = data.clone();
+        int matchLen = oldBytes.length;
+        for (int i = 0; i <= result.length - matchLen; ) {
+            boolean match = true;
+            for (int j = 0; j < matchLen; j++) {
+                if (result[i + j] != oldBytes[j]) { match = false; break; }
+            }
+            if (match) {
+                System.arraycopy(newBytes, 0, result, i, matchLen);
+                i += matchLen;
+            } else {
+                i++;
+            }
+        }
+        return result;
+    }
+
+    /** Heuristic: content without null bytes in first 8 KB is considered text. */
+    private static boolean isTextContent(byte[] content) {
+        int limit = Math.min(content.length, 8192);
+        for (int i = 0; i < limit; i++) {
+            if (content[i] == 0) return false;
+        }
+        return true;
+    }
+
+    private static long sPatchFileCount = 0; // counter for debug logging
+
+    /**
+     * Post-extraction/retroactive pass: walk the directory tree and patch every regular file.
+     * For text files — full String.replace with real runtime paths.
+     * For ELF/other binaries — same-length byte-replace (files dir → compat data dir).
+     */
+    private static void patchPrefixInDirectory(File dir,
+                                               String textOldFilesDir, String textNewFilesDir,
+                                               String textOldDataDir, String textNewDataDir,
+                                               byte[] elfOldFilesDir, byte[] elfNewFilesDir,
+                                               int depth) throws IOException {
+        if (depth > 20) {
+            debugLog("patchPrefixInDirectory: max depth (20) at " + dir.getAbsolutePath());
+            return;
+        }
+        File[] children = dir.listFiles();
+        if (children == null) {
+            debugLog("patchPrefixInDirectory: cannot list " + dir.getAbsolutePath());
+            return;
+        }
+        for (File f : children) {
+            if (isSymlink(f)) continue;
+            if (f.isDirectory()) {
+                patchPrefixInDirectory(f, textOldFilesDir, textNewFilesDir,
+                    textOldDataDir, textNewDataDir, elfOldFilesDir, elfNewFilesDir, depth + 1);
+            } else if (f.isFile()) {
+                sPatchFileCount++;
+                patchFile(f, textOldFilesDir, textNewFilesDir,
+                    textOldDataDir, textNewDataDir, elfOldFilesDir, elfNewFilesDir);
+                if (sPatchFileCount % 200 == 0) {
+                    debugLog("patchPrefixInDirectory: patched " + sPatchFileCount + " files");
+                }
+            }
+        }
+    }
+
+    private static void patchFile(File file,
+                                  String textOldFilesDir, String textNewFilesDir,
+                                  String textOldDataDir, String textNewDataDir,
+                                  byte[] elfOldFilesDir, byte[] elfNewFilesDir) throws IOException {
+        long fileLen = file.length();
+        Logger.logDebug(LOG_TAG, "patchFile: " + file.getAbsolutePath() + " (" + fileLen + " bytes)");
+        if (fileLen == 0) return;
+
+        byte[] content;
+        try (FileInputStream in = new FileInputStream(file);
+             ByteArrayOutputStream bout = new ByteArrayOutputStream((int) Math.min(fileLen, Integer.MAX_VALUE))) {
+            byte[] buf = new byte[8192];
+            int n;
+            long totalRead = 0;
+            while ((n = in.read(buf)) != -1) {
+                bout.write(buf, 0, n);
+                totalRead += n;
+            }
+            Logger.logDebug(LOG_TAG, "patchFile: read " + totalRead + " bytes from " + file.getAbsolutePath());
+            content = bout.toByteArray();
+        } catch (Exception e) {
+            Logger.logError(LOG_TAG, "patchFile: failed to read " + file.getAbsolutePath() + ": " + e.getMessage());
+            return;
+        }
+
+        boolean isText = isTextContent(content);
+        byte[] patched;
+
+        if (isText) {
+            // Text files: use real runtime paths (any length)
+            String text = new String(content, StandardCharsets.UTF_8);
+            text = replacePathPrefix(text, textOldFilesDir + "/usr", textNewFilesDir + "/usr");
+            text = replacePathPrefix(text, textOldFilesDir, textNewFilesDir);
+            text = replacePathPrefix(text, textOldDataDir, textNewDataDir);
+            patched = text.getBytes(StandardCharsets.UTF_8);
+        } else {
+            // ELF binaries: same-length byte replacement only
+            patched = content;
+            if (elfOldFilesDir != null && elfNewFilesDir != null
+                    && elfOldFilesDir.length == elfNewFilesDir.length)
+                patched = replaceBytesSameLength(patched, elfOldFilesDir, elfNewFilesDir);
+        }
+
+        if (!Arrays.equals(content, patched)) {
+            debugLog("patchFile: fixed " + file.getAbsolutePath() + " (" + fileLen + " bytes)");
+            try (FileOutputStream out = new FileOutputStream(file)) {
+                out.write(patched);
+            }
+        }
+    }
+
+    /** Patch absolute symlink targets under dir (recursive). */
+    private static void patchSymlinksInDirectory(File dir,
+                                                  String oldFilesDir, String newFilesDir,
+                                                  String oldDataDir, String newDataDir,
+                                                  int depth) throws IOException {
+        if (depth > 20) return;
+        File[] children = dir.listFiles();
+        if (children == null) return;
+        for (File f : children) {
+            if (isSymlink(f)) {
+                try {
+                    String target = Os.readlink(f.getAbsolutePath());
+                    String newTarget = replacePrefixInString(target,
+                        oldFilesDir + "/usr", newFilesDir + "/usr",
+                        oldDataDir, newDataDir);
+                    newTarget = replacePathPrefix(newTarget, oldFilesDir, newFilesDir);
+                    if (!newTarget.equals(target)) {
+                        if (!f.delete()) {
+                            throw new IOException("Failed to delete symlink for retargeting: " + f);
+                        }
+                        Os.symlink(newTarget, f.getAbsolutePath());
+                        Logger.logDebug(LOG_TAG, "Patched symlink: " + f + " -> " + newTarget);
+                    }
+                } catch (ErrnoException e) {
+                    throw new IOException("Failed to patch symlink: " + f, e);
+                }
+            } else if (f.isDirectory()) {
+                patchSymlinksInDirectory(f, oldFilesDir, newFilesDir, oldDataDir, newDataDir, depth + 1);
+            }
+        }
+    }
+
+    // ── Compatibility symlinks for same-length ELF patching ──
+
+    /**
+     * Create symlinks from the compat data dir (same length as bootstrap files dir)
+     * to the actual runtime files subdirs.
+     *
+     * E.g. for com.termux.debug:
+     *   /data/data/com.termux.debug/usr  -> /data/data/com.termux.debug/files/usr
+     *   /data/data/com.termux.debug/home -> /data/data/com.termux.debug/files/home
+     *   /data/data/com.termux.debug/apps -> /data/data/com.termux.debug/files/apps
+     */
+    public static void ensureCompatSymlinks(Context context) throws IOException {
+        if (!needsPackageSubstitution(context)) return;
+        String compatRootPath = getCompatFilesDirPath(context);
+        if (compatRootPath == null) {
+            throw new IOException("Cannot create compat symlinks: no same-length path for "
+                + getActualDataDirPath(context) + " vs " + getBootstrapFilesDirPath());
+        }
+        File compatRoot = new File(compatRootPath);
+        if (!compatRoot.exists() && !compatRoot.mkdirs()) {
+            throw new IOException("Failed to create compat root: " + compatRoot);
+        }
+        File filesDir = context.getFilesDir();
+        for (String name : new String[]{"usr", "home", "apps"}) {
+            File target = new File(filesDir, name);
+            if (!target.exists()) continue;
+            File link = new File(compatRoot, name);
+            try {
+                if (isSymlink(link)) {
+                    String current = Os.readlink(link.getAbsolutePath());
+                    if (target.getAbsolutePath().equals(current)) continue;
+                    if (!link.delete()) throw new IOException("Failed to delete stale symlink: " + link);
+                } else if (link.exists()) {
+                    deleteRecursive(link);
+                }
+                File parent = link.getParentFile();
+                if (parent != null && !parent.isDirectory() && !parent.mkdirs()) {
+                    throw new IOException("Failed to create symlink parent: " + parent);
+                }
+                Os.symlink(target.getAbsolutePath(), link.getAbsolutePath());
+                Logger.logInfo(LOG_TAG, "Created compat symlink: " + link + " -> " + target);
+            } catch (ErrnoException e) {
+                throw new IOException("Failed to create compat symlink: " + link, e);
+            }
+        }
+    }
+
+    // ── Path-patch marker (avoids re-patching on every launch) ──
+
+    private static final int PATH_PATCH_VERSION = 1;
+
+    private static File getPathPatchMarker(Context context) {
+        return new File(context.getFilesDir(), ".termux-bootstrap-path-patch");
+    }
+
+    public static boolean isBootstrapPathPatchApplied(Context context) {
+        try {
+            File marker = getPathPatchMarker(context);
+            if (!marker.exists()) return false;
+            String expected = context.getPackageName() + ":" + PATH_PATCH_VERSION;
+            byte[] buf = new byte[(int) Math.min(marker.length(), 4096)];
+            int n;
+            try (FileInputStream in = new FileInputStream(marker)) {
+                n = in.read(buf);
+            }
+            return expected.equals(new String(buf, 0, n, StandardCharsets.UTF_8).trim());
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private static void writePathPatchMarker(Context context) throws IOException {
+        String value = context.getPackageName() + ":" + PATH_PATCH_VERSION;
+        try (FileOutputStream out = new FileOutputStream(getPathPatchMarker(context))) {
+            out.write(value.getBytes(StandardCharsets.UTF_8));
+        }
+    }
+
+    // ── Bootstrap installation state ──
+
     public static boolean isBootstrapInstalled() {
         File prefix = TERMUX_PREFIX_DIR;
         if (!prefix.isDirectory()) return false;
@@ -77,6 +467,81 @@ public final class TermuxInstaller {
         if (!binDir.isDirectory()) return false;
         String[] children = binDir.list();
         return children != null && children.length > 0;
+    }
+
+    /**
+     * Check whether bootstrap is installed under the runtime package files dir.
+     * Does NOT fall back to the compile-time prefix — that would be wrong on fork builds
+     * when the original com.termux is installed on the device.
+     */
+    public static boolean isBootstrapInstalled(Context context) {
+        if (context == null) return false;
+        File prefix = new File(context.getFilesDir(), "usr");
+        if (!prefix.isDirectory()) return false;
+        File binDir = new File(prefix, "bin");
+        if (!binDir.isDirectory()) return false;
+        String[] children = binDir.list();
+        return children != null && children.length > 0;
+    }
+
+    /** Retroactively patch an already-installed bootstrap. */
+    public static void patchExistingBootstrapIfNeeded(Context context) throws IOException {
+        if (!needsPackageSubstitution(context)) return;
+        if (!isBootstrapInstalled(context)) return;
+        if (isBootstrapPathPatchApplied(context)) return;
+
+        Logger.logInfo(LOG_TAG, "Patching existing bootstrap paths for package substitution");
+        debugLog("patchExistingBootstrapIfNeeded: start");
+
+        String oldFilesDir = getBootstrapFilesDirPath();
+        String newFilesDir = getActualFilesDirPath(context);
+        String oldDataDir = getBootstrapDataDirPath();
+        String newDataDir = getActualDataDirPath(context);
+        String compatFilesDir = getCompatFilesDirPath(context);
+
+        if (compatFilesDir == null) {
+            throw new IOException("Cannot patch ELF binaries: no same-length compat path for "
+                + getBootstrapFilesDirPath());
+        }
+
+        byte[] elfOldFilesDir = oldFilesDir.getBytes(StandardCharsets.US_ASCII);
+        byte[] elfNewFilesDir = compatFilesDir.getBytes(StandardCharsets.US_ASCII);
+        if (elfOldFilesDir.length != elfNewFilesDir.length) {
+            throw new IOException("ELF compat path length mismatch: "
+                + oldFilesDir + " (" + elfOldFilesDir.length + ") vs "
+                + compatFilesDir + " (" + elfNewFilesDir.length + ")");
+        }
+
+        ensureCompatSymlinks(context);
+
+        File prefixDir = new File(context.getFilesDir(), "usr");
+        if (prefixDir.isDirectory()) {
+            sPatchFileCount = 0;
+            patchPrefixInDirectory(prefixDir,
+                oldFilesDir, newFilesDir,
+                oldDataDir, newDataDir,
+                elfOldFilesDir, elfNewFilesDir, 0);
+            patchSymlinksInDirectory(prefixDir,
+                oldFilesDir, newFilesDir,
+                oldDataDir, newDataDir, 0);
+        }
+
+        File homeDir = new File(context.getFilesDir(), "home");
+        if (homeDir.isDirectory()) {
+            patchPrefixInDirectory(homeDir,
+                oldFilesDir, newFilesDir,
+                oldDataDir, newDataDir,
+                elfOldFilesDir, elfNewFilesDir, 0);
+            patchSymlinksInDirectory(homeDir,
+                oldFilesDir, newFilesDir,
+                oldDataDir, newDataDir, 0);
+        }
+
+        writePathPatchMarker(context);
+        TermuxShellEnvironment.writeEnvironmentToFile(context);
+
+        Logger.logInfo(LOG_TAG, "Existing bootstrap path patch complete");
+        debugLog("patchExistingBootstrapIfNeeded: done");
     }
 
     public static boolean isPrefixValid() {
@@ -113,7 +578,10 @@ public final class TermuxInstaller {
 
     private static void installBootstrapFromZipFileLocked(Context context, File zipFile,
             InstallProgressListener listener) throws IOException, BootstrapException {
-        Logger.logInfo(LOG_TAG, "installBootstrapFromZipFile: zip=" + zipFile.getAbsolutePath());
+        // Reset debug log
+        try { new java.io.FileWriter(DEBUG_LOG_PATH, false).close(); } catch (Exception ignored) {}
+        debugLog("=== Bootstrap install start: zip=" + zipFile.getAbsolutePath());
+
         if (!zipFile.isFile()) {
             throw new IOException(context.getString(com.termux.R.string.error_bootstrap_zip_not_found, zipFile.getAbsolutePath()));
         }
@@ -123,9 +591,9 @@ public final class TermuxInstaller {
         BootstrapManifest manifest = BootstrapManifest.fromZip(context, zipFile);
         if (manifest != null) {
             AbiUtils.validateBootstrapArch(context, manifest.arch);
-            Logger.logInfo(LOG_TAG, "manifest: arch=" + manifest.arch + " variant=" + manifest.variant);
+            debugLog("manifest: arch=" + manifest.arch + " variant=" + manifest.variant);
         } else {
-            Logger.logInfo(LOG_TAG, "No BOOTSTRAP_INFO in zip, skipping manifest validation");
+            debugLog("No BOOTSTRAP_INFO in zip, skipping manifest validation");
         }
 
         File filesDir = context.getFilesDir();
@@ -137,16 +605,34 @@ public final class TermuxInstaller {
             if (!tempDir.mkdirs()) {
                 throw new IOException(context.getString(com.termux.R.string.error_bootstrap_create_temp_dir, tempDir));
             }
-            Logger.logInfo(LOG_TAG, "tempDir=" + tempDir);
+            debugLog("tempDir=" + tempDir);
 
             if (listener != null) listener.onProgress(context.getString(com.termux.R.string.bootstrap_install_progress_extract), 10);
 
+            debugLog("Starting extractZipFile...");
             extractZipFile(context, zipFile, tempDir, listener);
+            debugLog("extractZipFile done");
+
+            if (!BOOTSTRAP_TARGET_PKG.equals(context.getPackageName())) {
+                if (listener != null) listener.onProgress(context.getString(com.termux.R.string.bootstrap_install_progress_finalize), 85);
+                String oldFilesDir = getBootstrapFilesDirPath();
+                String newFilesDir = getActualFilesDirPath(context);
+                String oldDataDir = getBootstrapDataDirPath();
+                String newDataDir = getActualDataDirPath(context);
+                String compatFilesDir = getCompatFilesDirPath(context);
+                byte[] elfOld = compatFilesDir == null ? null : oldFilesDir.getBytes(StandardCharsets.US_ASCII);
+                byte[] elfNew = compatFilesDir == null ? null : compatFilesDir.getBytes(StandardCharsets.US_ASCII);
+                debugLog("Starting package-name substitution in " + tempDir.getAbsolutePath()
+                    + " | oldFilesDir=" + oldFilesDir + " newFilesDir=" + newFilesDir + " compat=" + compatFilesDir);
+                patchPrefixInDirectory(tempDir, oldFilesDir, newFilesDir, oldDataDir, newDataDir, elfOld, elfNew, 0);
+                patchSymlinksInDirectory(tempDir, oldFilesDir, newFilesDir, oldDataDir, newDataDir, 0);
+                debugLog("package-name substitution done");
+            }
 
             if (listener != null) listener.onProgress(context.getString(com.termux.R.string.bootstrap_install_progress_finalize), 90);
-            Logger.logInfo(LOG_TAG, "extraction complete, finalizing");
+            debugLog("extraction complete, finalizing");
 
-            File prefixDir = TERMUX_PREFIX_DIR;
+            File prefixDir = new File(filesDir, "usr");
             if (prefixDir.exists()) {
                 String backupName = "usr.old-" + UUID.randomUUID().toString();
                 backupDir = new File(filesDir, backupName);
@@ -158,9 +644,11 @@ public final class TermuxInstaller {
                 Logger.logInfo(LOG_TAG, "old prefix renamed to " + backupName);
             }
 
+            debugLog("rename tempDir -> prefixDir");
             try {
                 renameOrMove(tempDir, prefixDir);
             } catch (Exception e) {
+                debugLogError("rename tempDir -> prefixDir failed", e);
                 Logger.logError(LOG_TAG, "rename tempDir -> prefixDir failed, restoring backup");
                 if (backupDir != null && backupDir.exists()) {
                     try { renameOrMove(backupDir, prefixDir); } catch (Exception ignored) {}
@@ -174,6 +662,7 @@ public final class TermuxInstaller {
             }
 
             Logger.logInfo(LOG_TAG, "Bootstrap packages installed successfully.");
+            debugLog("Bootstrap install SUCCESS");
 
             if (manifest != null) {
                 if (listener != null) listener.onProgress(context.getString(com.termux.R.string.bootstrap_install_progress_write_variant), 95);
@@ -187,9 +676,17 @@ public final class TermuxInstaller {
                 }
             }
 
+            try {
+                ensureCompatSymlinks(context);
+                writePathPatchMarker(context);
+            } catch (Exception e) {
+                Logger.logError(LOG_TAG, "Failed to create compat symlinks/marker: " + e.getMessage());
+            }
+
             if (listener != null) listener.onProgress(context.getString(com.termux.R.string.bootstrap_install_progress_done), 100);
 
         } catch (Exception e) {
+            debugLogError("installBootstrapFromZipFile FAILED", e);
             Logger.logError(LOG_TAG, "installBootstrapFromZipFile failed: " + Log.getStackTraceString(e));
             deleteRecursive(tempDir);
             if (backupDir != null) deleteRecursive(backupDir);
@@ -199,6 +696,13 @@ public final class TermuxInstaller {
 
     private static void extractZipFile(Context context, File zipFile, File destDir, InstallProgressListener listener)
             throws IOException, BootstrapException {
+        boolean needsSubstitution = !BOOTSTRAP_TARGET_PKG.equals(context.getPackageName());
+        String oldPref = getBootstrapPrefixPath();
+        String newPref = getActualPrefixPath(context);
+        String oldDataDir = getBootstrapDataDirPath();
+        String newDataDir = getActualDataDirPath(context);
+        String allowedPrefixPath = needsSubstitution ? newPref : TERMUX_PREFIX_DIR_PATH;
+
         ZipFile zip = null;
         try {
             zip = new ZipFile(zipFile);
@@ -208,10 +712,18 @@ public final class TermuxInstaller {
             List<Pair<String, String>> symlinks = new ArrayList<>();
             Set<String> seenNames = new HashSet<>();
 
+            debugLog("extractZipFile: " + zipFile.getName() + " -> " + destDir.getAbsolutePath()
+                + " | " + totalEntries + " entries | needsSubstitution=" + needsSubstitution);
+
             Enumeration<? extends ZipEntry> entries = zip.entries();
             while (entries.hasMoreElements()) {
                 ZipEntry entry = entries.nextElement();
                 String name = entry.getName();
+
+                // Log every 200 entries to track progress
+                if (doneEntries > 0 && doneEntries % 200 == 0) {
+                    debugLog("extractZipFile: progress " + doneEntries + "/" + totalEntries);
+                }
 
                 if (name.isEmpty() || name.contains("..") || name.startsWith("/")) {
                     throw new SecurityException(context.getString(com.termux.R.string.error_bootstrap_invalid_zip_entry, name));
@@ -270,13 +782,16 @@ public final class TermuxInstaller {
                     } finally {
                         in.close();
                     }
+                    if (needsSubstitution) {
+                        target = replacePrefixInString(target, oldPref, newPref, oldDataDir, newDataDir);
+                    }
                     String linkPath = destDir.getAbsolutePath() + "/" + name;
                     File linkFile = new File(linkPath);
                     File parent = linkFile.getParentFile();
                     if (parent != null && !parent.isDirectory() && !parent.mkdirs()) {
                         throw new IOException(context.getString(com.termux.R.string.error_bootstrap_symlink_parent_dir, parent));
                     }
-                    validateSymlinkTarget(context, destDir, name, target);
+                    validateSymlinkTarget(context, destDir, name, target, allowedPrefixPath);
                     try {
                         Os.symlink(target, linkPath);
                     } catch (Exception e) {
@@ -294,13 +809,16 @@ public final class TermuxInstaller {
                         if (parts.length != 2)
                             throw new BootstrapException(context.getString(com.termux.R.string.error_bootstrap_symlink_line, line));
                         String target = parts[0];
+                        if (needsSubstitution) {
+                            target = replacePrefixInString(target, oldPref, newPref, oldDataDir, newDataDir);
+                        }
                         String linkPath = destDir.getAbsolutePath() + "/" + parts[1];
                         File linkFile = new File(linkPath);
                         File parent = linkFile.getParentFile();
                         if (parent != null && !parent.isDirectory() && !parent.mkdirs()) {
                             throw new IOException(context.getString(com.termux.R.string.error_bootstrap_symlink_parent_dir, parent));
                         }
-                        validateSymlinkTarget(context, destDir, parts[1], target);
+                        validateSymlinkTarget(context, destDir, parts[1], target, allowedPrefixPath);
                         symlinks.add(Pair.create(target, linkPath));
                     }
                     doneEntries++;
@@ -332,6 +850,7 @@ public final class TermuxInstaller {
                 }
             }
 
+            debugLog("extractZipFile: done, creating " + symlinks.size() + " SYMLINKS.txt symlinks");
             for (Pair<String, String> symlink : symlinks) {
                 try {
                     Os.symlink(symlink.first, symlink.second);
@@ -339,6 +858,7 @@ public final class TermuxInstaller {
                     throw new IOException(context.getString(com.termux.R.string.error_bootstrap_symlink_create, symlink.first, symlink.second), e);
                 }
             }
+            debugLog("extractZipFile: all symlinks created, total entries=" + doneEntries);
         } finally {
             if (zip != null) {
                 try { zip.close(); } catch (IOException ignored) {}
@@ -346,8 +866,8 @@ public final class TermuxInstaller {
         }
     }
 
-    private static void validateSymlinkTarget(Context context, File extractRoot, String linkName, String target)
-            throws IOException {
+    private static void validateSymlinkTarget(Context context, File extractRoot, String linkName, String target,
+            String allowedPrefixPath) throws IOException {
         if (target.isEmpty()) {
             throw new SecurityException(context.getString(com.termux.R.string.error_bootstrap_symlink_target_empty, linkName));
         }
@@ -358,9 +878,9 @@ public final class TermuxInstaller {
         }
 
         if (target.startsWith("/")) {
-            String prefixPath = TERMUX_PREFIX_DIR_PATH;
+            String prefixPath = allowedPrefixPath;
             if (!prefixPath.endsWith("/")) prefixPath += "/";
-            if (target.startsWith(prefixPath) || target.equals(TERMUX_PREFIX_DIR_PATH)) {
+            if (target.startsWith(prefixPath) || target.equals(allowedPrefixPath)) {
                 Logger.logInfo(LOG_TAG, "Allowing absolute symlink inside prefix: " + linkName + " -> " + target);
             } else {
                 throw new SecurityException(context.getString(com.termux.R.string.error_bootstrap_symlink_absolute, target));
@@ -465,8 +985,30 @@ public final class TermuxInstaller {
             return;
         }
 
-        if (isBootstrapInstalled()) {
-            whenDone.run();
+        if (isBootstrapInstalled(activity)) {
+            if (needsPackageSubstitution(activity) && !isBootstrapPathPatchApplied(activity)) {
+                final ProgressDialog patchProgress = ProgressDialog.show(activity, null,
+                    activity.getString(R.string.bootstrap_installer_body), true, false);
+                new Thread() {
+                    @Override
+                    public void run() {
+                        try {
+                            patchExistingBootstrapIfNeeded(activity);
+                            activity.runOnUiThread(whenDone);
+                        } catch (final Exception e) {
+                            debugLogError("Existing bootstrap patch FAILED", e);
+                            showBootstrapErrorDialog(activity, whenDone,
+                                Logger.getStackTracesMarkdownString(null, Logger.getStackTracesStringArray(e)));
+                        } finally {
+                            activity.runOnUiThread(() -> {
+                                try { patchProgress.dismiss(); } catch (RuntimeException ignored) {}
+                            });
+                        }
+                    }
+                }.start();
+            } else {
+                whenDone.run();
+            }
             return;
         }
 
@@ -477,22 +1019,28 @@ public final class TermuxInstaller {
             public void run() {
                 try {
                     Logger.logInfo(LOG_TAG, "Installing " + TermuxConstants.TERMUX_APP_NAME + " bootstrap packages.");
+                    debugLog("=== Embedded bootstrap install start ===");
+
+                    String runtimeFilesDir = activity.getFilesDir().getAbsolutePath();
+                    String runtimeStagingPrefixPath = runtimeFilesDir + "/usr-staging";
+                    String runtimePrefixPath = runtimeFilesDir + "/usr";
+                    File runtimeStagingPrefixDir = new File(runtimeStagingPrefixPath);
+                    File runtimePrefixDir = new File(runtimePrefixPath);
 
                     Error error;
 
-                    error = FileUtils.deleteFile("termux prefix staging directory", TERMUX_STAGING_PREFIX_DIR_PATH, true);
+                    error = FileUtils.deleteFile("termux prefix staging directory", runtimeStagingPrefixPath, true);
                     if (error != null) { showBootstrapErrorDialog(activity, whenDone, Error.getErrorMarkdownString(error)); return; }
 
-                    error = FileUtils.deleteFile("termux prefix directory", TERMUX_PREFIX_DIR_PATH, true);
+                    error = FileUtils.deleteFile("termux prefix directory", runtimePrefixPath, true);
                     if (error != null) { showBootstrapErrorDialog(activity, whenDone, Error.getErrorMarkdownString(error)); return; }
 
-                    error = TermuxFileUtils.isTermuxPrefixStagingDirectoryAccessible(true, true);
-                    if (error != null) { showBootstrapErrorDialog(activity, whenDone, Error.getErrorMarkdownString(error)); return; }
+                    if (!new File(runtimeFilesDir).isDirectory() && !new File(runtimeFilesDir).mkdirs()) {
+                        showBootstrapErrorDialog(activity, whenDone, "Failed to create files directory: " + runtimeFilesDir);
+                        return;
+                    }
 
-                    error = TermuxFileUtils.isTermuxPrefixDirectoryAccessible(true, true);
-                    if (error != null) { showBootstrapErrorDialog(activity, whenDone, Error.getErrorMarkdownString(error)); return; }
-
-                    Logger.logInfo(LOG_TAG, "Extracting bootstrap zip to prefix staging directory \"" + TERMUX_STAGING_PREFIX_DIR_PATH + "\".");
+                    Logger.logInfo(LOG_TAG, "Extracting bootstrap zip to prefix staging directory \"" + runtimeStagingPrefixPath + "\".");
 
                     final byte[] buffer = new byte[8096];
                     final List<Pair<String, String>> symlinks = new ArrayList<>(50);
@@ -501,20 +1049,28 @@ public final class TermuxInstaller {
                         ZipEntry zipEntry;
                         while ((zipEntry = zipInput.getNextEntry()) != null) {
                             if (zipEntry.getName().equals("SYMLINKS.txt")) {
+                                final boolean needsSub = needsPackageSubstitution(activity);
+                                final String embOldPref = getBootstrapPrefixPath();
+                                final String embNewPref = getActualPrefixPath(activity);
+                                final String embOldData = getBootstrapDataDirPath();
+                                final String embNewData = getActualDataDirPath(activity);
                                 BufferedReader r = new BufferedReader(new InputStreamReader(zipInput));
                                 String line;
                                 while ((line = r.readLine()) != null) {
                                     String[] parts = line.split("←");
                                     if (parts.length != 2) throw new RuntimeException(activity.getString(com.termux.R.string.error_bootstrap_symlink_line, line));
                                     String oldPath = parts[0];
-                                    String newPath = TERMUX_STAGING_PREFIX_DIR_PATH + "/" + parts[1];
+                                    if (needsSub) {
+                                        oldPath = replacePrefixInString(oldPath, embOldPref, embNewPref, embOldData, embNewData);
+                                    }
+                                    String newPath = runtimeStagingPrefixPath + "/" + parts[1];
                                     symlinks.add(Pair.create(oldPath, newPath));
                                     error = ensureDirectoryExists(new File(newPath).getParentFile());
                                     if (error != null) { showBootstrapErrorDialog(activity, whenDone, Error.getErrorMarkdownString(error)); return; }
                                 }
                             } else {
                                 String zipEntryName = zipEntry.getName();
-                                File targetFile = new File(TERMUX_STAGING_PREFIX_DIR_PATH, zipEntryName);
+                                File targetFile = new File(runtimeStagingPrefixPath, zipEntryName);
                                 boolean isDirectory = zipEntry.isDirectory();
                                 error = ensureDirectoryExists(isDirectory ? targetFile : targetFile.getParentFile());
                                 if (error != null) { showBootstrapErrorDialog(activity, whenDone, Error.getErrorMarkdownString(error)); return; }
@@ -538,16 +1094,45 @@ public final class TermuxInstaller {
                         Os.symlink(symlink.first, symlink.second);
                     }
 
+                    if (needsPackageSubstitution(activity)) {
+                        String oldFilesDir = getBootstrapFilesDirPath();
+                        String newFilesDir = getActualFilesDirPath(activity);
+                        String oldDataDir = getBootstrapDataDirPath();
+                        String newDataDir = getActualDataDirPath(activity);
+                        String compatFilesDir = getCompatFilesDirPath(activity);
+                        byte[] elfOld = compatFilesDir == null ? null : oldFilesDir.getBytes(StandardCharsets.US_ASCII);
+                        byte[] elfNew = compatFilesDir == null ? null : compatFilesDir.getBytes(StandardCharsets.US_ASCII);
+                        Logger.logInfo(LOG_TAG, "Starting embedded bootstrap substitution in " + runtimeStagingPrefixDir.getAbsolutePath());
+                        patchPrefixInDirectory(runtimeStagingPrefixDir,
+                            oldFilesDir, newFilesDir,
+                            oldDataDir, newDataDir,
+                            elfOld, elfNew, 0);
+                        patchSymlinksInDirectory(runtimeStagingPrefixDir,
+                            oldFilesDir, newFilesDir,
+                            oldDataDir, newDataDir, 0);
+                        Logger.logInfo(LOG_TAG, "embedded bootstrap package-name substitution: " + BOOTSTRAP_TARGET_PKG + " -> " + activity.getPackageName());
+                    }
+
                     Logger.logInfo(LOG_TAG, "Moving termux prefix staging to prefix directory.");
                     try {
-                        renameOrMove(TERMUX_STAGING_PREFIX_DIR, TERMUX_PREFIX_DIR);
+                        renameOrMove(runtimeStagingPrefixDir, runtimePrefixDir);
                     } catch (Exception e) {
                         throw new RuntimeException(activity.getString(com.termux.R.string.error_bootstrap_move_prefix) + ": " + e.getMessage(), e);
                     }
                     Logger.logInfo(LOG_TAG, "Bootstrap packages installed successfully.");
+                    debugLog("Embedded bootstrap install SUCCESS");
+                    if (needsPackageSubstitution(activity)) {
+                        try {
+                            ensureCompatSymlinks(activity);
+                            writePathPatchMarker(activity);
+                        } catch (Exception e) {
+                            Logger.logError(LOG_TAG, "Failed to create compat symlinks/marker: " + e.getMessage());
+                        }
+                    }
                     TermuxShellEnvironment.writeEnvironmentToFile(activity);
                     activity.runOnUiThread(whenDone);
                 } catch (final Exception e) {
+                    debugLogError("Embedded bootstrap install FAILED", e);
                     showBootstrapErrorDialog(activity, whenDone,
                         Logger.getStackTracesMarkdownString(null, Logger.getStackTracesStringArray(e)));
                 } finally {

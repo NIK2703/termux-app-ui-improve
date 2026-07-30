@@ -143,7 +143,7 @@ public class TermuxServiceConnectionManager implements ServiceConnection {
 
         if (mTermuxService.isTermuxSessionsEmpty()) {
             // Check if bootstrap is installed; if not, show the selector activity.
-            if (!TermuxInstaller.isBootstrapInstalled()) {
+            if (!TermuxInstaller.isBootstrapInstalled(mActivity)) {
                 if (mActivity.isVisible()) {
                     TermuxInstaller.cleanupInterruptedInstall();
                     Intent selectorIntent = new Intent(mActivity, com.termux.installer.BootstrapSelectorActivity.class);

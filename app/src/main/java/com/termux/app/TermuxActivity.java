@@ -476,8 +476,8 @@ public final class TermuxActivity extends AppCompatActivity implements TextInput
 
         setContentView(R.layout.activity_termux);
 
-        if (!TermuxInstaller.isBootstrapInstalled()) {
-            TermuxInstaller.cleanupInterruptedInstall();
+if (!TermuxInstaller.isBootstrapInstalled(this)) {
+                    TermuxInstaller.cleanupInterruptedInstall();
             Intent selectorIntent = new Intent(this, com.termux.installer.BootstrapSelectorActivity.class);
             startActivityForResult(selectorIntent, REQUEST_BOOTSTRAP_SETUP);
             mIsInvalidState = true;
@@ -2219,7 +2219,7 @@ public final class TermuxActivity extends AppCompatActivity implements TextInput
         if (requestCode == PermissionUtils.REQUEST_GRANT_STORAGE_PERMISSION) {
             requestStoragePermission(true);
         } else if (requestCode == REQUEST_BOOTSTRAP_SETUP) {
-            if (resultCode == RESULT_OK && TermuxInstaller.isBootstrapInstalled()) {
+            if (resultCode == RESULT_OK && TermuxInstaller.isBootstrapInstalled(this)) {
                 recreate();
             } else {
                 finish();

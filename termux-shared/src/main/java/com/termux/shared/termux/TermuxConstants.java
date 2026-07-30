@@ -350,6 +350,10 @@ public final class TermuxConstants {
     public static final String TERMUX_APP_NAME = "Termux"; // Default: "Termux"
     /** Termux package name */
     public static final String TERMUX_PACKAGE_NAME = "com.termux"; // Default: "com.termux"
+    /** The package name that bootstrap zips from termux-packages are built for.
+     *  If different from {@link #TERMUX_PACKAGE_NAME}, the installer will replace
+     *  references at install time so the bootstrap works with the actual app package. */
+    public static final String TERMUX_BOOTSTRAP_TARGET_PACKAGE_NAME = "com.termux"; // Default: "com.termux"
     /** Termux GitHub repo name */
     public static final String TERMUX_GITHUB_REPO_NAME = "termux-app"; // Default: "termux-app"
     /** Termux GitHub repo url */

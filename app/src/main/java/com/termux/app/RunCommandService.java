@@ -80,7 +80,7 @@ public class RunCommandService extends Service {
         }
 
         // If bootstrap not installed, redirect caller and stop
-        if (!TermuxInstaller.isBootstrapInstalled()) {
+        if (!TermuxInstaller.isBootstrapInstalled(this)) {
             errmsg = getString(R.string.run_command_bootstrap_not_installed);
             Logger.logError(LOG_TAG, errmsg);
             executionCommand.setStateFailed(Errno.ERRNO_FAILED.getCode(), errmsg);

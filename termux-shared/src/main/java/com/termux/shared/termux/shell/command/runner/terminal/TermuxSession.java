@@ -15,6 +15,8 @@ import com.termux.shared.shell.command.result.ResultData;
 import com.termux.shared.errors.Errno;
 import com.termux.shared.logger.Logger;
 import com.termux.shared.shell.command.environment.IShellEnvironment;
+import com.termux.shared.termux.TermuxConstants;
+import com.termux.shared.termux.shell.command.environment.TermuxShellEnvironment;
 import com.termux.shared.shell.ShellUtils;
 import com.termux.terminal.TerminalSession;
 import com.termux.terminal.TerminalSessionClient;
@@ -85,6 +87,8 @@ public class TermuxSession {
             executionCommand.workingDirectory = shellEnvironmentClient.getDefaultWorkingDirectoryPath();
         if (executionCommand.workingDirectory.isEmpty())
             executionCommand.workingDirectory = "/";
+        executionCommand.workingDirectory = TermuxShellEnvironment.sanitizeWorkingDirectory(
+            currentPackageContext, executionCommand.workingDirectory);
 
         String defaultBinPath = shellEnvironmentClient.getDefaultBinPath();
         if (defaultBinPath.isEmpty())

@@ -66,7 +66,7 @@ public class BootstrapSelectorActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        if (TermuxInstaller.isBootstrapInstalled()) {
+        if (TermuxInstaller.isBootstrapInstalled(this)) {
             finishWithSuccess();
             return;
         }

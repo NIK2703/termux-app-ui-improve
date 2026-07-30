@@ -626,6 +626,12 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
             String cwd = getCurrentSessionCwd(mActivity);
             workingDirectory = (cwd != null) ? cwd : mActivity.getProperties().getDefaultWorkingDirectory();
         }
+        if (TermuxConstants.TERMUX_HOME_DIR_PATH.equals(workingDirectory)) {
+            workingDirectory = mActivity.getFilesDir().getAbsolutePath() + "/home";
+        }
+        Logger.logInfo("CHDIR_DEBUG", "createNewSession: workingDirectory='" + workingDirectory
+            + "' mActivity.getFilesDir()='" + mActivity.getFilesDir().getAbsolutePath()
+            + "' getDefaultWD='" + mActivity.getProperties().getDefaultWorkingDirectory() + "'");
 
         TermuxSession newTermuxSession = service.createTermuxSession(null, null, null, workingDirectory, isFailSafe, sessionName);
         if (newTermuxSession == null) return null;

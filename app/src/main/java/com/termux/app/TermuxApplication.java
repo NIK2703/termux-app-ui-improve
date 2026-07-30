@@ -55,12 +55,23 @@ public class TermuxApplication extends Application {
         // language (e.g. Russian) is used everywhere without re-selecting it.
         TermuxLocaleUtils.applyLocale(TermuxLocaleUtils.getLocaleOverride());
 
+        // Init TermuxShellEnvironment constants and caches BEFORE any early return,
+        // so that getDefaultWorkingDirectoryPath() always returns runtime-resolved paths
+        // (not compile-time /data/data/com.termux/...) even when other setup fails.
+        TermuxShellEnvironment.init(this);
+
         // Check and create termux files directory. If failed to access it like in case of secondary
         // user or external sd card installation, then don't run files directory related code
         Error error = TermuxFileUtils.isTermuxFilesDirectoryAccessible(this, true, true);
         boolean isTermuxFilesDirectoryAccessible = error == null;
         if (isTermuxFilesDirectoryAccessible) {
             Logger.logInfo(LOG_TAG, "Termux files directory is accessible");
+
+            try {
+                TermuxInstaller.ensureCompatSymlinks(this);
+            } catch (Exception e) {
+                Logger.logError(LOG_TAG, "Failed to ensure Termux compat symlinks: " + e.getMessage());
+            }
 
             error = TermuxFileUtils.isAppsTermuxAppDirectoryAccessible(true, true);
             if (error != null) {
@@ -70,15 +81,10 @@ public class TermuxApplication extends Application {
 
             // Setup termux-am-socket server
             TermuxAmSocketServer.setupTermuxAmSocketServer(context);
+
+            TermuxShellEnvironment.writeEnvironmentToFile(this);
         } else {
             Logger.logErrorExtended(LOG_TAG, "Termux files directory is not accessible\n" + error);
-        }
-
-        // Init TermuxShellEnvironment constants and caches after everything has been setup including termux-am-socket server
-        TermuxShellEnvironment.init(this);
-
-        if (isTermuxFilesDirectoryAccessible) {
-            TermuxShellEnvironment.writeEnvironmentToFile(this);
         }
     }
 

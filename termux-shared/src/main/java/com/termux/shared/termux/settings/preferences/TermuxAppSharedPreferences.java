@@ -43,7 +43,12 @@ public class TermuxAppSharedPreferences extends AppSharedPreferences {
      */
     @Nullable
     public static TermuxAppSharedPreferences build(@NonNull final Context context) {
-        Context termuxPackageContext = PackageUtils.getContextForPackage(context, TermuxConstants.TERMUX_PACKAGE_NAME);
+        Context termuxPackageContext;
+        if (TermuxConstants.TERMUX_PACKAGE_NAME.equals(context.getPackageName())) {
+            termuxPackageContext = PackageUtils.getContextForPackage(context, TermuxConstants.TERMUX_PACKAGE_NAME);
+        } else {
+            termuxPackageContext = context;
+        }
         if (termuxPackageContext == null)
             return null;
         else
@@ -60,7 +65,12 @@ public class TermuxAppSharedPreferences extends AppSharedPreferences {
      * @return Returns the {@link TermuxAppSharedPreferences}. This will {@code null} if an exception is raised.
      */
     public static TermuxAppSharedPreferences build(@NonNull final Context context, final boolean exitAppOnError) {
-        Context termuxPackageContext = TermuxUtils.getContextForPackageOrExitApp(context, TermuxConstants.TERMUX_PACKAGE_NAME, exitAppOnError);
+        Context termuxPackageContext;
+        if (TermuxConstants.TERMUX_PACKAGE_NAME.equals(context.getPackageName())) {
+            termuxPackageContext = TermuxUtils.getContextForPackageOrExitApp(context, TermuxConstants.TERMUX_PACKAGE_NAME, exitAppOnError);
+        } else {
+            termuxPackageContext = context;
+        }
         if (termuxPackageContext == null)
             return null;
         else
@@ -677,7 +687,17 @@ public class TermuxAppSharedPreferences extends AppSharedPreferences {
 
 
     public String getDefaultWorkingDirectory() {
-        return SharedPreferenceUtils.getString(mSharedPreferences, TERMUX_APP.KEY_DEFAULT_WORKING_DIRECTORY, TERMUX_APP.DEFAULT_VALUE_DEFAULT_WORKING_DIRECTORY, true);
+        String value = SharedPreferenceUtils.getString(mSharedPreferences, TERMUX_APP.KEY_DEFAULT_WORKING_DIRECTORY, TERMUX_APP.DEFAULT_VALUE_DEFAULT_WORKING_DIRECTORY, true);
+        // The compile-time default TERMUX_HOME_DIR_PATH points to /data/data/com.termux/files/home.
+        // If the actual package name differs (e.g. com.termux.debug), resolve to the runtime path.
+        String compileTimeHome = TermuxConstants.TERMUX_HOME_DIR_PATH;
+        if (value.equals(compileTimeHome)) {
+            String runtimeHome = mContext.getFilesDir().getAbsolutePath() + "/home";
+            if (!runtimeHome.equals(compileTimeHome)) {
+                return runtimeHome;
+            }
+        }
+        return value;
     }
 
     public void setDefaultWorkingDirectory(String value) {

@@ -230,4 +230,42 @@ public class ExtraKeysInfo {
         }
     }
 
+    /**
+     * Structural equality check for two layouts. Returns {@code true} if
+     * both infos have the same matrix dimensions and each cell's button
+     * properties (key, display, macro, popup) are identical.
+     *
+     * <p>Used by {@link ExtraKeysContextWatcher} to avoid redundant
+     * {@link ExtraKeysView#reload} calls.</p>
+     */
+    public static boolean isSameLayout(@NonNull ExtraKeysInfo a, @NonNull ExtraKeysInfo b) {
+        ExtraKeyButton[][] ma = a.getMatrix();
+        ExtraKeyButton[][] mb = b.getMatrix();
+        if (ma.length != mb.length) return false;
+        for (int row = 0; row < ma.length; row++) {
+            if (ma[row].length != mb[row].length) return false;
+            for (int col = 0; col < ma[row].length; col++) {
+                if (!buttonsEqual(ma[row][col], mb[row][col])) return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean buttonsEqual(@NonNull ExtraKeyButton a, @NonNull ExtraKeyButton b) {
+        if (!eq(a.getKey(), b.getKey())) return false;
+        if (!eq(a.getDisplay(), b.getDisplay())) return false;
+        if (a.isMacro() != b.isMacro()) return false;
+        // Compare popup (swipe-up) button
+        ExtraKeyButton ap = a.getPopup();
+        ExtraKeyButton bp = b.getPopup();
+        if (ap == null && bp == null) return true;
+        if (ap == null || bp == null) return false;
+        return buttonsEqual(ap, bp);
+    }
+
+    private static boolean eq(@Nullable String a, @Nullable String b) {
+        if (a == b) return true;
+        if (a == null || b == null) return false;
+        return a.equals(b);
+    }
 }

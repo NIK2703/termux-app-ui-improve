@@ -66,7 +66,7 @@ public class FileReceiverActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
 
-        if (!TermuxInstaller.isBootstrapInstalled()) {
+        if (!TermuxInstaller.isBootstrapInstalled(this)) {
             showErrorDialogAndQuit(getString(R.string.file_receiver_bootstrap_not_installed));
             return;
         }

@@ -18,6 +18,11 @@ import com.termux.shared.termux.terminal.io.TerminalExtraKeys;
 import com.termux.view.TerminalView;
 
 import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
 
 public class TermuxTerminalExtraKeys extends TerminalExtraKeys {
 
@@ -29,6 +34,12 @@ public class TermuxTerminalExtraKeys extends TerminalExtraKeys {
 
     private static final String LOG_TAG = "TermuxTerminalExtraKeys";
 
+    // ── Context-aware layout switching ──────────────────────────────
+    /** Process name → extra-keys JSON string, from the "extra-keys-context" property. */
+    private Map<String, String> mContextLayouts = new HashMap<>();
+    /** The context name currently active (null = default layout). */
+    @Nullable private String mCurrentContext;
+
     public TermuxTerminalExtraKeys(TermuxActivity activity, @NonNull TerminalView terminalView,
                                     TermuxTerminalViewClient termuxTerminalViewClient,
                                     TermuxTerminalSessionActivityClient termuxTerminalSessionActivityClient) {
@@ -39,6 +50,7 @@ public class TermuxTerminalExtraKeys extends TerminalExtraKeys {
         mTermuxTerminalSessionActivityClient = termuxTerminalSessionActivityClient;
 
         setExtraKeys();
+        parseContextMap();
     }
 
     /**
@@ -48,6 +60,7 @@ public class TermuxTerminalExtraKeys extends TerminalExtraKeys {
      */
     public void reloadExtraKeys() {
         setExtraKeys();
+        parseContextMap();
     }
 
     /**
@@ -120,4 +133,162 @@ public class TermuxTerminalExtraKeys extends TerminalExtraKeys {
         }
     }
 
+    // ── Context-aware layout switching ──────────────────────────────
+
+    /**
+     * Parse the {@code extra-keys-context} property into a process-name → JSON layout map.
+     * Called once at construction and again on {@link #reloadExtraKeys()}.
+     *
+     * <p>Expected property format (JSON object):</p>
+     * <pre>
+     * {
+     *   "vim": "[ [ {key:'ESC', ...}, ... ] ]",
+     *   "python": "[ [ {key:'Ctrl-C', ...}, ... ] ]"
+     * }
+     * </pre>
+     */
+    private void parseContextMap() {
+        mContextLayouts.clear();
+        try {
+            Object raw = mActivity.getProperties().getInternalPropertyValue(
+                    TermuxPropertyConstants.KEY_EXTRA_KEYS_CONTEXT, true);
+            if (raw == null) return;
+
+            JSONObject json = new JSONObject(raw.toString());
+            Iterator<String> keys = json.keys();
+            while (keys.hasNext()) {
+                String processName = keys.next();
+                String layoutJson = json.getString(processName);
+                if (processName != null && !processName.isEmpty() && layoutJson != null) {
+                    mContextLayouts.put(processName.toLowerCase(), layoutJson);
+                }
+            }
+        } catch (JSONException e) {
+            Logger.logStackTraceWithMessage(LOG_TAG,
+                "Failed to parse extra-keys-context property: ", e);
+            mContextLayouts.clear();
+        }
+    }
+
+    /**
+     * Called by {@link com.termux.shared.termux.extrakeys.ExtraKeysContextWatcher} when the
+     * foreground process of the active terminal session changes.
+     *
+     * @param processName the comm name of the new foreground process,
+     *                    or {@code null} if the shell itself is foreground
+     */
+    public void onForegroundProcessChanged(@Nullable String processName) {
+        if (!isContextSwitchingEnabled()) return;
+
+        String contextName = resolveContextForProcess(processName);
+        if (contextName == null) {
+            applyDefaultLayout();
+        } else if (!contextName.equals(mCurrentContext)) {
+            applyContextLayout(contextName, processName);
+        }
+        // If contextName equals mCurrentContext, no-op (already showing this layout)
+    }
+
+    /**
+     * Find the context key that matches the given process name.
+     * Supports exact match first, then prefix match (e.g. "python3" → "python").
+     *
+     * @return the context key, or {@code null} if no match
+     */
+    @Nullable
+    private String resolveContextForProcess(@Nullable String processName) {
+        if (processName == null || mContextLayouts.isEmpty()) return null;
+
+        String lower = processName.toLowerCase();
+
+        // Exact match
+        if (mContextLayouts.containsKey(lower)) return lower;
+
+        // Prefix match: "python3" → "python", "vi" → "vim" (longest prefix wins)
+        String bestMatch = null;
+        for (String key : mContextLayouts.keySet()) {
+            if (lower.startsWith(key) || key.startsWith(lower)) {
+                if (bestMatch == null || key.length() > bestMatch.length()) {
+                    bestMatch = key;
+                }
+            }
+        }
+        return bestMatch;
+    }
+
+    /**
+     * Load and apply an ExtraKeys layout for the given context name.
+     */
+    private void applyContextLayout(@NonNull String contextName, @NonNull String processName) {
+        String contextLayoutJson = mContextLayouts.get(contextName);
+        if (contextLayoutJson == null) {
+            Logger.logError(LOG_TAG, "Context layout not found for: " + contextName);
+            return;
+        }
+
+        try {
+            String extraKeysStyle = (String) mActivity.getProperties().getInternalPropertyValue(
+                    TermuxPropertyConstants.KEY_EXTRA_KEYS_STYLE, true);
+
+            ExtraKeysConstants.ExtraKeyDisplayMap displayMap = ExtraKeysInfo.getCharDisplayMapForStyle(extraKeysStyle);
+            ExtraKeysInfo previousInfo = mExtraKeysInfo;
+            ExtraKeysInfo newInfo = new ExtraKeysInfo(contextLayoutJson, extraKeysStyle,
+                    ExtraKeysConstants.CONTROL_CHARS_ALIASES);
+
+            // Avoid redundant reload if the matrix is structurally identical.
+            if (!ExtraKeysInfo.isSameLayout(mExtraKeysInfo, newInfo)) {
+                mExtraKeysInfo = newInfo;
+                // Update the toolbar height for the new layout row count.
+                mActivity.setTerminalToolbarHeight();
+                if (mActivity.getExtraKeysView() != null && mExtraKeysInfo != null) {
+                    mActivity.getExtraKeysView().reload(newInfo,
+                            mActivity.getTerminalToolbarDefaultHeight());
+                }
+                Logger.logDebug(LOG_TAG, "Switched extra-keys to context \""
+                        + contextName + "\" for process: " + processName);
+            }
+            mCurrentContext = contextName;
+        } catch (JSONException e) {
+            Logger.logStackTraceWithMessage(LOG_TAG,
+                    "Failed to create ExtraKeysInfo for context \"" + contextName + "\": ", e);
+        }
+    }
+
+    /**
+     * Restore the default extra-keys layout (re-reads the {@code extra-keys} property).
+     */
+    private void applyDefaultLayout() {
+        if (mCurrentContext == null) return; // Already at default
+
+        ExtraKeysInfo previousInfo = mExtraKeysInfo;
+        setExtraKeys(); // Re-reads the "extra-keys" property from disk
+
+        // Avoid redundant reload if the layout hasn't actually changed.
+        if (!ExtraKeysInfo.isSameLayout(previousInfo, mExtraKeysInfo)) {
+            mActivity.setTerminalToolbarHeight();
+            if (mActivity.getExtraKeysView() != null && mExtraKeysInfo != null) {
+                mActivity.getExtraKeysView().reload(mExtraKeysInfo,
+                        mActivity.getTerminalToolbarDefaultHeight());
+            }
+            Logger.logDebug(LOG_TAG, "Restored default extra-keys layout");
+        }
+        mCurrentContext = null;
+    }
+
+    /** @return {@code true} if context-aware switching is configured and non-empty. */
+    public boolean isContextSwitchingEnabled() {
+        return !mContextLayouts.isEmpty();
+    }
+
+    /** @return unmodifiable view of the process→layout map (for testing/debugging). */
+    @NonNull
+    public Map<String, String> getContextLayouts() {
+        return mContextLayouts;
+    }
+
+    /** @return the currently active context name, or {@code null} for the default layout. */
+    @Nullable
+    public String getCurrentContext() {
+        return mCurrentContext;
+    }
 }

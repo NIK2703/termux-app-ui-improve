@@ -8,6 +8,7 @@ import com.termux.app.TermuxActivity;
 import com.termux.app.TermuxService;
 import com.termux.shared.logger.Logger;
 import com.termux.shared.shell.command.ExecutionCommand;
+import com.termux.shared.termux.shell.command.environment.TermuxShellEnvironment;
 import com.termux.shared.termux.shell.command.runner.terminal.TermuxSession;
 import com.termux.shared.termux.settings.properties.TermuxAppSharedProperties;
 import com.termux.terminal.TerminalSession;
@@ -144,6 +145,7 @@ public class TermuxSessionSnapshotManager {
                 boolean failsafe = tab.optBoolean("failsafe", false);
                 String workingDirectory = TextUtils.isEmpty(cwd)
                         ? properties.getDefaultWorkingDirectory() : cwd;
+                workingDirectory = TermuxShellEnvironment.sanitizeWorkingDirectory(mActivity, workingDirectory);
                 TermuxSession session = service.createTermuxSession(null, null, null,
                         workingDirectory, failsafe, TextUtils.isEmpty(name) ? null : name);
                 if (session == null) continue;
