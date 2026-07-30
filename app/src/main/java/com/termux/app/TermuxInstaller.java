@@ -499,17 +499,23 @@ public final class TermuxInstaller {
         String newDataDir = getActualDataDirPath(context);
         String compatFilesDir = getCompatFilesDirPath(context);
 
+        byte[] elfOldFilesDir = null;
+        byte[] elfNewFilesDir = null;
         if (compatFilesDir == null) {
-            throw new IOException("Cannot patch ELF binaries: no same-length compat path for "
-                + getBootstrapFilesDirPath());
-        }
-
-        byte[] elfOldFilesDir = oldFilesDir.getBytes(StandardCharsets.US_ASCII);
-        byte[] elfNewFilesDir = compatFilesDir.getBytes(StandardCharsets.US_ASCII);
-        if (elfOldFilesDir.length != elfNewFilesDir.length) {
-            throw new IOException("ELF compat path length mismatch: "
-                + oldFilesDir + " (" + elfOldFilesDir.length + ") vs "
-                + compatFilesDir + " (" + elfNewFilesDir.length + ")");
+            Logger.logWarn(LOG_TAG, "No same-length compat path for "
+                + getBootstrapFilesDirPath() + "; ELF binary patching will be skipped. "
+                + "The LD_PRELOAD path-remapping shim (libtermux-prefix-remap.so) must be "
+                + "installed under $PREFIX/lib/ for ELF binaries to work.");
+        } else {
+            elfOldFilesDir = oldFilesDir.getBytes(StandardCharsets.US_ASCII);
+            elfNewFilesDir = compatFilesDir.getBytes(StandardCharsets.US_ASCII);
+            if (elfOldFilesDir.length != elfNewFilesDir.length) {
+                Logger.logWarn(LOG_TAG, "ELF compat path length mismatch: "
+                    + oldFilesDir + " (" + elfOldFilesDir.length + ") vs "
+                    + compatFilesDir + " (" + elfNewFilesDir.length + "); ELF patching skipped");
+                elfOldFilesDir = null;
+                elfNewFilesDir = null;
+            }
         }
 
         ensureCompatSymlinks(context);

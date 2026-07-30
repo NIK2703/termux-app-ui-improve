@@ -14,6 +14,7 @@ import com.termux.shared.shell.command.environment.ShellEnvironmentUtils;
 import com.termux.shared.shell.command.environment.ShellCommandShellEnvironment;
 import com.termux.shared.termux.TermuxBootstrap;
 import com.termux.shared.termux.TermuxConstants;
+import com.termux.shared.termux.shell.TermuxPrefixRemap;
 import com.termux.shared.termux.shell.TermuxShellUtils;
 
 import java.io.File;
@@ -36,6 +37,9 @@ public class TermuxShellEnvironment extends AndroidShellEnvironment {
     /** Cached runtime bin dir path, resolved at init(). Falls back to compile-time constant. */
     private static String sResolvedBinDirPath;
 
+    /** Application context stored at init(), used for needsSubstitution checks. */
+    private static Context sInitContext;
+
     public TermuxShellEnvironment() {
         super();
         shellCommandShellEnvironment = new TermuxShellCommandShellEnvironment();
@@ -48,7 +52,9 @@ public class TermuxShellEnvironment extends AndroidShellEnvironment {
         String filesDir = currentPackageContext.getFilesDir().getAbsolutePath();
         sResolvedHomeDirPath = filesDir + "/home";
         sResolvedBinDirPath = filesDir + "/usr/bin";
+        sInitContext = currentPackageContext;
         TermuxAppShellEnvironment.setTermuxAppEnvironment(currentPackageContext);
+        TermuxPrefixRemap.ensureInstalled(currentPackageContext, filesDir + "/usr/lib");
     }
 
     /**
@@ -149,15 +155,42 @@ public class TermuxShellEnvironment extends AndroidShellEnvironment {
                 environment.put(ENV_PATH, binDirPath + ":" + binDirPath + "/applets");
                 environment.put(ENV_LD_LIBRARY_PATH, libDirPath);
             } else if (needsSubstitution) {
-                // Package name differs from bootstrap target (e.g. com.termux.debug).
-                // ELF RPATHs are hardcoded to the bootstrap prefix and cannot be byte-patched
-                // when the old/new paths differ in length. Set LD_LIBRARY_PATH as fallback.
                 environment.put(ENV_PATH, binDirPath);
                 environment.put(ENV_LD_LIBRARY_PATH, libDirPath);
+
+                // Export LD_PRELOAD and remap env vars for the path-remapping shim.
+                // The shim (libtermux-prefix-remap.so) intercepts libc file operations
+                // and rewrites hardcoded bootstrap paths to the actual runtime prefix.
+                String remapLib = libDirPath + "/" + TermuxPrefixRemap.REMAP_LIB_NAME;
+                if (new File(remapLib).canRead()) {
+                    String oldFilesDir = TermuxConstants.TERMUX_FILES_DIR_PATH;
+                    String newFilesDir = currentPackageContext.getFilesDir().getAbsolutePath()
+                        .replaceFirst("^/data/user/0/", "/data/data/");
+
+                    String existingPreload = environment.get(TermuxPrefixRemap.ENV_LD_PRELOAD);
+                    if (existingPreload == null || existingPreload.isEmpty()) {
+                        environment.put(TermuxPrefixRemap.ENV_LD_PRELOAD, remapLib);
+                    } else {
+                        environment.put(TermuxPrefixRemap.ENV_LD_PRELOAD, remapLib + ":" + existingPreload);
+                    }
+
+                    environment.put(TermuxPrefixRemap.ENV_REMAP_OLD_FILES_DIR, oldFilesDir);
+                    environment.put(TermuxPrefixRemap.ENV_REMAP_NEW_FILES_DIR, newFilesDir);
+                    environment.put(TermuxPrefixRemap.ENV_REMAP_LIBPATH, libDirPath);
+                    environment.put(TermuxPrefixRemap.ENV_REMAP_LOADER,
+                        libDirPath + "/ld-linux-aarch64.so.1");
+                    environment.put(TermuxPrefixRemap.ENV_REMAP_PRESERVE_ARGV0, "1");
+                }
             } else {
                 // Termux binaries on Android 7+ rely on DT_RUNPATH, so LD_LIBRARY_PATH should be unset by default
                 environment.put(ENV_PATH, binDirPath);
                 environment.remove(ENV_LD_LIBRARY_PATH);
+                environment.remove(TermuxPrefixRemap.ENV_LD_PRELOAD);
+                environment.remove(TermuxPrefixRemap.ENV_REMAP_OLD_FILES_DIR);
+                environment.remove(TermuxPrefixRemap.ENV_REMAP_NEW_FILES_DIR);
+                environment.remove(TermuxPrefixRemap.ENV_REMAP_LIBPATH);
+                environment.remove(TermuxPrefixRemap.ENV_REMAP_LOADER);
+                environment.remove(TermuxPrefixRemap.ENV_REMAP_PRESERVE_ARGV0);
             }
         }
 
@@ -235,7 +268,13 @@ public class TermuxShellEnvironment extends AndroidShellEnvironment {
     @NonNull
     @Override
     public String[] setupShellCommandArguments(@NonNull String executable, String[] arguments) {
-        return TermuxShellUtils.setupShellCommandArguments(executable, arguments);
+        String[] argv = TermuxShellUtils.setupShellCommandArguments(executable, arguments);
+        if (sInitContext != null && TermuxPrefixRemap.needsSubstitution(sInitContext)) {
+            String prefixDirPath = resolvePrefixDirPath(sInitContext);
+            String libDirPath = prefixDirPath + "/lib";
+            argv = TermuxPrefixRemap.wrapExecutableIfNeeded(libDirPath, argv);
+        }
+        return argv;
     }
 
 }

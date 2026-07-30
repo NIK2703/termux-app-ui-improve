@@ -1,0 +1,29 @@
+# Glibc cross-compilation Makefile for libtermux-prefix-remap.so
+#
+# Build with aarch64-linux-gnu-gcc toolchain:
+#   make -f Makefile.glibc CROSS=aarch64-linux-gnu-
+#
+# The resulting .so should be installed into $PREFIX/lib/ in the
+# bootstrap zip or copied manually on device.
+
+CROSS      ?= aarch64-linux-gnu-
+CC         := $(CROSS)gcc
+LD         := $(CROSS)ld
+STRIP      := $(CROSS)strip
+
+CFLAGS     := -O2 -fPIC -fvisibility=default -Wall -Wno-unused-parameter
+LDFLAGS    := -shared -ldl
+
+SRC        := termux-prefix-remap.c
+OUT        := libtermux-prefix-remap.so
+
+all: $(OUT)
+
+$(OUT): $(SRC)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^
+	$(STRIP) --strip-unneeded $@
+
+clean:
+	rm -f $(OUT)
+
+.PHONY: all clean
