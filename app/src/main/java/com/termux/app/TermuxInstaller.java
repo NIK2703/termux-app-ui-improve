@@ -88,6 +88,7 @@ public final class TermuxInstaller {
     private static final int MAX_ENTRIES = 50000;
     private static final long MAX_SINGLE_ENTRY_SIZE = 256L * 1024 * 1024;
     private static final int MAX_COMPRESSION_RATIO = 200;
+    private static final int MAX_COMPRESSION_RATIO_NIX = 50000;
 
     private static final AtomicBoolean sInstallInProgress = new AtomicBoolean(false);
 
@@ -859,9 +860,18 @@ public final class TermuxInstaller {
 
                 long compressedSize = entry.getCompressedSize();
                 long uncompressedSize = entry.getSize();
-                if (uncompressedSize > 0 && compressedSize > 0
-                        && uncompressedSize / compressedSize > MAX_COMPRESSION_RATIO) {
-                    throw new SecurityException(context.getString(com.termux.R.string.error_bootstrap_compression_ratio, name));
+                if (uncompressedSize > 0 && compressedSize > 0) {
+                    int maxRatio = (bootstrapType == TermuxBootstrapType.NIX)
+                        ? MAX_COMPRESSION_RATIO_NIX
+                        : MAX_COMPRESSION_RATIO;
+                    long ratio = uncompressedSize / compressedSize;
+                    if (ratio > maxRatio) {
+                        throw new SecurityException(context.getString(com.termux.R.string.error_bootstrap_compression_ratio, name));
+                    }
+                    if (bootstrapType == TermuxBootstrapType.NIX && ratio > MAX_COMPRESSION_RATIO) {
+                        Logger.logDebug(LOG_TAG, "NIX high-compression entry (ratio=" + ratio
+                            + "): " + name + " (" + uncompressedSize + " -> " + compressedSize + ")");
+                    }
                 }
 
                 totalUncompressed += uncompressedSize;
