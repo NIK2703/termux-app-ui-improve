@@ -49,13 +49,19 @@ public class TermuxShellEnvironment extends AndroidShellEnvironment {
 
     /** Init {@link TermuxShellEnvironment} constants and caches. */
     public synchronized static void init(@NonNull Context currentPackageContext) {
-        // Cache runtime home dir for use by getDefaultWorkingDirectoryPath() which has no Context.
         String filesDir = currentPackageContext.getFilesDir().getAbsolutePath();
         sResolvedHomeDirPath = filesDir + "/home";
-        sResolvedBinDirPath = filesDir + "/usr/bin";
         sInitContext = currentPackageContext;
+
+        TermuxBootstrapType type = TermuxBootstrapType.getInstalledType(currentPackageContext.getFilesDir());
+        if (type == TermuxBootstrapType.NIX) {
+            sResolvedBinDirPath = filesDir + "/nix-root/bin";
+        } else {
+            sResolvedBinDirPath = filesDir + "/usr/bin";
+            TermuxPrefixRemap.ensureInstalled(currentPackageContext, filesDir + "/usr/lib");
+        }
+
         TermuxAppShellEnvironment.setTermuxAppEnvironment(currentPackageContext);
-        TermuxPrefixRemap.ensureInstalled(currentPackageContext, filesDir + "/usr/lib");
     }
 
     /**
@@ -66,6 +72,11 @@ public class TermuxShellEnvironment extends AndroidShellEnvironment {
      * Falls back to the compile-time constant only when neither source helps.
      */
     static String resolvePrefixDirPath(@NonNull Context context) {
+        TermuxBootstrapType type = TermuxBootstrapType.getInstalledType(context.getFilesDir());
+        if (type == TermuxBootstrapType.NIX) {
+            return context.getFilesDir().getAbsolutePath() + "/nix-root";
+        }
+
         String defaultPrefix = TermuxConstants.TERMUX_PREFIX_DIR_PATH;
         String filesDir;
 
@@ -92,10 +103,18 @@ public class TermuxShellEnvironment extends AndroidShellEnvironment {
     }
 
     static String resolveEnvFilePath(@NonNull Context context) {
+        TermuxBootstrapType type = TermuxBootstrapType.getInstalledType(context.getFilesDir());
+        if (type == TermuxBootstrapType.NIX) {
+            return context.getFilesDir().getAbsolutePath() + "/nix-root/etc/termux/termux.env";
+        }
         return resolvePrefixDirPath(context) + "/etc/termux/termux.env";
     }
 
     static String resolveEnvTempFilePath(@NonNull Context context) {
+        TermuxBootstrapType type = TermuxBootstrapType.getInstalledType(context.getFilesDir());
+        if (type == TermuxBootstrapType.NIX) {
+            return context.getFilesDir().getAbsolutePath() + "/nix-root/etc/termux/termux.env.tmp";
+        }
         return resolvePrefixDirPath(context) + "/etc/termux/termux.env.tmp";
     }
 
@@ -104,10 +123,17 @@ public class TermuxShellEnvironment extends AndroidShellEnvironment {
         HashMap<String, String> environmentMap = new TermuxShellEnvironment().getEnvironment(currentPackageContext, false);
         String environmentString = ShellEnvironmentUtils.convertEnvironmentToDotEnvFile(environmentMap);
 
-        // Write environment string to temp file and then move to final location since otherwise
-        // writing may happen while file is being sourced/read
-        String envTempPath = resolveEnvTempFilePath(currentPackageContext);
         String envFilePath = resolveEnvFilePath(currentPackageContext);
+        String envTempPath = resolveEnvTempFilePath(currentPackageContext);
+
+        // Ensure parent directory exists
+        File envDir = new File(envFilePath).getParentFile();
+        if (envDir != null && !envDir.isDirectory()) {
+            if (!envDir.mkdirs()) {
+                Logger.logError(LOG_TAG, "Failed to create env dir: " + envDir);
+                return;
+            }
+        }
         Error error = FileUtils.writeTextToFile("termux.env.tmp", envTempPath,
             Charset.defaultCharset(), environmentString, false);
         if (error != null) {
@@ -276,10 +302,13 @@ public class TermuxShellEnvironment extends AndroidShellEnvironment {
     @Override
     public String[] setupShellCommandArguments(@NonNull String executable, String[] arguments) {
         String[] argv = TermuxShellUtils.setupShellCommandArguments(executable, arguments);
-        if (sInitContext != null && TermuxPrefixRemap.needsSubstitution(sInitContext)) {
-            String prefixDirPath = resolvePrefixDirPath(sInitContext);
-            String libDirPath = prefixDirPath + "/lib";
-            argv = TermuxPrefixRemap.wrapExecutableIfNeeded(libDirPath, argv);
+        if (sInitContext != null) {
+            TermuxBootstrapType type = TermuxBootstrapType.getInstalledType(sInitContext.getFilesDir());
+            if (type == TermuxBootstrapType.TERMUX && TermuxPrefixRemap.needsSubstitution(sInitContext)) {
+                String prefixDirPath = resolvePrefixDirPath(sInitContext);
+                String libDirPath = prefixDirPath + "/lib";
+                argv = TermuxPrefixRemap.wrapExecutableIfNeeded(libDirPath, argv);
+            }
         }
         return argv;
     }
@@ -292,11 +321,16 @@ public class TermuxShellEnvironment extends AndroidShellEnvironment {
     private HashMap<String, String> getNixEnvironment(@NonNull Context context,
             HashMap<String, String> environment, boolean isFailSafe, String filesDir) {
         String nixRoot = filesDir + "/nix-root";
+        String nixProfileBin = nixRoot + "/nix/var/nix/profiles/default/bin";
         environment.put(ENV_HOME, filesDir + "/home");
         environment.put(ENV_PREFIX, nixRoot);
         if (!isFailSafe) {
             environment.put(ENV_TMPDIR, nixRoot + "/tmp");
-            environment.put(ENV_PATH, nixRoot + "/bin");
+            environment.put(ENV_PATH, nixRoot + "/bin" + ":" + nixProfileBin);
+            environment.put("NIX_ROOT", nixRoot);
+            environment.put("NIX_STORE_DIR", nixRoot + "/nix/store");
+            environment.put("NIX_STATE_DIR", nixRoot + "/nix/var/nix");
+            environment.remove(ENV_LD_LIBRARY_PATH);
             environment.remove(TermuxPrefixRemap.ENV_LD_PRELOAD);
             environment.remove(TermuxPrefixRemap.ENV_REMAP_OLD_FILES_DIR);
             environment.remove(TermuxPrefixRemap.ENV_REMAP_NEW_FILES_DIR);

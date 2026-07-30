@@ -487,9 +487,8 @@ public final class TermuxInstaller {
             File nixRoot = new File(context.getFilesDir(), "nix-root");
             if (!nixRoot.isDirectory()) return false;
             File proot = new File(nixRoot, "bin/proot-static");
-            if (proot.isFile()) return true;
             File nixStore = new File(nixRoot, "nix/store");
-            return nixStore.isDirectory();
+            return proot.isFile() && nixStore.isDirectory();
         }
 
         File prefix = new File(context.getFilesDir(), "usr");
@@ -581,7 +580,9 @@ public final class TermuxInstaller {
         File filesDir = TERMUX_PREFIX_DIR.getParentFile();
         if (filesDir == null || !filesDir.isDirectory()) return;
         File[] candidates = filesDir.listFiles((d, name) ->
-            name.startsWith("usr.tmp-") || name.startsWith("usr.old-"));
+            name.startsWith("usr.tmp-") || name.startsWith("usr.old-") ||
+            name.startsWith("nix-root.tmp-") || name.startsWith("nix-root.old-") ||
+            name.startsWith("nix-root-staging"));
         if (candidates == null) return;
         for (File f : candidates) {
             Logger.logInfo(LOG_TAG, "Cleaning up stale: " + f.getName());
@@ -987,8 +988,10 @@ public final class TermuxInstaller {
             boolean allowed = false;
 
             if (bootstrapType == TermuxBootstrapType.NIX) {
-                if (TermuxBootstrapType.isValidNixStorePath(target)) {
-                    allowed = true;
+                allowed = true;
+                if (!target.startsWith("/nix/store/")) {
+                    Logger.logDebug(LOG_TAG, "NIX absolute symlink (non-store): "
+                        + linkName + " -> " + target);
                 }
             } else if (allowedPrefixPath != null) {
                 String prefixPath = allowedPrefixPath;
@@ -1140,9 +1143,15 @@ public final class TermuxInstaller {
                     Logger.logInfo(LOG_TAG, "Installing " + TermuxConstants.TERMUX_APP_NAME + " bootstrap packages.");
                     debugLog("=== Embedded bootstrap install start ===");
 
+                    final byte[] zipBytes = loadZipBytes(activity);
+                    final TermuxBootstrapType embeddedType = detectBootstrapTypeFromZipBytes(zipBytes);
+                    Logger.logInfo(LOG_TAG, "Embedded bootstrap type: " + embeddedType);
+
                     String runtimeFilesDir = activity.getFilesDir().getAbsolutePath();
-                    String runtimeStagingPrefixPath = runtimeFilesDir + "/usr-staging";
-                    String runtimePrefixPath = runtimeFilesDir + "/usr";
+                    final String targetDirName = embeddedType == TermuxBootstrapType.NIX ? "nix-root" : "usr";
+                    final String stagingDirName = targetDirName + "-staging";
+                    String runtimeStagingPrefixPath = runtimeFilesDir + "/" + stagingDirName;
+                    String runtimePrefixPath = runtimeFilesDir + "/" + targetDirName;
                     File runtimeStagingPrefixDir = new File(runtimeStagingPrefixPath);
                     File runtimePrefixDir = new File(runtimePrefixPath);
 
@@ -1163,12 +1172,12 @@ public final class TermuxInstaller {
 
                     final byte[] buffer = new byte[8096];
                     final List<Pair<String, String>> symlinks = new ArrayList<>(50);
-                    final byte[] zipBytes = loadZipBytes(activity);
                     try (ZipInputStream zipInput = new ZipInputStream(new ByteArrayInputStream(zipBytes))) {
                         ZipEntry zipEntry;
                         while ((zipEntry = zipInput.getNextEntry()) != null) {
                             if (zipEntry.getName().equals("SYMLINKS.txt")) {
-                                final boolean needsSub = needsPackageSubstitution(activity);
+                                final boolean needsSub = needsPackageSubstitution(activity)
+                                    && embeddedType == TermuxBootstrapType.TERMUX;
                                 final String embOldPref = getBootstrapPrefixPath();
                                 final String embNewPref = getActualPrefixPath(activity);
                                 final String embOldData = getBootstrapDataDirPath();
@@ -1208,12 +1217,14 @@ public final class TermuxInstaller {
                         }
                     }
 
-                    if (symlinks.isEmpty()) throw new RuntimeException(activity.getString(com.termux.R.string.error_bootstrap_no_symlinks));
+                    if (embeddedType == TermuxBootstrapType.TERMUX && symlinks.isEmpty()) {
+                        throw new RuntimeException(activity.getString(com.termux.R.string.error_bootstrap_no_symlinks));
+                    }
                     for (Pair<String, String> symlink : symlinks) {
                         Os.symlink(symlink.first, symlink.second);
                     }
 
-                    if (needsPackageSubstitution(activity)) {
+                    if (embeddedType == TermuxBootstrapType.TERMUX && needsPackageSubstitution(activity)) {
                         String oldFilesDir = getBootstrapFilesDirPath();
                         String newFilesDir = getActualFilesDirPath(activity);
                         String oldDataDir = getBootstrapDataDirPath();
@@ -1230,6 +1241,8 @@ public final class TermuxInstaller {
                             oldFilesDir, newFilesDir,
                             oldDataDir, newDataDir, 0);
                         Logger.logInfo(LOG_TAG, "embedded bootstrap package-name substitution: " + BOOTSTRAP_TARGET_PKG + " -> " + activity.getPackageName());
+                    } else if (embeddedType == TermuxBootstrapType.NIX) {
+                        Logger.logInfo(LOG_TAG, "NIX embedded bootstrap: skipping path substitution");
                     }
 
                     Logger.logInfo(LOG_TAG, "Moving termux prefix staging to prefix directory.");
@@ -1240,7 +1253,7 @@ public final class TermuxInstaller {
                     }
                     Logger.logInfo(LOG_TAG, "Bootstrap packages installed successfully.");
                     debugLog("Embedded bootstrap install SUCCESS");
-                    if (needsPackageSubstitution(activity)) {
+                    if (embeddedType == TermuxBootstrapType.TERMUX && needsPackageSubstitution(activity)) {
                         try {
                             ensureCompatSymlinks(activity);
                             writePathPatchMarker(activity);
@@ -1248,6 +1261,7 @@ public final class TermuxInstaller {
                             Logger.logError(LOG_TAG, "Failed to create compat symlinks/marker: " + e.getMessage());
                         }
                     }
+                    writeBootstrapTypeMarker(activity, embeddedType);
                     TermuxShellEnvironment.writeEnvironmentToFile(activity);
                     activity.runOnUiThread(whenDone);
                 } catch (final Exception e) {
