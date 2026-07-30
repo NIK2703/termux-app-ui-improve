@@ -13,6 +13,7 @@ import com.termux.shared.shell.command.environment.AndroidShellEnvironment;
 import com.termux.shared.shell.command.environment.ShellEnvironmentUtils;
 import com.termux.shared.shell.command.environment.ShellCommandShellEnvironment;
 import com.termux.shared.termux.TermuxBootstrap;
+import com.termux.shared.termux.TermuxBootstrapType;
 import com.termux.shared.termux.TermuxConstants;
 import com.termux.shared.termux.shell.TermuxPrefixRemap;
 import com.termux.shared.termux.shell.TermuxShellUtils;
@@ -142,6 +143,12 @@ public class TermuxShellEnvironment extends AndroidShellEnvironment {
         String tmpDirPath = prefixDirPath + "/tmp";
         String binDirPath = prefixDirPath + "/bin";
         String libDirPath = prefixDirPath + "/lib";
+
+        // Check installed bootstrap type — Nix-on-Droid needs a different environment
+        TermuxBootstrapType bootstrapType = TermuxBootstrapType.getInstalledType(currentPackageContext.getFilesDir());
+        if (bootstrapType == TermuxBootstrapType.NIX) {
+            return getNixEnvironment(currentPackageContext, environment, isFailSafe, filesDir);
+        }
 
         environment.put(ENV_HOME, homeDirPath);
         environment.put(ENV_PREFIX, prefixDirPath);
@@ -275,6 +282,29 @@ public class TermuxShellEnvironment extends AndroidShellEnvironment {
             argv = TermuxPrefixRemap.wrapExecutableIfNeeded(libDirPath, argv);
         }
         return argv;
+    }
+
+    /**
+     * Environment for Nix-on-Droid bootstrap. The shell is launched via proot
+     * which handles /nix/store bind mounts. No LD_PRELOAD or LD_LIBRARY_PATH needed.
+     */
+    @NonNull
+    private HashMap<String, String> getNixEnvironment(@NonNull Context context,
+            HashMap<String, String> environment, boolean isFailSafe, String filesDir) {
+        String nixRoot = filesDir + "/nix-root";
+        environment.put(ENV_HOME, filesDir + "/home");
+        environment.put(ENV_PREFIX, nixRoot);
+        if (!isFailSafe) {
+            environment.put(ENV_TMPDIR, nixRoot + "/tmp");
+            environment.put(ENV_PATH, nixRoot + "/bin");
+            environment.remove(TermuxPrefixRemap.ENV_LD_PRELOAD);
+            environment.remove(TermuxPrefixRemap.ENV_REMAP_OLD_FILES_DIR);
+            environment.remove(TermuxPrefixRemap.ENV_REMAP_NEW_FILES_DIR);
+            environment.remove(TermuxPrefixRemap.ENV_REMAP_LIBPATH);
+            environment.remove(TermuxPrefixRemap.ENV_REMAP_LOADER);
+            environment.remove(TermuxPrefixRemap.ENV_REMAP_PRESERVE_ARGV0);
+        }
+        return environment;
     }
 
 }

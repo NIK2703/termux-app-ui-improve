@@ -3,6 +3,7 @@ package com.termux.installer;
 import android.content.Context;
 
 import com.termux.shared.logger.Logger;
+import com.termux.shared.termux.TermuxBootstrapType;
 
 import java.io.File;
 import java.io.IOException;
@@ -16,11 +17,13 @@ public class BootstrapManifest {
     public final String variant;
     public final String arch;
     public final String version;
+    public final TermuxBootstrapType bootstrapType;
 
     public BootstrapManifest(String variant, String arch, String version) {
         this.variant = variant;
         this.arch = arch;
         this.version = version;
+        this.bootstrapType = TermuxBootstrapType.fromVariant(variant);
     }
 
     public static BootstrapManifest fromZip(Context context, File zipFile) throws IOException {
