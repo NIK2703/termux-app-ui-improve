@@ -10,7 +10,9 @@ import com.termux.shared.errors.Error;
 import com.termux.shared.file.filesystem.FileTypes;
 import com.termux.shared.file.FileUtils;
 import com.termux.shared.logger.Logger;
+import com.termux.shared.termux.TermuxBootstrapType;
 import com.termux.shared.termux.TermuxConstants;
+import com.termux.shared.termux.shell.TermuxPrefixRemap;
 
 import java.io.File;
 import java.io.IOException;
@@ -22,7 +24,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public final class TermuxBackupUtils {
 
     private static final String LOG_TAG = "TermuxBackupUtils";
-    private static final String TAR_BINARY = TermuxConstants.TERMUX_BIN_PREFIX_DIR_PATH + "/tar";
+    private static final String SYSTEM_TAR_BINARY = "/system/bin/tar";
 
     /** Sentinel error returned when the operation is cancelled by the user. */
     public static final Error CANCELLED_ERROR = new Error("__CANCELLED__");
@@ -56,11 +58,11 @@ public final class TermuxBackupUtils {
     public static long getEstimatedBackupSize(@NonNull Context context) {
         Error health = checkTarHealth(context);
         if (health != null) return 0;
-        final String filesDir = TermuxConstants.TERMUX_FILES_DIR_PATH;
+        final String filesDir = context.getFilesDir().getAbsolutePath();
         try {
             ProcessBuilder pb = new ProcessBuilder("/system/bin/du", "-sb", filesDir);
             pb.environment().clear();
-            pb.environment().put("PATH", TermuxConstants.TERMUX_BIN_PREFIX_DIR_PATH);
+            pb.environment().put("PATH", context.getFilesDir().getAbsolutePath() + "/usr/bin");
             Process proc = pb.start();
             byte[] buf = new byte[128];
             int n = proc.getInputStream().read(buf);
@@ -79,23 +81,111 @@ public final class TermuxBackupUtils {
     }
 
     // -----------------------------------------------------------------------
+    // Tar binary resolution
+    // -----------------------------------------------------------------------
+
+    /**
+     * Resolve the tar binary to use for backup/restore:
+     * - NIX bootstrap has no usr/bin/tar, so the system toybox tar (/system/bin/tar) is used.
+     * - TERMUX bootstrap uses $PREFIX/bin/tar resolved against the runtime data dir
+     *   (the compile-time TermuxConstants paths point at /data/data/com.termux and do
+     *   not exist on forks with a renamed package).
+     * Returns null when no usable tar exists.
+     */
+    @Nullable
+    private static String resolveTarBinary(@NonNull Context context) {
+        TermuxBootstrapType type = TermuxBootstrapType.getInstalledType(context.getFilesDir());
+        if (type == TermuxBootstrapType.NIX) {
+            if (new File(SYSTEM_TAR_BINARY).isFile()) return SYSTEM_TAR_BINARY;
+            return null;
+        }
+        String runtimeTar = context.getFilesDir().getAbsolutePath() + "/usr/bin/tar";
+        if (new File(runtimeTar).isFile()) return runtimeTar;
+        return null;
+    }
+
+    private static boolean isSystemTar(@NonNull String tarBinary) {
+        return SYSTEM_TAR_BINARY.equals(tarBinary);
+    }
+
+    /**
+     * Environment for a tar process:
+     * - toybox needs /system/bin in PATH (it execs zcat for gzip streams).
+     * - prefix tar gets the runtime Termux environment; on forks with a renamed package
+     *   (needsSubstitution) the path-remapping shim is exported so the binary's hardcoded
+     *   /data/data/com.termux paths resolve to the actual runtime prefix.
+     */
+    private static void setupTarEnvironment(@NonNull Context context,
+                                            @NonNull ProcessBuilder pb,
+                                            @NonNull String tarBinary) {
+        pb.environment().clear();
+        if (isSystemTar(tarBinary)) {
+            pb.environment().put("PATH", "/system/bin:/system/xbin");
+            return;
+        }
+        String filesDir = context.getFilesDir().getAbsolutePath();
+        String prefixDir = filesDir + "/usr";
+        String libDir = prefixDir + "/lib";
+        pb.environment().put("PATH", prefixDir + "/bin");
+        pb.environment().put("PREFIX", prefixDir);
+        pb.environment().put("HOME", filesDir + "/home");
+        pb.environment().put("TMPDIR", prefixDir + "/tmp");
+
+        if (TermuxPrefixRemap.needsSubstitution(context)
+            && TermuxPrefixRemap.isRemapLibAvailable(libDir)) {
+            String oldFilesDir = TermuxConstants.TERMUX_FILES_DIR_PATH;
+            String newFilesDir = context.getFilesDir().getAbsolutePath()
+                .replaceFirst("^/data/user/0/", "/data/data/");
+            pb.environment().put(TermuxPrefixRemap.ENV_LD_PRELOAD,
+                TermuxPrefixRemap.getRemapLibPath(libDir));
+            pb.environment().put(TermuxPrefixRemap.ENV_REMAP_OLD_FILES_DIR, oldFilesDir);
+            pb.environment().put(TermuxPrefixRemap.ENV_REMAP_NEW_FILES_DIR, newFilesDir);
+            pb.environment().put(TermuxPrefixRemap.ENV_REMAP_LIBPATH, libDir);
+            String loader = TermuxPrefixRemap.findLoader(libDir);
+            if (loader != null) {
+                pb.environment().put(TermuxPrefixRemap.ENV_REMAP_LOADER, loader);
+            }
+            pb.environment().put(TermuxPrefixRemap.ENV_REMAP_PRESERVE_ARGV0, "1");
+        }
+    }
+
+    /**
+     * Wrap a prefix binary in the loader shim when its ELF interpreter is hardcoded to
+     * /data/data/com.termux (renamed-package forks). Toybox and native-ABI binaries are
+     * returned unchanged.
+     */
+    @NonNull
+    private static String[] wrapTarCommand(@NonNull Context context,
+                                           @NonNull String tarBinary,
+                                           @NonNull String[] argv) {
+        if (isSystemTar(tarBinary)) return argv;
+        String prefixDir = context.getFilesDir().getAbsolutePath() + "/usr";
+        String libDir = prefixDir + "/lib";
+        if (!TermuxPrefixRemap.needsSubstitution(context)) return argv;
+        if (!TermuxPrefixRemap.isRemapLibAvailable(libDir)) {
+            TermuxPrefixRemap.ensureInstalled(context, libDir);
+        }
+        return TermuxPrefixRemap.wrapExecutableIfNeeded(libDir, argv);
+    }
+
+    // -----------------------------------------------------------------------
     // Health check
     // -----------------------------------------------------------------------
 
     @Nullable
     private static Error checkTarHealth(@NonNull Context context) {
-        File tarFile = new File(TAR_BINARY);
-        if (!tarFile.isFile()) {
+        String tarBinary = resolveTarBinary(context);
+        if (tarBinary == null) {
             return new Error(context.getString(R.string.backup_restore_need_termux));
         }
+        String[] argv = wrapTarCommand(context, tarBinary,
+            new String[]{tarBinary, "--version"});
         try {
-            ProcessBuilder pb = new ProcessBuilder(TAR_BINARY, "--version");
-            pb.environment().clear();
-            pb.environment().put("PATH", TermuxConstants.TERMUX_BIN_PREFIX_DIR_PATH);
-            pb.environment().put("PREFIX", TermuxConstants.TERMUX_PREFIX_DIR_PATH);
-            pb.environment().put("HOME", TermuxConstants.TERMUX_HOME_DIR_PATH);
-            pb.environment().put("TMPDIR", TermuxConstants.TERMUX_TMP_PREFIX_DIR_PATH);
-            pb.directory(new File(TermuxConstants.TERMUX_PREFIX_DIR_PATH));
+            ProcessBuilder pb = new ProcessBuilder(argv);
+            setupTarEnvironment(context, pb, tarBinary);
+            pb.directory(new File(isSystemTar(tarBinary)
+                ? context.getFilesDir().getAbsolutePath()
+                : context.getFilesDir().getAbsolutePath() + "/usr"));
             int code = pb.start().waitFor();
             if (code != 0) {
                 return new Error(context.getString(com.termux.R.string.error_tar_health_check_exit, code));
@@ -120,18 +210,30 @@ public final class TermuxBackupUtils {
             listener.onResult(health);
             return;
         }
-        final String filesDir = TermuxConstants.TERMUX_FILES_DIR_PATH;
-        final String parentDir = TermuxConstants.TERMUX_INTERNAL_PRIVATE_APP_DATA_DIR_PATH;
+        final String tarBinary = resolveTarBinary(context);
+        if (tarBinary == null) {
+            listener.onResult(new Error(context.getString(R.string.backup_restore_need_termux)));
+            return;
+        }
+        final String filesDir = context.getFilesDir().getAbsolutePath();
+        final String parentDir = context.getDataDir().getAbsolutePath();
 
         String[] cmd;
-        if (excludeTmp) {
-            cmd = new String[]{TAR_BINARY, "-cpf", "-", "--numeric-owner",
+        if (isSystemTar(tarBinary)) {
+            cmd = excludeTmp
+                ? new String[]{tarBinary, "-cpf", "-", "--numeric-owner",
+                    "--exclude=usr/tmp", "-C", filesDir, "."}
+                : new String[]{tarBinary, "-cpf", "-", "--numeric-owner",
+                    "-C", filesDir, "."};
+        } else if (excludeTmp) {
+            cmd = new String[]{tarBinary, "-cpf", "-", "--numeric-owner",
                 "--warning=no-file-changed", "--exclude=usr/tmp",
                 "-C", filesDir, "."};
         } else {
-            cmd = new String[]{TAR_BINARY, "-cpf", "-", "--numeric-owner",
+            cmd = new String[]{tarBinary, "-cpf", "-", "--numeric-owner",
                 "--warning=no-file-changed", "-C", filesDir, "."};
         }
+        cmd = wrapTarCommand(context, tarBinary, cmd);
         runTar(context, cmd,
             null, out, listener, progress,
             new File(parentDir), 0L, cancelled);
@@ -199,18 +301,23 @@ public final class TermuxBackupUtils {
                                @NonNull ResultListener listener,
                                @Nullable ProgressCallback progress,
                                @Nullable java.util.concurrent.atomic.AtomicBoolean cancelled) {
-        final String filesDir = TermuxConstants.TERMUX_FILES_DIR_PATH;
-        final String parentDir = TermuxConstants.TERMUX_INTERNAL_PRIVATE_APP_DATA_DIR_PATH;
+        final String filesDir = context.getFilesDir().getAbsolutePath();
+        final String parentDir = context.getDataDir().getAbsolutePath();
 
         Error health = checkTarHealth(context);
         if (health != null) {
             listener.onResult(health);
             return;
         }
+        final String tarBinary = resolveTarBinary(context);
+        if (tarBinary == null) {
+            listener.onResult(new Error(context.getString(R.string.backup_restore_need_termux)));
+            return;
+        }
 
         // Diagnostic: state BEFORE any change.
         logDirState("BEFORE tar-start", filesDir);
-        logDirState("BEFORE tar-start (tar binary)", TAR_BINARY);
+        logDirState("BEFORE tar-start (tar binary)", tarBinary);
 
         try {
             // Start tar FIRST so the binary is loaded into memory before we wipe $FILES.
@@ -218,14 +325,16 @@ public final class TermuxBackupUtils {
             // extraction time, AFTER our wipe+mkdirs below — so it always targets the live
             // directory, not a dangling inode left behind by deleteDirectoryFile().
             // pb.directory(parent) is only the process start dir (a path tar never removes).
-            ProcessBuilder pb = new ProcessBuilder(
-                TAR_BINARY, "-xzpf", "-", "--numeric-owner", "--no-same-owner",
-                "-C", filesDir);
-            pb.environment().clear();
-            pb.environment().put("PATH", TermuxConstants.TERMUX_BIN_PREFIX_DIR_PATH);
-            pb.environment().put("PREFIX", TermuxConstants.TERMUX_PREFIX_DIR_PATH);
-            pb.environment().put("HOME", TermuxConstants.TERMUX_HOME_DIR_PATH);
-            pb.environment().put("TMPDIR", TermuxConstants.TERMUX_TMP_PREFIX_DIR_PATH);
+            ProcessBuilder pb;
+            if (isSystemTar(tarBinary)) {
+                pb = new ProcessBuilder(tarBinary, "-xzpf", "-", "-o", "-C", filesDir);
+            } else {
+                String[] argv = wrapTarCommand(context, tarBinary,
+                    new String[]{tarBinary, "-xzpf", "-", "--numeric-owner",
+                        "--no-same-owner", "-C", filesDir});
+                pb = new ProcessBuilder(argv);
+            }
+            setupTarEnvironment(context, pb, tarBinary);
             pb.directory(new File(parentDir));
             final Process process = pb.start();
 
@@ -306,7 +415,7 @@ public final class TermuxBackupUtils {
 
             // Diagnostic: state AFTER extraction.
             logDirState("AFTER extract (exit=" + exitCode + ")", filesDir);
-            logDirState("AFTER extract (tar binary)", TAR_BINARY);
+            logDirState("AFTER extract (tar binary)", tarBinary);
 
             IOException pErr = pumpError.get();
             if (pErr != null) {
@@ -360,14 +469,12 @@ public final class TermuxBackupUtils {
                                @Nullable AtomicBoolean cancelled) {
         try {
             ProcessBuilder pb = new ProcessBuilder(command);
-            pb.environment().clear();
-            pb.environment().put("PATH", TermuxConstants.TERMUX_BIN_PREFIX_DIR_PATH);
-            pb.environment().put("PREFIX", TermuxConstants.TERMUX_PREFIX_DIR_PATH);
-            pb.environment().put("HOME", TermuxConstants.TERMUX_HOME_DIR_PATH);
-            pb.environment().put("TMPDIR", TermuxConstants.TERMUX_TMP_PREFIX_DIR_PATH);
+            setupTarEnvironment(context, pb, command[0]);
             pb.directory(workingDir != null
                 ? workingDir
-                : new File(TermuxConstants.TERMUX_PREFIX_DIR_PATH));
+                : new File(isSystemTar(command[0])
+                    ? context.getFilesDir().getAbsolutePath()
+                    : context.getFilesDir().getAbsolutePath() + "/usr"));
             final Process process = pb.start();
 
             final StringBuilder stderr = new StringBuilder();
