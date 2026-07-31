@@ -904,6 +904,11 @@ public final class TerminalView extends View {
                 handleKeyCode(up ? KeyEvent.KEYCODE_DPAD_UP : KeyEvent.KEYCODE_DPAD_DOWN, 0);
             } else {
                 mTopRow = Math.min(0, Math.max(-(mEmulator.getScreen().getActiveTranscriptRows()), mTopRow + (up ? -1 : 1)));
+                // While the user is scrolled up, follow the text instead of the
+                // buffer: onScreenUpdated() compensates mTopRow for the rows
+                // shifted out of the transcript when it grows past the limit.
+                // Re-enable auto-scrolling once the user reaches the bottom.
+                mEmulator.setAutoScrollDisabled(mTopRow != 0);
                 if (!awakenScrollBars()) invalidate();
             }
         }
