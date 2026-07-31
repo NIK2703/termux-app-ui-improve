@@ -62,10 +62,49 @@ public class BootstrapDownloadService extends Service {
             return status == Status.CONNECTING || status == Status.DOWNLOADING
                 || status == Status.VERIFYING || status == Status.INSTALLING;
         }
+
+        public State copy() {
+            State copy = new State();
+            copy.status = status;
+            copy.statusMessage = statusMessage;
+            copy.progressMessage = progressMessage;
+            copy.percent = percent;
+            copy.indeterminate = indeterminate;
+            copy.success = success;
+            copy.failed = failed;
+            return copy;
+        }
     }
 
     public interface Listener {
         void onStateChanged(State state);
+    }
+
+    /**
+     * Terminal state (SUCCESS/FAILED) survives service recreation: the service
+     * calls stopSelf() right after finishing a task, and a late bind would
+     * otherwise create a fresh service with an IDLE state, losing the result.
+     */
+    private static final class SavedState {
+        final Status status;
+        final int percent;
+        final String statusMessage;
+
+        SavedState(Status status, int percent, String statusMessage) {
+            this.status = status;
+            this.percent = percent;
+            this.statusMessage = statusMessage;
+        }
+    }
+
+    private static volatile SavedState sSavedState = new SavedState(Status.IDLE, 0, null);
+
+    public static SavedState getSavedState() {
+        return sSavedState;
+    }
+
+    public static void clearSavedState() {
+        sSavedState = new SavedState(Status.IDLE, 0, null);
     }
 
     public class LocalBinder extends Binder {
@@ -75,6 +114,7 @@ public class BootstrapDownloadService extends Service {
     private final IBinder mBinder = new LocalBinder();
     private final ExecutorService mExecutor = Executors.newSingleThreadExecutor();
     private final Handler mMainHandler = new Handler(Looper.getMainLooper());
+    private final Object mStateLock = new Object();
     private State mState = new State();
     private Listener mListener;
     private PowerManager.WakeLock mWakeLock;
@@ -174,13 +214,56 @@ public class BootstrapDownloadService extends Service {
     }
 
     public void setListener(Listener listener) {
-        mListener = listener;
-        if (listener != null) listener.onStateChanged(mState);
+        synchronized (mStateLock) {
+            mListener = listener;
+        }
+        if (listener != null) listener.onStateChanged(getState());
     }
 
-    public State getState() { return mState; }
+    public State getState() {
+        synchronized (mStateLock) {
+            return mState.copy();
+        }
+    }
+
+    /**
+     * Like {@link #getState()}, but if the live state is IDLE and a terminal
+     * state was saved (e.g. the service was recreated after stopSelf()),
+     * returns the saved terminal state instead.
+     */
+    public State getStateOrSaved() {
+        synchronized (mStateLock) {
+            if (mState.status != Status.IDLE) {
+                return mState.copy();
+            }
+        }
+        SavedState saved = sSavedState;
+        if (saved.status == Status.IDLE) {
+            return getState();
+        }
+        State restored = new State();
+        restored.status = saved.status;
+        restored.percent = saved.percent;
+        restored.statusMessage = saved.statusMessage;
+        restored.success = saved.status == Status.SUCCESS;
+        restored.failed = saved.status == Status.FAILED;
+        return restored;
+    }
+
+    /** Called by the UI after the user acknowledged success/failure. */
+    public void acknowledgeTerminalState() {
+        synchronized (mStateLock) {
+            if (mState.status == Status.SUCCESS || mState.status == Status.FAILED) {
+                mState = new State();
+            }
+        }
+        clearSavedState();
+        stopForeground(true);
+        stopSelf();
+    }
 
     private void startDownloadTask(BootstrapSource source) {
+        clearSavedState();
         acquireWakeLock();
         Logger.i("BootstrapDownloadService", "startDownloadTask: " + source.name);
         setState(Status.CONNECTING,
@@ -229,6 +312,7 @@ public class BootstrapDownloadService extends Service {
     }
 
     private void startLocalInstallTask(Uri uri) {
+        clearSavedState();
         acquireWakeLock();
         Logger.i("BootstrapDownloadService", "startLocalInstallTask: uri=" + uri);
         setState(Status.INSTALLING,
@@ -431,13 +515,23 @@ public class BootstrapDownloadService extends Service {
                           int percent, boolean indeterminate, boolean success, boolean failed) {
         Logger.i("BootstrapDownloadService", "setState: " + status + " pct=" + percent
             + " msg=" + statusMsg + "/" + progressMsg);
-        mState.status = status;
-        mState.statusMessage = statusMsg;
-        mState.progressMessage = progressMsg;
-        mState.percent = percent;
-        mState.indeterminate = indeterminate;
-        mState.success = success;
-        mState.failed = failed;
+        State snapshot;
+        Listener listener;
+        synchronized (mStateLock) {
+            mState.status = status;
+            mState.statusMessage = statusMsg;
+            mState.progressMessage = progressMsg;
+            mState.percent = percent;
+            mState.indeterminate = indeterminate;
+            mState.success = success;
+            mState.failed = failed;
+            snapshot = mState.copy();
+            listener = mListener;
+        }
+
+        if (status == Status.SUCCESS || status == Status.FAILED) {
+            sSavedState = new SavedState(status, percent, statusMsg);
+        }
 
         if (mForegroundMode && status != Status.SUCCESS && status != Status.FAILED) {
             NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
@@ -445,7 +539,7 @@ public class BootstrapDownloadService extends Service {
                 nm.notify(NOTIFICATION_ID, buildNotification(statusMsg, progressMsg, percent, indeterminate));
         }
 
-        if (mListener != null) mListener.onStateChanged(mState);
+        if (listener != null) listener.onStateChanged(snapshot);
     }
 
     private void createNotificationChannel() {

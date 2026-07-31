@@ -20,7 +20,9 @@ import com.termux.shared.termux.shell.TermuxShellUtils;
 
 import java.io.File;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 
 /**
  * Environment for Termux.
@@ -52,6 +54,16 @@ public class TermuxShellEnvironment extends AndroidShellEnvironment {
         String filesDir = currentPackageContext.getFilesDir().getAbsolutePath();
         sResolvedHomeDirPath = filesDir + "/home";
         sInitContext = currentPackageContext;
+
+        // Defensively ensure home dir exists — covers Nix bootstrap that doesn't create it
+        File homeDir = new File(sResolvedHomeDirPath);
+        if (!homeDir.isDirectory()) {
+            if (homeDir.mkdirs()) {
+                Logger.logInfo(LOG_TAG, "Created missing home directory: " + sResolvedHomeDirPath);
+            } else {
+                Logger.logError(LOG_TAG, "Failed to create home directory: " + sResolvedHomeDirPath);
+            }
+        }
 
         TermuxBootstrapType type = TermuxBootstrapType.getInstalledType(currentPackageContext.getFilesDir());
         if (type == TermuxBootstrapType.NIX) {
@@ -163,18 +175,19 @@ public class TermuxShellEnvironment extends AndroidShellEnvironment {
         if (termuxApiAppEnvironment != null)
             environment.putAll(termuxApiAppEnvironment);
 
+        // Check installed bootstrap type before computing prefix — Nix needs the real filesDir
+        TermuxBootstrapType bootstrapType = TermuxBootstrapType.getInstalledType(currentPackageContext.getFilesDir());
+        if (bootstrapType == TermuxBootstrapType.NIX) {
+            String realFilesDir = currentPackageContext.getFilesDir().getAbsolutePath();
+            return getNixEnvironment(currentPackageContext, environment, isFailSafe, realFilesDir);
+        }
+
         String prefixDirPath = resolvePrefixDirPath(currentPackageContext);
         String filesDir = prefixDirPath.substring(0, prefixDirPath.length() - 4); // strip "/usr"
         String homeDirPath = filesDir + "/home";
         String tmpDirPath = prefixDirPath + "/tmp";
         String binDirPath = prefixDirPath + "/bin";
         String libDirPath = prefixDirPath + "/lib";
-
-        // Check installed bootstrap type — Nix-on-Droid needs a different environment
-        TermuxBootstrapType bootstrapType = TermuxBootstrapType.getInstalledType(currentPackageContext.getFilesDir());
-        if (bootstrapType == TermuxBootstrapType.NIX) {
-            return getNixEnvironment(currentPackageContext, environment, isFailSafe, filesDir);
-        }
 
         environment.put(ENV_HOME, homeDirPath);
         environment.put(ENV_PREFIX, prefixDirPath);
@@ -255,6 +268,10 @@ public class TermuxShellEnvironment extends AndroidShellEnvironment {
         String compileTimeFiles = TermuxConstants.TERMUX_FILES_DIR_PATH; // /data/data/com.termux/files
         String compileTimeUserFiles = "/data/user/0/" + TermuxConstants.TERMUX_PACKAGE_NAME + "/files";
 
+        // Nix fallback
+        TermuxBootstrapType type = TermuxBootstrapType.getInstalledType(context.getFilesDir());
+        String nixRoot = runtimeFilesDir + "/nix-root";
+
         if (workingDir == null || workingDir.trim().isEmpty()) {
             Logger.logInfo(LOG_TAG, "sanitizeWorkingDirectory: null/empty -> " + runtimeHome);
             return runtimeHome;
@@ -274,9 +291,23 @@ public class TermuxShellEnvironment extends AndroidShellEnvironment {
             Logger.logInfo(LOG_TAG, "sanitizeWorkingDirectory: remapped /data/user/0/ path -> " + wd);
         }
 
+        // Replace /data/user/0/<current-pkg>/files/... with /data/data/ equivalent
+        String currentUserFiles = "/data/user/0/" + context.getPackageName() + "/files";
+        if (wd.startsWith(currentUserFiles + "/") || wd.equals(currentUserFiles)) {
+            wd = runtimeFilesDir + wd.substring(currentUserFiles.length());
+            Logger.logInfo(LOG_TAG, "sanitizeWorkingDirectory: normalized /data/user/0/ -> " + wd);
+        }
+
         // Verify the result is accessible; fall back to runtime home if not
         File dir = new File(wd);
         if (dir.exists() && dir.isDirectory()) {
+            // For Nix, never start inside the bootstrap root — home is safer
+            // (official launcher sets HOME under files/, not the rootfs)
+            if (type == TermuxBootstrapType.NIX
+                && (wd.equals(nixRoot) || wd.startsWith(nixRoot + "/"))) {
+                Logger.logInfo(LOG_TAG, "sanitizeWorkingDirectory: Nix bootstrap root as cwd -> " + runtimeHome);
+                return runtimeHome;
+            }
             return wd;
         }
 
@@ -304,7 +335,9 @@ public class TermuxShellEnvironment extends AndroidShellEnvironment {
         String[] argv = TermuxShellUtils.setupShellCommandArguments(executable, arguments);
         if (sInitContext != null) {
             TermuxBootstrapType type = TermuxBootstrapType.getInstalledType(sInitContext.getFilesDir());
-            if (type == TermuxBootstrapType.TERMUX && TermuxPrefixRemap.needsSubstitution(sInitContext)) {
+            if (type == TermuxBootstrapType.NIX) {
+                argv = setupNixLoginCommand(argv);
+            } else if (type == TermuxBootstrapType.TERMUX && TermuxPrefixRemap.needsSubstitution(sInitContext)) {
                 String prefixDirPath = resolvePrefixDirPath(sInitContext);
                 String libDirPath = prefixDirPath + "/lib";
                 argv = TermuxPrefixRemap.wrapExecutableIfNeeded(libDirPath, argv);
@@ -314,22 +347,72 @@ public class TermuxShellEnvironment extends AndroidShellEnvironment {
     }
 
     /**
-     * Environment for Nix-on-Droid bootstrap. The shell is launched via proot
-     * which handles /nix/store bind mounts. No LD_PRELOAD or LD_LIBRARY_PATH needed.
+     * Nix-on-Droid session command. Always starts with the official host
+     * launcher nixRoot/bin/login (shebang #!/system/bin/sh, interpreted by
+     * mksh on the host). The login script itself exports USER/HOME/
+     * PROOT_TMP_DIR/PROOT_L2S_DIR, handles the fake /proc/stat|uptime binds
+     * and execs proot-static — the same as the official nix-on-droid-app fork,
+     * which does not replicate proot in Java.
+     */
+    private String[] setupNixLoginCommand(String[] argv) {
+        String filesDir = canonicalFilesDir();
+        if (filesDir == null) return argv;
+        String nixRoot = filesDir + "/nix-root";
+        File login = new File(nixRoot, "bin/login");
+        if (!login.isFile()) {
+            Logger.logError(LOG_TAG, "setupNixLoginCommand: bin/login missing: " + login);
+            return argv;
+        }
+
+        List<String> args = new ArrayList<>();
+        if (login.canExecute()) {
+            args.add(login.getAbsolutePath());
+        } else {
+            // bin/login has a #!/system/bin/sh shebang; run it through mksh
+            // explicitly if the exec bit was lost.
+            args.add("/system/bin/sh");
+            args.add(login.getAbsolutePath());
+        }
+        for (int i = 1; i < argv.length; i++) {
+            args.add(argv[i]);
+        }
+        Logger.logDebug(LOG_TAG, "setupNixLoginCommand: " + String.join(" ", args));
+        return args.toArray(new String[0]);
+    }
+
+    /**
+     * Environment for Nix-on-Droid bootstrap. The shell is launched through
+     * the official bin/login launcher which exports USER/HOME/PROOT_TMP_DIR/
+     * PROOT_L2S_DIR itself and execs proot-static. This method only provides
+     * a clean base environment — no LD_PRELOAD/LD_LIBRARY_PATH, no Android
+     * system vars that confuse Nix/glibc.
      */
     @NonNull
     private HashMap<String, String> getNixEnvironment(@NonNull Context context,
             HashMap<String, String> environment, boolean isFailSafe, String filesDir) {
+        filesDir = canonicalize(filesDir);
         String nixRoot = filesDir + "/nix-root";
-        String nixProfileBin = nixRoot + "/nix/var/nix/profiles/default/bin";
+
+        // Outer environment for the proot process. The inner command
+        // (usr/lib/login-inner) sources the Nix profile and sets up its own
+        // clean environment inside proot.
         environment.put(ENV_HOME, filesDir + "/home");
         environment.put(ENV_PREFIX, nixRoot);
+
         if (!isFailSafe) {
-            environment.put(ENV_TMPDIR, nixRoot + "/tmp");
-            environment.put(ENV_PATH, nixRoot + "/bin" + ":" + nixProfileBin);
-            environment.put("NIX_ROOT", nixRoot);
-            environment.put("NIX_STORE_DIR", nixRoot + "/nix/store");
-            environment.put("NIX_STATE_DIR", nixRoot + "/nix/var/nix");
+            // Guest paths for programs inside proot: /bin is bound to
+            // nixRoot/bin and /usr/bin is bound from the bootstrap. The
+            // explicit nixRoot/bin entry also covers the host side (visible
+            // inside proot since / is bound to /android) before the first
+            // nix-on-droid switch has populated /usr/bin.
+            environment.put(ENV_TMPDIR, "/tmp");
+            environment.put(ENV_PATH, nixRoot + "/bin:/usr/bin:/bin");
+
+            // Used by login-inner for nix-env --switch-profile per-user path
+            // (bin/login also sets it; kept here for consistency).
+            environment.put("USER", "nix-on-droid");
+
+            // Remove Termux-specific vars that could leak into proot
             environment.remove(ENV_LD_LIBRARY_PATH);
             environment.remove(TermuxPrefixRemap.ENV_LD_PRELOAD);
             environment.remove(TermuxPrefixRemap.ENV_REMAP_OLD_FILES_DIR);
@@ -337,8 +420,39 @@ public class TermuxShellEnvironment extends AndroidShellEnvironment {
             environment.remove(TermuxPrefixRemap.ENV_REMAP_LIBPATH);
             environment.remove(TermuxPrefixRemap.ENV_REMAP_LOADER);
             environment.remove(TermuxPrefixRemap.ENV_REMAP_PRESERVE_ARGV0);
+
+            // Remove Android system env vars that confuse Nix/glibc
+            environment.remove("BOOTCLASSPATH");
+            environment.remove("DEX2OAT_BOOTCLASSPATH");
+            environment.remove("SYSTEMSERVERCLASSPATH");
+            environment.remove("ANDROID_ROOT");
+            environment.remove("ANDROID_DATA");
+            environment.remove("ANDROID_STORAGE");
+            environment.remove("ANDROID_RUNTIME_ROOT");
+            environment.remove("ANDROID_TZDATA_ROOT");
+            environment.remove("ANDROID_I18N_ROOT");
+            environment.remove("ANDROID_ART_ROOT");
+            environment.remove("ANDROID_DYN_CODE_PATH");
+            environment.remove("EXTERNAL_STORAGE");
         }
         return environment;
+    }
+
+    /**
+     * Canonical files dir — avoids /data/data vs /data/user/0 mismatches
+     * between Java-side paths and the patched bootstrap scripts.
+     */
+    private static String canonicalFilesDir() {
+        if (sInitContext == null) return null;
+        return canonicalize(sInitContext.getFilesDir().getAbsolutePath());
+    }
+
+    private static String canonicalize(String path) {
+        try {
+            return new File(path).getCanonicalPath();
+        } catch (Exception e) {
+            return path;
+        }
     }
 
 }

@@ -36,6 +36,8 @@ public class BootstrapSelectorActivity extends Activity {
     private TextView mStatusText;
 
     private AlertDialog mProgressDialog;
+    private AlertDialog mFailedDialog;
+    private boolean mResumed;
 
     private List<BootstrapSource> mSources;
     private BootstrapDownloadService mService;
@@ -48,11 +50,14 @@ public class BootstrapSelectorActivity extends Activity {
             mService = lb.getService();
             mBound = true;
             mService.setListener(mServiceListener);
-            updateUiFromState(mService.getState());
+            updateUiFromState(mService.getStateOrSaved());
         }
 
         @Override
         public void onServiceDisconnected(ComponentName name) {
+            if (mService != null) {
+                mService.setListener(null);
+            }
             mService = null;
             mBound = false;
         }
@@ -61,6 +66,21 @@ public class BootstrapSelectorActivity extends Activity {
     private final BootstrapDownloadService.Listener mServiceListener = state -> {
         runOnUiThread(() -> updateUiFromState(state));
     };
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        mResumed = true;
+        if (mService != null) {
+            updateUiFromState(mService.getStateOrSaved());
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        mResumed = false;
+        super.onPause();
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -102,12 +122,14 @@ public class BootstrapSelectorActivity extends Activity {
             if (mService != null) mService.setListener(null);
             unbindService(mConnection);
             mBound = false;
+            mService = null;
         }
     }
 
     @Override
     protected void onDestroy() {
         dismissProgressDialog();
+        dismissFailedDialog();
         super.onDestroy();
     }
 
@@ -225,6 +247,7 @@ public class BootstrapSelectorActivity extends Activity {
 
     private void showProgressDialog(String statusMessage, String progressMessage,
                                     int percent, boolean indeterminate) {
+        if (isFinishing() || !mResumed) return;
         if (mProgressDialog == null) {
             View view = getLayoutInflater().inflate(com.termux.R.layout.dialog_bootstrap_progress, null);
             mProgressDialog = new AlertDialog.Builder(this)
@@ -244,18 +267,22 @@ public class BootstrapSelectorActivity extends Activity {
     }
 
     private void showFailedDialog(String statusMessage, String errorMessage) {
+        if (isFinishing() || !mResumed) return;
         dismissProgressDialog();
-        new AlertDialog.Builder(this)
+        if (mFailedDialog != null && mFailedDialog.isShowing()) return;
+        mFailedDialog = new AlertDialog.Builder(this)
             .setTitle(com.termux.R.string.bootstrap_download_status_failed)
             .setMessage(errorMessage)
             .setPositiveButton(com.termux.R.string.bootstrap_selector_retry, (dialog, which) -> {
-                dismissProgressDialog();
+                dismissFailedDialog();
+                acknowledgeTerminalState();
                 mRetryButton.setVisibility(View.VISIBLE);
                 setButtonsEnabled(true);
                 mStatusText.setText(statusMessage);
             })
             .setNegativeButton(com.termux.R.string.bootstrap_selector_cancel, (dialog, which) -> {
-                dismissProgressDialog();
+                dismissFailedDialog();
+                acknowledgeTerminalState();
                 finish();
             })
             .setCancelable(false)
@@ -269,8 +296,25 @@ public class BootstrapSelectorActivity extends Activity {
         mProgressDialog = null;
     }
 
+    private void dismissFailedDialog() {
+        if (mFailedDialog != null) {
+            try { mFailedDialog.dismiss(); } catch (RuntimeException ignored) {}
+            mFailedDialog = null;
+        }
+    }
+
+    /** Let the service forget the terminal state and stop itself. */
+    private void acknowledgeTerminalState() {
+        if (mService != null) {
+            mService.acknowledgeTerminalState();
+        } else {
+            BootstrapDownloadService.clearSavedState();
+            stopService(new Intent(this, BootstrapDownloadService.class));
+        }
+    }
+
     private void updateUiFromState(BootstrapDownloadService.State state) {
-        if (state == null) return;
+        if (state == null || isFinishing()) return;
 
         boolean busy = state.isBusy();
 
@@ -292,6 +336,7 @@ public class BootstrapSelectorActivity extends Activity {
     }
 
     private void finishWithSuccess() {
+        acknowledgeTerminalState();
         setResult(RESULT_OK);
         finish();
     }

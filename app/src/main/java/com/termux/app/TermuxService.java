@@ -580,6 +580,11 @@ public final class TermuxService extends Service implements AppShell.AppShellCli
     public synchronized TermuxSession createTermuxSession(ExecutionCommand executionCommand) {
         if (executionCommand == null) return null;
 
+        // Nix-on-Droid: nix-on-droid switch replaces bin/login and stages a
+        // fresh .login-inner.new, so re-apply the fork path patches before
+        // every session (idempotent; no-op for TERMUX bootstrap type).
+        TermuxInstaller.prepareNixSessionLocked(this);
+
         Logger.logDebug(LOG_TAG, "Creating \"" + executionCommand.getCommandIdAndLabelLogString() + "\" TermuxSession");
 
         if (!Runner.TERMINAL_SESSION.equalsRunner(executionCommand.runner)) {

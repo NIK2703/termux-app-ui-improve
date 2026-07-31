@@ -130,7 +130,7 @@
             android:exported="false"
             android:excludeFromRecents="true"
             android:theme="@style/Theme.TermuxApp.BootstrapSelector"
-            android:configChanges="orientation|screenSize|screenLayout|keyboard|keyboardHidden|navigation" />
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|density|uiMode|locale|keyboard|keyboardHidden|navigation" />
 
         <activity
             android:name=".app.api.file.FileReceiverActivity"

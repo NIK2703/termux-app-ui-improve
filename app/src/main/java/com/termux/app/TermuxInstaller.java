@@ -92,6 +92,359 @@ public final class TermuxInstaller {
 
     private static final AtomicBoolean sInstallInProgress = new AtomicBoolean(false);
 
+    // ── Home directory helpers ──
+
+    private static void ensureHomeDirectory(Context context) {
+        File homeDir = new File(context.getFilesDir(), "home");
+        if (!homeDir.isDirectory()) {
+            if (!homeDir.mkdirs()) {
+                Logger.logError(LOG_TAG, "Failed to create home directory: " + homeDir);
+                return;
+            }
+            Logger.logInfo(LOG_TAG, "Created home directory: " + homeDir);
+        }
+        File termuxConfigDir = new File(homeDir, ".termux");
+        if (!termuxConfigDir.isDirectory()) {
+            if (!termuxConfigDir.mkdirs()) {
+                Logger.logError(LOG_TAG, "Failed to create .termux config directory: " + termuxConfigDir);
+                return;
+            }
+            Logger.logInfo(LOG_TAG, "Created config directory: " + termuxConfigDir);
+        }
+    }
+
+    private static void ensureNixRuntimeDirs(Context context) {
+        File nixRoot = new File(context.getFilesDir(), "nix-root");
+        if (!nixRoot.isDirectory()) return;
+        // Proot mount point directories needed inside the rootfs
+        for (String name : new String[]{"tmp", "home", "proc", "dev", "sys", "dev/pts", ".l2s"}) {
+            File dir = new File(nixRoot, name);
+            if (!dir.isDirectory()) {
+                if (dir.mkdirs()) {
+                    Logger.logInfo(LOG_TAG, "Created Nix runtime dir: " + dir);
+                }
+            }
+        }
+
+        // The zip stores read-only dir modes (dr-xr-xr-x). proot needs a
+        // writable temp dir for its glue rootfs. With the official extraction
+        // flow (FileOutputStream/mkdirs) modes are already 0755, so these
+        // chmods only matter for installs done by older installers.
+        chmodWritable(new File(nixRoot, "tmp"), 0777);
+        chmodWritable(new File(nixRoot, ".l2s"), 0777);
+        chmodWritable(new File(nixRoot, "dev/shm"), 0777);
+        chmodWritable(new File(context.getFilesDir(), "home"), 0770);
+
+        // Migration only: old installers applied the zip's read-only modes
+        // (dr-xr-xr-x) to nix/store, which breaks nix-env. Fresh installs via
+        // the official flow are already owner-writable.
+        File storeDir = new File(nixRoot, "nix/store");
+        if (storeDir.isDirectory() && !storeDir.canWrite()) {
+            Logger.logInfo(LOG_TAG, "nix/store not owner-writable; fixing modes (migration from old installer)");
+            chmodRecursive(new File(nixRoot, "nix"), 0775);
+        }
+    }
+
+    private static void chmodWritable(File dir, int mode) {
+        if (dir == null || !dir.isDirectory()) return;
+        try {
+            Os.chmod(dir.getAbsolutePath(), mode);
+        } catch (Exception e) {
+            Logger.logDebug(LOG_TAG, "chmodWritable failed for " + dir + ": " + e.getMessage());
+        }
+    }
+
+    /** Make the subtree owner-writable while keeping the exec/read bits from 0555/0444 dirs. */
+    private static void chmodRecursive(File dir, int mode) {
+        File[] children = dir.listFiles();
+        if (children == null) return;
+        for (File child : children) {
+            try {
+                Os.chmod(child.getAbsolutePath(), mode);
+            } catch (Exception ignored) {}
+            if (child.isDirectory()) {
+                chmodRecursive(child, mode);
+            }
+        }
+    }
+
+    private static final String NIX_PATH_PATCH_BEGIN = "# BEGIN com.termux.debug nix path patch";
+    private static final String NIX_PATH_PATCH_END = "# END com.termux.debug nix path patch";
+    private static final String LEGACY_NIX_PACKAGE_PREFIX = "/data/data/com.termux.nix";
+    private static final java.util.regex.Pattern NIX_PATH_PATCH_BLOCK_PATTERN =
+        java.util.regex.Pattern.compile(
+            java.util.regex.Pattern.quote(NIX_PATH_PATCH_BEGIN) + ".*?"
+                + java.util.regex.Pattern.quote(NIX_PATH_PATCH_END),
+            java.util.regex.Pattern.DOTALL);
+
+    private static final String NIX_PROOT_REL_PATH = "bin/proot-static";
+    private static final String NIX_PROOT_NEW_REL_PATH = "bin/.proot-static.new";
+    private static final String NIX_PROOT_BACKUP_NAME = "proot-static.bootstrap";
+    private static final String NIX_PROOT_BACKUP_SHA1_NAME = "proot-static.bootstrap.sha1";
+    private static final String PROOT_SELFUPDATE_DISABLE_MARKER = "# self-update disabled (fork)";
+
+    private static String getNixDataDir(String filesDir) {
+        return filesDir.endsWith("/files")
+            ? filesDir.substring(0, filesDir.length() - "/files".length()) : filesDir;
+    }
+
+    /** Order matters: the more specific prefixes must be replaced first. */
+    private static String[] getNixPathPairs(String filesDir, String dataDir) {
+        return new String[]{
+            "/data/data/com.termux.nix/files/usr", filesDir + "/nix-root",
+            "/data/data/com.termux.nix/files/home", filesDir + "/home",
+            "/data/data/com.termux.nix", dataDir
+        };
+    }
+
+    private static String replaceNixPaths(String content, String[] pairs) {
+        String patched = content;
+        for (int i = 0; i < pairs.length; i += 2) {
+            patched = patched.replace(pairs[i], pairs[i + 1]);
+        }
+        return patched;
+    }
+
+    /**
+     * Nix-on-Droid bootstrap scripts (bin/login, usr/lib/login-inner) hardcode
+     * the official package data dir /data/data/com.termux.nix and the official
+     * bootstrap root files/usr. Rewrite them to the actual runtime layout
+     * (filesDir + "/nix-root") for fork/debug builds so HOME / PROOT_TMP_DIR /
+     * .nix-profile / proot binds point at the right place.
+     */
+    private static void patchNixHardcodedPaths(File tempDir, Context context) {
+        File login = new File(tempDir, "bin/login");
+        if (login.isFile()) patchNixLogin(login, context);
+        File loginInner = new File(tempDir, "usr/lib/login-inner");
+        if (loginInner.isFile()) patchLoginInner(loginInner, context);
+    }
+
+    /**
+     * Re-apply the Nix path patches before every NIX session. nix-on-droid
+     * activation replaces bin/login with the official unpatched launcher and
+     * stages a fresh usr/lib/.login-inner.new (which login moves into place
+     * at the next start), so install-time patching alone is not enough.
+     * Idempotent and cheap; safe to call on every session start.
+     */
+    public static void prepareNixSessionLocked(Context context) {
+        try {
+            if (TermuxBootstrapType.getInstalledType(context.getFilesDir()) != TermuxBootstrapType.NIX) return;
+            File nixRoot = new File(context.getFilesDir(), "nix-root");
+            if (!nixRoot.isDirectory()) return;
+            enforceWorkingProotStatic(nixRoot, context.getFilesDir());
+            File login = new File(nixRoot, "bin/login");
+            if (login.isFile()) patchNixLogin(login, context);
+            File loginInnerNew = new File(nixRoot, "usr/lib/.login-inner.new");
+            if (loginInnerNew.isFile()) patchLoginInner(loginInnerNew, context);
+            File loginInner = new File(nixRoot, "usr/lib/login-inner");
+            if (loginInner.isFile()) patchLoginInner(loginInner, context);
+            ensureNixRuntimeDirs(context);
+        } catch (Exception e) {
+            debugLogError("prepareNixSessionLocked failed", e);
+        }
+    }
+
+    /**
+     * The upstream login.nix self-updates proot-static on every generation
+     * switch ({@code mv bin/.proot-static.new bin/proot-static}). The staged
+     * binary from a fresh generation crashes with "proot info: vpid 1:
+     * terminated with signal 11" on this fork (Android 7), while the original
+     * bootstrap binary works, so before every NIX session we drop the staged
+     * .new and restore the known-good bootstrap binary (backed up at install
+     * time) whenever bin/proot-static is missing or differs from the backup.
+     */
+    static void enforceWorkingProotStatic(File nixRoot, File filesDir) {
+        try {
+            File proot = new File(nixRoot, NIX_PROOT_REL_PATH);
+            File prootNew = new File(nixRoot, NIX_PROOT_NEW_REL_PATH);
+            if (prootNew.isFile()) {
+                FileUtils.deleteFile("staged proot-static.new", prootNew.getAbsolutePath(), true);
+                debugLog("removed staged " + NIX_PROOT_NEW_REL_PATH + " (self-update disabled)");
+            }
+            File backup = new File(filesDir, NIX_PROOT_BACKUP_NAME);
+            if (!backup.isFile()) return;
+            String expectedSha1 = readTrimmed(new File(filesDir, NIX_PROOT_BACKUP_SHA1_NAME));
+            String currentSha1 = proot.isFile() ? sha1Hex(proot) : null;
+            if (proot.isFile() && expectedSha1 != null && currentSha1 != null
+                    && expectedSha1.equals(currentSha1)) {
+                return;
+            }
+            copyFile(backup, proot);
+            Os.chmod(proot.getAbsolutePath(), 0700);
+            debugLog("restored bootstrap " + NIX_PROOT_REL_PATH
+                + " (was " + (currentSha1 == null ? "missing" : currentSha1)
+                + ", expected " + expectedSha1 + ")");
+        } catch (Exception e) {
+            debugLogError("enforceWorkingProotStatic failed", e);
+        }
+    }
+
+    /** Save the working bootstrap proot-static binary before it can be replaced. */
+    private static void backupBootstrapProotStatic(File tempDir, Context context) throws IOException {
+        File proot = new File(tempDir, NIX_PROOT_REL_PATH);
+        if (!proot.isFile()) {
+            debugLog("backupBootstrapProotStatic: no " + NIX_PROOT_REL_PATH + " in bootstrap");
+            return;
+        }
+        File backup = new File(context.getFilesDir(), NIX_PROOT_BACKUP_NAME);
+        copyFile(proot, backup);
+        try { Os.chmod(backup.getAbsolutePath(), 0700); } catch (Exception ignored) {}
+        String sha1 = sha1Hex(backup);
+        File shaFile = new File(context.getFilesDir(), NIX_PROOT_BACKUP_SHA1_NAME);
+        java.nio.file.Files.write(shaFile.toPath(), (sha1 + "\n").getBytes(StandardCharsets.US_ASCII));
+        debugLog("backed up bootstrap proot-static -> " + backup.getName() + " sha1=" + sha1);
+    }
+
+    private static String readTrimmed(File file) throws IOException {
+        if (!file.isFile()) return null;
+        return new String(java.nio.file.Files.readAllBytes(file.toPath()),
+            StandardCharsets.US_ASCII).trim();
+    }
+
+    private static String sha1Hex(File file) throws IOException {
+        java.security.MessageDigest md;
+        try {
+            md = java.security.MessageDigest.getInstance("SHA-1");
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IOException("SHA-1 not available", e);
+        }
+        try (java.io.FileInputStream in = new java.io.FileInputStream(file)) {
+            byte[] buf = new byte[65536];
+            int n;
+            while ((n = in.read(buf)) > 0) md.update(buf, 0, n);
+        }
+        StringBuilder sb = new StringBuilder();
+        for (byte b : md.digest()) sb.append(String.format("%02x", b));
+        return sb.toString();
+    }
+
+    private static void copyFile(File from, File to) throws IOException {
+        try (java.io.FileInputStream in = new java.io.FileInputStream(from);
+             java.io.FileOutputStream out = new java.io.FileOutputStream(to)) {
+            byte[] buf = new byte[65536];
+            int n;
+            while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+        }
+    }
+
+    /** Path substitution for the host launcher bin/login (idempotent). */
+    static void patchNixLogin(File login, Context context) {
+        String filesDir = context.getFilesDir().getAbsolutePath();
+        String[] pairs = getNixPathPairs(filesDir, getNixDataDir(filesDir));
+        try {
+            String content = new String(java.nio.file.Files.readAllBytes(login.toPath()), StandardCharsets.UTF_8);
+            String patched = replaceNixPaths(content, pairs);
+            patched = disableProotStaticSelfUpdate(patched);
+            if (!patched.equals(content)) {
+                java.nio.file.Files.write(login.toPath(), patched.getBytes(StandardCharsets.UTF_8));
+                debugLog("patched hardcoded nix dir in bin/login");
+            }
+            try { Os.chmod(login.getAbsolutePath(), 0700); } catch (Exception ignored) {}
+        } catch (Exception e) {
+            debugLogError("failed to patch bin/login", e);
+        }
+    }
+
+    /**
+     * Neutralize the upstream proot-static self-update in bin/login. The staged
+     * .proot-static.new from a new generation crashes with signal 11 on this
+     * fork, so the mv must never run. Idempotent: rewrites the guard to
+     * "if false", drops single-line if/mv forms and standalone mv lines.
+     */
+    static String disableProotStaticSelfUpdate(String content) {
+        if (content.contains(PROOT_SELFUPDATE_DISABLE_MARKER)) return content;
+        // Multi-line form:  if test -e <path>/.proot-static.new; then / if [ -e ... ]; then
+        String patched = content.replaceAll(
+            "(?m)^(\\s*)if\\s+(?:test\\s+-e|\\[\\s+-e)\\s+.*\\.proot-static\\.new.*?;?\\s*then\\s*$",
+            "$1if false; then " + PROOT_SELFUPDATE_DISABLE_MARKER);
+        // Single-line form:  if [ -e X ]; then mv X Y; fi
+        patched = patched.replaceAll(
+            "(?m)^(\\s*)if\\s+(?:test\\s+-e|\\[\\s+-e)\\s+.*\\.proot-static\\.new.*\\bthen\\b.*;\\s*fi\\s*$",
+            "$1# proot-static self-update disabled (fork)");
+        // Standalone mv of .proot-static.new (guard-less future formats)
+        patched = patched.replaceAll(
+            "(?m)^(\\s*)(?:[^\\n\\s]*/)?(?:mv|busybox mv)\\s+\\S*\\.proot-static\\.new\\s+\\S*\\s*$",
+            "$1true " + PROOT_SELFUPDATE_DISABLE_MARKER);
+        return patched;
+    }
+
+    private static String shellSingleQuote(String value) {
+        return "'" + value.replace("'", "'\\''") + "'";
+    }
+
+    /**
+     * Function that sources ~/.nix-profile/etc/profile.d/nix-on-droid-session-init.sh
+     * with /data/data/com.termux.nix rewritten to this fork's data dir. The
+     * script in the nix store is generated by the upstream nix-on-droid module
+     * with hardcoded official paths and is recreated on every switch, so it
+     * cannot be patched at install time.
+     */
+    private static String buildSessionInitPatchFunction(String oldPrefix, String newDataDir) {
+        return String.join("\n",
+            NIX_PATH_PATCH_BEGIN,
+            "_nod_source_session_init() {",
+            "  _nod_si=\"$HOME/.nix-profile/etc/profile.d/nix-on-droid-session-init.sh\"",
+            "  if [ ! -f \"$_nod_si\" ]; then",
+            "    return 0",
+            "  fi",
+            "  _nod_old=" + shellSingleQuote(oldPrefix),
+            "  _nod_new=" + shellSingleQuote(newDataDir),
+            "  _nod_out=\"${TMPDIR:-/tmp}/nod-session-init.patched.$$\"",
+            "  if _nod_content=\"$(<\"$_nod_si\")\"; then",
+            "    case \"$_nod_content\" in",
+            "      *\"$_nod_old\"*)",
+            "        _nod_content=\"${_nod_content//$_nod_old/$_nod_new}\"",
+            "        if printf '%s\\n' \"$_nod_content\" > \"$_nod_out\"; then",
+            "          . \"$_nod_out\"",
+            "          return $?",
+            "        fi",
+            "        ;;",
+            "    esac",
+            "  fi",
+            "  . \"$_nod_si\"",
+            "}",
+            "# END com.termux.debug nix path patch",
+            "");
+    }
+
+    /**
+     * Harden usr/lib/login-inner: rewrite hardcoded paths, source the
+     * session-init script through the runtime patcher function, and fall back
+     * to /bin/sh if /usr/bin/env is missing. Idempotent; safe to re-apply
+     * before every session (activation stages .login-inner.new on switch).
+     */
+    static void patchLoginInner(File loginInner, Context context) {
+        String filesDir = context.getFilesDir().getAbsolutePath();
+        String dataDir = getNixDataDir(filesDir);
+        String home = filesDir + "/home";
+        try {
+            String content = new String(java.nio.file.Files.readAllBytes(loginInner.toPath()), StandardCharsets.UTF_8);
+            if (content.contains(NIX_PATH_PATCH_BEGIN)) return;
+            content = replaceNixPaths(content, getNixPathPairs(filesDir, dataDir));
+
+            String function = buildSessionInitPatchFunction("/data/data/com.termux.nix", dataDir);
+            content = content.replace("set -eo pipefail", "set -eo pipefail\n" + function);
+
+            // Replace every session-init source line with the patcher function.
+            String sessionInit = home + "/.nix-profile/etc/profile.d/nix-on-droid-session-init.sh";
+            String guarded = "if [ -f \"" + sessionInit + "\" ]; then\n  . \"" + sessionInit + "\"\nfi";
+            content = content.replace(guarded, "_nod_source_session_init");
+            content = content.replace(". \"" + sessionInit + "\"", "_nod_source_session_init");
+            content = content.replace(". \"$HOME/.nix-profile/etc/profile.d/nix-on-droid-session-init.sh\"",
+                "_nod_source_session_init");
+            content = content.replace(". \"${config.user.home}/.nix-profile/etc/profile.d/nix-on-droid-session-init.sh\"",
+                "_nod_source_session_init");
+
+            content = content.replace("exec /usr/bin/env bash",
+                "if [ -x /usr/bin/env ]; then\n  exec /usr/bin/env bash\nelse\n  exec /bin/sh\nfi");
+
+            java.nio.file.Files.write(loginInner.toPath(), content.getBytes(StandardCharsets.UTF_8));
+            debugLog("patched login-inner (paths + session-init runtime patch)");
+        } catch (Exception e) {
+            debugLogError("failed to patch login-inner", e);
+        }
+    }
+
     // ── Bootstrap type marker ──
 
     private static final String BOOTSTRAP_TYPE_MARKER = ".termux-bootstrap-type";
@@ -504,6 +857,7 @@ public final class TermuxInstaller {
     public static void patchExistingBootstrapIfNeeded(Context context) throws IOException {
         if (!needsPackageSubstitution(context)) return;
         if (!isBootstrapInstalled(context)) return;
+        ensureHomeDirectory(context);
 
         TermuxBootstrapType type = getInstalledBootstrapType(context);
         if (type == TermuxBootstrapType.NIX) {
@@ -706,9 +1060,32 @@ public final class TermuxInstaller {
 
             if (listener != null) listener.onProgress(context.getString(com.termux.R.string.bootstrap_install_progress_extract), 10);
 
-            debugLog("Starting extractZipFile...");
-            extractZipFile(context, zipFile, tempDir, listener, bootstrapType);
-            debugLog("extractZipFile done");
+            if (bootstrapType == TermuxBootstrapType.NIX) {
+                // Official nix-on-droid-app installer flow (copied from
+                // nix-community/nix-on-droid-app TermuxInstaller.java):
+                // zip modes are IGNORED (ZipInputStream -> FileOutputStream /
+                // mkdirs give umask modes 0644/0755), then EXECUTABLES.txt ->
+                // chmod 0700 and SYMLINKS.txt -> Os.symlink. This avoids the
+                // read-only dr-xr-xr-x modes stored in the nix bootstrap zip.
+                debugLog("NIX: using official extraction flow");
+                extractNixBootstrapZipOfficial(context, zipFile, tempDir, listener);
+                if (listener != null) listener.onProgress(context.getString(com.termux.R.string.bootstrap_install_progress_finalize), 92);
+                debugLog("NIX: extraction done, setting up executables");
+                setupNixExecutables(tempDir);
+                backupBootstrapProotStatic(tempDir, context);
+                if (listener != null) listener.onProgress(context.getString(com.termux.R.string.bootstrap_install_progress_finalize), 95);
+                debugLog("NIX: executables done, setting up symlinks");
+                setupNixSymlinks(tempDir);
+                if (listener != null) listener.onProgress(context.getString(com.termux.R.string.bootstrap_install_progress_finalize), 97);
+                debugLog("NIX: symlinks done, patching hardcoded paths");
+                patchNixHardcodedPaths(tempDir, context);
+                if (listener != null) listener.onProgress(context.getString(com.termux.R.string.bootstrap_install_progress_finalize), 99);
+                verifyNixBootstrap(tempDir);
+            } else {
+                debugLog("Starting extractZipFile...");
+                extractZipFile(context, zipFile, tempDir, listener, bootstrapType);
+                debugLog("extractZipFile done");
+            }
 
             if (bootstrapType == TermuxBootstrapType.TERMUX && !BOOTSTRAP_TARGET_PKG.equals(context.getPackageName())) {
                 if (listener != null) listener.onProgress(context.getString(com.termux.R.string.bootstrap_install_progress_finalize), 85);
@@ -726,6 +1103,7 @@ public final class TermuxInstaller {
                 debugLog("package-name substitution done");
             } else if (bootstrapType == TermuxBootstrapType.NIX) {
                 debugLog("NIX bootstrap: skipping Termux path substitution (proot handles remapping)");
+                patchNixHardcodedPaths(tempDir, context);
             }
 
             if (listener != null) listener.onProgress(context.getString(com.termux.R.string.bootstrap_install_progress_finalize), 90);
@@ -762,6 +1140,11 @@ public final class TermuxInstaller {
 
             Logger.logInfo(LOG_TAG, "Bootstrap packages installed successfully (" + bootstrapType + ").");
             debugLog("Bootstrap install SUCCESS");
+
+            ensureHomeDirectory(context);
+            if (bootstrapType == TermuxBootstrapType.NIX) {
+                ensureNixRuntimeDirs(context);
+            }
 
             if (manifest != null) {
                 if (listener != null) listener.onProgress(context.getString(com.termux.R.string.bootstrap_install_progress_write_variant), 95);
@@ -983,6 +1366,260 @@ public final class TermuxInstaller {
         }
     }
 
+    // ── Official nix-on-droid-app extraction flow (copied from
+    //    nix-community/nix-on-droid-app TermuxInstaller.java) ──
+    //
+    // Mirrors their extraction: ZipInputStream -> FileOutputStream / mkdirs
+    // WITHOUT applying ZipEntry unix modes, then EXECUTABLES.txt -> chmod 0700
+    // and SYMLINKS.txt -> Os.symlink(target, linkPath). Files/dirs get umask
+    // modes (0644/0755) so the read-only 0555/0444 modes stored in the nix
+    // bootstrap zip are never applied.
+
+    private static void extractNixBootstrapZipOfficial(Context context, File zipFile, File destDir,
+            InstallProgressListener listener) throws IOException, BootstrapException {
+        ZipFile zip = null;
+        try {
+            zip = new ZipFile(zipFile);
+            int totalEntries = zip.size();
+            int doneEntries = 0;
+            long totalUncompressed = 0;
+            Set<String> seenNames = new HashSet<>();
+
+            debugLog("extractNixBootstrapZipOfficial: " + zipFile.getName() + " -> "
+                + destDir.getAbsolutePath() + " | " + totalEntries + " entries");
+
+            Enumeration<? extends ZipEntry> entries = zip.entries();
+            while (entries.hasMoreElements()) {
+                ZipEntry entry = entries.nextElement();
+                String name = entry.getName();
+
+                if (doneEntries > 0 && doneEntries % 200 == 0) {
+                    debugLog("extractNixBootstrapZipOfficial: progress " + doneEntries + "/" + totalEntries);
+                }
+
+                if (name.isEmpty() || name.contains("..") || name.startsWith("/")) {
+                    throw new SecurityException(context.getString(com.termux.R.string.error_bootstrap_invalid_zip_entry, name));
+                }
+
+                if (!seenNames.add(name)) {
+                    throw new SecurityException(context.getString(com.termux.R.string.error_bootstrap_duplicate_zip_entry, name));
+                }
+
+                if (entry.isDirectory()) {
+                    if (name.equals("SYMLINKS.txt") || name.equals("BOOTSTRAP_INFO")) {
+                        throw new SecurityException(context.getString(com.termux.R.string.error_bootstrap_directory_metadata_entry, name));
+                    }
+                    File dir = safeChildFile(context, destDir, name);
+                    if (!dir.isDirectory() && !dir.mkdirs()) {
+                        throw new IOException(context.getString(com.termux.R.string.error_bootstrap_failed_mkdir, dir));
+                    }
+                    doneEntries++;
+                    continue;
+                }
+
+                if (entry.getSize() > MAX_SINGLE_ENTRY_SIZE) {
+                    throw new SecurityException(context.getString(com.termux.R.string.error_bootstrap_entry_too_large, name, entry.getSize()));
+                }
+
+                long compressedSize = entry.getCompressedSize();
+                long uncompressedSize = entry.getSize();
+                if (uncompressedSize > 0 && compressedSize > 0) {
+                    long ratio = uncompressedSize / compressedSize;
+                    if (ratio > MAX_COMPRESSION_RATIO_NIX) {
+                        throw new SecurityException(context.getString(com.termux.R.string.error_bootstrap_compression_ratio, name));
+                    }
+                }
+
+                totalUncompressed += uncompressedSize;
+                if (totalUncompressed > MAX_TOTAL_UNCOMPRESSED_SIZE) {
+                    throw new SecurityException(context.getString(com.termux.R.string.error_bootstrap_total_size_exceeded));
+                }
+
+                if (doneEntries > MAX_ENTRIES) {
+                    throw new SecurityException(context.getString(com.termux.R.string.error_bootstrap_too_many_entries));
+                }
+
+                // SYMLINKS.txt / EXECUTABLES.txt / BOOTSTRAP_INFO are handled
+                // by setupNixExecutables / setupNixSymlinks afterwards; still
+                // extract them so the flow matches the official installer.
+                File outFile = safeChildFile(context, destDir, name);
+                File parent = outFile.getParentFile();
+                if (parent != null && !parent.isDirectory() && !parent.mkdirs()) {
+                    throw new IOException(context.getString(com.termux.R.string.error_bootstrap_failed_mkdir, parent));
+                }
+                try (InputStream in = zip.getInputStream(entry); FileOutputStream out = new FileOutputStream(outFile)) {
+                    byte[] buffer = new byte[8192];
+                    int read;
+                    while ((read = in.read(buffer)) != -1) {
+                        out.write(buffer, 0, read);
+                    }
+                }
+                doneEntries++;
+
+                if (listener != null && totalEntries > 0) {
+                    listener.onProgress(context.getString(com.termux.R.string.bootstrap_install_progress_extract),
+                        10 + (int) (80L * doneEntries / totalEntries));
+                }
+            }
+            debugLog("extractNixBootstrapZipOfficial: done, total entries=" + doneEntries);
+        } finally {
+            if (zip != null) {
+                try { zip.close(); } catch (IOException ignored) {}
+            }
+        }
+    }
+
+    /** EXECUTABLES.txt -> chmod 0700 (official flow), skipping symlinks. */
+    private static void setupNixExecutables(File destDir) throws IOException {
+        File executablesFile = new File(destDir, "EXECUTABLES.txt");
+        if (!executablesFile.isFile()) return;
+
+        int count = 0;
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(new FileInputStream(executablesFile), StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (line.isEmpty()) continue;
+                File file = new File(destDir, line);
+                if (!file.exists()) continue;
+                try {
+                    StructStat st = Os.lstat(file.getAbsolutePath());
+                    if (OsConstants.S_ISLNK(st.st_mode)) continue;
+                } catch (ErrnoException e) {
+                    continue;
+                }
+                try {
+                    Os.chmod(file.getAbsolutePath(), 0700);
+                    count++;
+                } catch (ErrnoException e) {
+                    debugLog("setupNixExecutables: chmod failed for " + line + ": " + e.getMessage());
+                }
+            }
+        }
+
+        // Explicitly ensure the two launcher binaries are executable even if
+        // EXECUTABLES.txt is missing or stale.
+        for (String rel : new String[]{"bin/login", "bin/proot-static"}) {
+            File f = new File(destDir, rel);
+            if (f.isFile()) {
+                try {
+                    Os.chmod(f.getAbsolutePath(), 0700);
+                } catch (Exception e) {
+                    Logger.logDebug(LOG_TAG, "chmod 0700 failed for " + rel + ": " + e.getMessage());
+                }
+            }
+        }
+        debugLog("setupNixExecutables: " + count + " files from EXECUTABLES.txt");
+    }
+
+    /** SYMLINKS.txt -> Os.symlink(target, staging/link) (official flow). */
+    private static void setupNixSymlinks(File destDir) throws IOException, BootstrapException {
+        File symlinksFile = new File(destDir, "SYMLINKS.txt");
+        if (!symlinksFile.isFile()) return;
+
+        String stagingPath = destDir.getCanonicalPath() + File.separator;
+        int count = 0;
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(new FileInputStream(symlinksFile), StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (line.isEmpty()) continue;
+
+                int idx = line.indexOf('\u2190');
+                if (idx <= 0 || idx == line.length() - 1) {
+                    throw new BootstrapException("Malformed symlink line: " + line);
+                }
+                String target = line.substring(0, idx).trim();
+                String linkPath = line.substring(idx + 1).trim();
+
+                File linkFile = new File(destDir, linkPath);
+                String canonicalLink;
+                try {
+                    canonicalLink = linkFile.getCanonicalPath();
+                } catch (IOException e) {
+                    throw new IOException("Unable to canonicalize symlink path: " + linkPath, e);
+                }
+                if (!canonicalLink.startsWith(stagingPath)) {
+                    throw new IOException("Symlink outside staging dir: " + linkPath);
+                }
+
+                File parent = linkFile.getParentFile();
+                if (parent != null && !parent.isDirectory() && !parent.mkdirs()) {
+                    throw new IOException("Unable to create symlink parent directory: " + parent);
+                }
+
+                if (linkFile.exists() || isSymlink(linkFile)) {
+                    if (!linkFile.delete()) {
+                        throw new IOException("Unable to delete existing symlink/file: " + linkFile);
+                    }
+                }
+                try {
+                    Os.symlink(target, linkFile.getAbsolutePath());
+                } catch (ErrnoException e) {
+                    throw new IOException("Unable to create symlink " + linkPath + " -> " + target, e);
+                }
+                count++;
+            }
+        }
+        debugLog("setupNixSymlinks: " + count + " symlinks created");
+    }
+
+    /**
+     * Post-extraction sanity checks (official + our path patching). The
+     * runtime patch block in usr/lib/login-inner legitimately contains the
+     * legacy prefix (as the old-value variable of the session-init patcher),
+     * so the block is stripped before checking.
+     */
+    private static void verifyNixBootstrap(File destDir) throws IOException {
+        String[] requiredFiles = {"bin/login", "bin/proot-static", "usr/lib/login-inner"};
+        for (String rel : requiredFiles) {
+            File f = new File(destDir, rel);
+            if (!f.isFile()) {
+                throw new IOException("Nix bootstrap missing required file: " + rel);
+            }
+        }
+        String[] requiredDirs = {"nix/store", "etc", "tmp", ".l2s", "dev/shm"};
+        for (String rel : requiredDirs) {
+            File dir = new File(destDir, rel);
+            if (!dir.isDirectory()) {
+                throw new IOException("Nix bootstrap missing required directory: " + rel);
+            }
+        }
+        if (!isSymlink(new File(destDir, "bin/sh"))) {
+            throw new IOException("Nix bootstrap bin/sh is not a symlink");
+        }
+
+        // bin/login must be fully patched: no runtime patch block, no legacy prefix.
+        File login = new File(destDir, "bin/login");
+        String loginContent = new String(java.nio.file.Files.readAllBytes(login.toPath()), StandardCharsets.UTF_8);
+        if (loginContent.contains(NIX_PATH_PATCH_BEGIN) || loginContent.contains(NIX_PATH_PATCH_END)) {
+            throw new IOException("Nix bootstrap bin/login unexpectedly contains runtime patch markers");
+        }
+        if (loginContent.contains(LEGACY_NIX_PACKAGE_PREFIX)) {
+            throw new IOException("Nix bootstrap bin/login still contains hardcoded " + LEGACY_NIX_PACKAGE_PREFIX + " paths");
+        }
+
+        // login-inner: legacy prefix allowed only inside our runtime patch block.
+        File loginInner = new File(destDir, "usr/lib/login-inner");
+        String innerContent = new String(java.nio.file.Files.readAllBytes(loginInner.toPath()), StandardCharsets.UTF_8);
+        boolean hasBegin = innerContent.contains(NIX_PATH_PATCH_BEGIN);
+        boolean hasEnd = innerContent.contains(NIX_PATH_PATCH_END);
+        if (hasBegin != hasEnd) {
+            throw new IOException("Nix bootstrap usr/lib/login-inner contains malformed runtime patch block");
+        }
+        String stripped = NIX_PATH_PATCH_BLOCK_PATTERN.matcher(innerContent).replaceAll("");
+        if (stripped.contains(LEGACY_NIX_PACKAGE_PREFIX)) {
+            throw new IOException("Nix bootstrap usr/lib/login-inner still contains hardcoded "
+                + LEGACY_NIX_PACKAGE_PREFIX + " paths outside runtime patch block");
+        }
+        if (hasBegin && !stripped.contains("_nod_source_session_init")) {
+            throw new IOException("Nix bootstrap usr/lib/login-inner has runtime patch block but does not call _nod_source_session_init");
+        }
+        Logger.logInfo(LOG_TAG, "Nix bootstrap verification passed for " + destDir);
+    }
+
     private static void validateSymlinkTarget(Context context, File extractRoot, String linkName, String target,
             @Nullable String allowedPrefixPath, TermuxBootstrapType bootstrapType) throws IOException {
         if (target.isEmpty()) {
@@ -1118,6 +1755,12 @@ public final class TermuxInstaller {
         }
 
         if (isBootstrapInstalled(activity)) {
+            TermuxBootstrapType installedType = getInstalledBootstrapType(activity);
+            if (installedType == TermuxBootstrapType.NIX) {
+                ensureHomeDirectory(activity);
+                whenDone.run();
+                return;
+            }
             if (needsPackageSubstitution(activity) && !isBootstrapPathPatchApplied(activity)) {
                 final ProgressDialog patchProgress = ProgressDialog.show(activity, null,
                     activity.getString(R.string.bootstrap_installer_body), true, false);
@@ -1263,6 +1906,10 @@ public final class TermuxInstaller {
                     }
                     Logger.logInfo(LOG_TAG, "Bootstrap packages installed successfully.");
                     debugLog("Embedded bootstrap install SUCCESS");
+                    ensureHomeDirectory(activity);
+                    if (embeddedType == TermuxBootstrapType.NIX) {
+                        ensureNixRuntimeDirs(activity);
+                    }
                     if (embeddedType == TermuxBootstrapType.TERMUX && needsPackageSubstitution(activity)) {
                         try {
                             ensureCompatSymlinks(activity);
@@ -1448,6 +2095,11 @@ public final class TermuxInstaller {
             }
         } catch (Exception ignored) {}
         if (f.isDirectory()) {
+            // Old installers left read-only dir modes (dr-xr-xr-x) which block
+            // deleting children; make the dir owner-writable first.
+            try {
+                Os.chmod(f.getAbsolutePath(), 0700);
+            } catch (Exception ignored) {}
             File[] children = f.listFiles();
             if (children != null) {
                 for (File child : children) deleteRecursive(child);
