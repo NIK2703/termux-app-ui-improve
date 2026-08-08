@@ -33,7 +33,6 @@ public class BootstrapSelectorActivity extends Activity {
     private Button mDownloadButton;
     private Button mPickZipButton;
     private Button mRetryButton;
-    private TextView mStatusText;
 
     private AlertDialog mProgressDialog;
     private AlertDialog mFailedDialog;
@@ -96,7 +95,6 @@ public class BootstrapSelectorActivity extends Activity {
         mDownloadButton = findViewById(com.termux.R.id.download_button);
         mPickZipButton = findViewById(com.termux.R.id.pick_zip_button);
         mRetryButton = findViewById(com.termux.R.id.retry_button);
-        mStatusText = findViewById(com.termux.R.id.status_text);
 
         loadSources();
 
@@ -137,7 +135,6 @@ public class BootstrapSelectorActivity extends Activity {
         try {
             mSources = BootstrapSources.loadFromResources(this);
         } catch (Exception e) {
-            mStatusText.setText(getString(com.termux.R.string.bootstrap_selector_error_load_sources) + ": " + e.getMessage());
             return;
         }
         String targetVariant = Build.VERSION.SDK_INT >= 24 ? "apt-android-7" : "apt-android-5";
@@ -149,11 +146,6 @@ public class BootstrapSelectorActivity extends Activity {
         }
         if (mAutoSelectedSource == null && !mSources.isEmpty()) {
             mAutoSelectedSource = mSources.get(0);
-        }
-        if (mAutoSelectedSource == null) {
-            mStatusText.setText(com.termux.R.string.bootstrap_selector_error_load_sources);
-        } else {
-            mStatusText.setText(com.termux.R.string.bootstrap_selector_status_default);
         }
     }
 
@@ -245,7 +237,7 @@ public class BootstrapSelectorActivity extends Activity {
         } catch (Exception ignored) {}
     }
 
-    private void showProgressDialog(String statusMessage, String progressMessage,
+    private void showProgressDialog(String progressMessage,
                                     int percent, boolean indeterminate) {
         if (isFinishing() || !mResumed) return;
         if (mProgressDialog == null) {
@@ -263,10 +255,9 @@ public class BootstrapSelectorActivity extends Activity {
             bar.setProgress(percent);
         }
         if (text != null) text.setText(progressMessage);
-        mStatusText.setText(statusMessage);
     }
 
-    private void showFailedDialog(String statusMessage, String errorMessage) {
+    private void showFailedDialog(String errorMessage) {
         if (isFinishing() || !mResumed) return;
         dismissProgressDialog();
         if (mFailedDialog != null && mFailedDialog.isShowing()) return;
@@ -278,7 +269,6 @@ public class BootstrapSelectorActivity extends Activity {
                 acknowledgeTerminalState();
                 mRetryButton.setVisibility(View.VISIBLE);
                 setButtonsEnabled(true);
-                mStatusText.setText(statusMessage);
             })
             .setNegativeButton(com.termux.R.string.bootstrap_selector_cancel, (dialog, which) -> {
                 dismissFailedDialog();
@@ -319,9 +309,9 @@ public class BootstrapSelectorActivity extends Activity {
         boolean busy = state.isBusy();
 
         if (state.failed) {
-            showFailedDialog(state.statusMessage, state.progressMessage);
+            showFailedDialog(state.progressMessage);
         } else if (busy) {
-            showProgressDialog(state.statusMessage, state.progressMessage,
+            showProgressDialog(state.progressMessage,
                 state.percent, state.indeterminate);
         } else if (state.success) {
             dismissProgressDialog();
