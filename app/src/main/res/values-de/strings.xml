@@ -257,7 +257,7 @@
 
     
     <string name="suggestions_max_count_title">Max. Vorschläge</string>
-    <string name="suggestions_max_count_summary">Autovervollständigung aus Nachrichtenverlauf (1–10)</string>
+    <string name="suggestions_max_count_summary">Autovervollständigung aus Nachrichtenverlauf</string>
     <string name="language_category_title">Sprache</string>
     <string name="appearance_category_title">Erscheinungsbild</string>
     <string name="input_preferences_title">Eingabe</string>

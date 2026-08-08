@@ -277,7 +277,7 @@ $HOME/bin/termux-url-opener
 
     
     <string name="suggestions_max_count_title">최대 제안 수</string>
-    <string name="suggestions_max_count_summary">메시지 기록에서 자동 완성 (1–10)</string>
+    <string name="suggestions_max_count_summary">메시지 기록에서 자동 완성</string>
 
     <string name="language_category_title">언어</string>
     <string name="appearance_category_title">모양</string>

@@ -284,7 +284,7 @@
 
     
     <string name="suggestions_max_count_title">最大建议数</string>
-    <string name="suggestions_max_count_summary">从消息历史中自动补全（1–10）</string>
+    <string name="suggestions_max_count_summary">从消息历史中自动补全</string>
 
     <string name="language_category_title">语言</string>
     <string name="appearance_category_title">外观</string>

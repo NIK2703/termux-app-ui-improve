@@ -264,7 +264,7 @@
 
     
     <string name="suggestions_max_count_title">Máx. sugerencias</string>
-    <string name="suggestions_max_count_summary">Sugerencias de autocompletado a partir del historial de mensajes (1–10)</string>
+    <string name="suggestions_max_count_summary">Sugerencias de autocompletado a partir del historial de mensajes</string>
 
     <string name="appearance_category_title">Apariencia</string>
     <string name="input_preferences_title">Entrada</string>

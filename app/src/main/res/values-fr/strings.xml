@@ -264,7 +264,7 @@
 
     
     <string name="suggestions_max_count_title">Suggestions max</string>
-    <string name="suggestions_max_count_summary">Suggestions de saisie semi-automatique depuis l\'historique des messages (1–10)</string>
+    <string name="suggestions_max_count_summary">Suggestions de saisie semi-automatique depuis l\'historique des messages</string>
     <string name="language_category_title">Langue</string>
     <string name="appearance_category_title">Apparence</string>
     <string name="input_preferences_title">Saisie</string>

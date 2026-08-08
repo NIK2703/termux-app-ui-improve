@@ -264,7 +264,7 @@
 
     
     <string name="suggestions_max_count_title">最大候補数</string>
-    <string name="suggestions_max_count_summary">メッセージ履歴から自動補完（1〜10）</string>
+    <string name="suggestions_max_count_summary">メッセージ履歴から自動補完</string>
 <string name="appearance_category_title">外観</string>
 <string name="backup_restore_preferences_title">バックアップと復元</string>
 <string name="backup_restore_preferences_summary">Termuxデータをバックアップまたは復元</string>

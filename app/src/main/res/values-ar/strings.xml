@@ -283,7 +283,7 @@
 
     
     <string name="suggestions_max_count_title">أقصى اقتراحات</string>
-    <string name="suggestions_max_count_summary">الإكمال التلقائي من سجل الرسائل (1–10)</string>
+    <string name="suggestions_max_count_summary">الإكمال التلقائي من سجل الرسائل</string>
 
     <string name="appearance_category_title">المظهر</string>
     <string name="backup_restore_preferences_summary">النسخ الاحتياطي أو استعادة بيانات Termux</string>

@@ -280,7 +280,7 @@
 
     
     <string name="suggestions_max_count_title">Maks. öneri</string>
-    <string name="suggestions_max_count_summary">Mesaj geçmişinden otomatik tamamlama (1–10)</string>
+    <string name="suggestions_max_count_summary">Mesaj geçmişinden otomatik tamamlama</string>
 <string name="language_category_title">Dil</string>
 <string name="appearance_category_title">Görünüm</string>
 <string name="input_preferences_title">Giriş</string>

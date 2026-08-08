@@ -391,7 +391,7 @@
 
     
     <string name="suggestions_max_count_title">Максимум подсказок</string>
-    <string name="suggestions_max_count_summary">Автодополнение из истории сообщений (1–10)</string>
+    <string name="suggestions_max_count_summary">Автодополнение из истории сообщений</string>
 
     
     <string name="language_category_title">Язык</string>

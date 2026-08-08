@@ -251,7 +251,7 @@
 <string name="hide_extra_keys_with_keyboard_title">Sembunyikan tombol ekstra dengan keyboard</string>
 <string name="hide_extra_keys_with_keyboard_summary">Sembunyikan tombol tambahan saat keyboard ditutup, tampilkan saat dibuka</string>
 <string name="suggestions_max_count_title">Maks saran</string>
-    <string name="suggestions_max_count_summary">Pelengkapan otomatis dari riwayat pesan (1–10)</string>
+    <string name="suggestions_max_count_summary">Pelengkapan otomatis dari riwayat pesan</string>
 <string name="extra_keys_preferences_title">Tombol Tambahan</string>
 <string name="extra_keys_preferences_summary">Preferensi untuk bilah tombol tambahan</string>
 <string name="extra_keys_special_button_mode_title">Perilaku tombol khusus</string>

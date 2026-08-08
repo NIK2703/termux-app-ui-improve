@@ -272,7 +272,7 @@
 
     
     <string name="suggestions_max_count_title">Máx. sugestões</string>
-    <string name="suggestions_max_count_summary">Autocompletar do histórico de mensagens (1–10)</string>
+    <string name="suggestions_max_count_summary">Autocompletar do histórico de mensagens</string>
 
     <string name="extra_keys_preferences_title">Teclas Extras</string>
     <string name="extra_keys_preferences_summary">Preferências da barra de teclas extras</string>
