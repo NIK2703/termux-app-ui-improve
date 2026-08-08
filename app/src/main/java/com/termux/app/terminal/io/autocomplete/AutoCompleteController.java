@@ -140,8 +140,6 @@ public final class AutoCompleteController implements AutoCompleteDataProvider {
 
     /** Reusable scratch set to avoid per-keystroke HashSet allocations in the hot path. */
     private final HashSet<String> mSeenSet = new HashSet<>();
-    /** Reusable scratch list for the backspace in-place filter (avoids new ArrayList per Backspace). */
-    private final ArrayList<String> mBackspaceScratch = new ArrayList<>();
     /** Shared immutable empty list returned by getCandidatesForPrefix when there are no matches. */
     private static final ArrayList<String> EMPTY_LIST = new ArrayList<>();
 
@@ -724,22 +722,42 @@ public final class AutoCompleteController implements AutoCompleteDataProvider {
 
         // ── Backspace: lightweight path without a full rescan ──
         // If the text is shorter than prevText and prevText starts with text
-        // (characters deleted from the end), filter the current list by prefix
-        // instead of taking Path A.
+        // (characters deleted from the end), re-derive the list from the prefix
+        // trie instead of taking Path A.
+        //
+        // CRITICAL: we must NOT just filter mCurrentSuggestions by the new
+        // shorter prefix. mCurrentSuggestions is a top-N cache for the LONGER
+        // previous prefix (Path B already narrowed and capped it), so filtering
+        // it can only shrink it further — the popup would never expand back to
+        // the full candidate set after a backspace. The trie is the single
+        // source of truth for every prefix: a descent for the new shorter
+        // prefix costs O(prefix length) and returns the full, newest-first
+        // candidate list, so re-deriving from it is both correct AND cheaper
+        // than a full history rescan (the trie is rebuilt only when the
+        // history version changes, and no history list scan happens here).
         if (!additive && mCurrentSuggestions != null && !mCurrentSuggestions.isEmpty()
                 && prevText != null && prevText.length() > text.length()
                 && TextUtils.regionMatches(prevText, 0, text, 0, text.length())) {
-            // Reuse the scratch list instead of a new ArrayList on every Backspace.
-            ArrayList<String> filtered = mBackspaceScratch;
-            filtered.clear();
-            for (String s : mCurrentSuggestions) {
-                if (s != null && s.regionMatches(true, 0, text.toString(), 0, text.length())) filtered.add(s);
+            if (mPrefixTrie == null
+                    || mPrefixCacheVersion != mMessageHistoryCtrl.getHistoryVersion()) {
+                buildTrie();
             }
-            if (filtered.isEmpty()) {
+            mCurrentSuggestions.clear();
+            mCurrentIsShell.clear();
+            mSeenSet.clear();
+            final int tLen = text.length();
+            for (String msg : getCandidatesForPrefix(text)) {
+                if (mCurrentSuggestions.size() >= maxCount) break;
+                if (mSeenSet.add(msg)
+                        && msg.length() > tLen
+                        && !msg.equals(text)) {
+                    mCurrentSuggestions.add(msg);
+                    mCurrentIsShell.add(Boolean.FALSE);
+                }
+            }
+            if (mCurrentSuggestions.isEmpty()) {
                 // dropped to 0 — full rescan
             } else {
-                mCurrentSuggestions.clear();
-                mCurrentSuggestions.addAll(filtered);
                 updatePopupContent(text, inputField);
                 return;
             }
