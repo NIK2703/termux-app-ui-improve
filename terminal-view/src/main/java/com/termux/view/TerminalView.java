@@ -155,10 +155,8 @@ public final class TerminalView extends View {
 
     /** Whether the user is currently dragging the scrollbar thumb. */
     private boolean mScrollbarDragging;
-    /** Finger Y at the {@link MotionEvent#ACTION_DOWN} that started the current drag. */
+    /** Finger Y of the previous drag event (incremental delta tracking). */
     private float mScrollbarDragStartRawY;
-    /** {@link #mTopRow} captured at drag start (used by relative delta tracking). */
-    private int mScrollbarDragStartTopRow;
 
     /** Paint for the scrollbar track (a thin vertical strip). */
     private final Paint mScrollbarTrackPaint;
@@ -1042,10 +1040,20 @@ public final class TerminalView extends View {
                             float thumbH = visibleRowsPerThumbHeight(range);
                             float maxOffset = Math.max(viewH - thumbH, 1f);
                             float rowsPerPx = (float) range / maxOffset;
+                            // Incremental delta: apply on top of the current
+                            // mTopRow so the content-stable shift done by
+                            // onScreenUpdated() for new output is preserved
+                            // instead of being reverted to the drag baseline.
                             float deltaY = event.getY() - mScrollbarDragStartRawY;
                             int deltaRows = Math.round(deltaY * rowsPerPx);
-                            int newTopRow = mScrollbarDragStartTopRow + deltaRows;
-                            mTopRow = Math.max(-range, Math.min(0, newTopRow));
+                            mTopRow = Math.max(-range, Math.min(0, mTopRow + deltaRows));
+                            mScrollbarDragStartRawY = event.getY();
+                            // Same rule as scrollUp(): scrolled away from the
+                            // bottom disables follow-to-bottom; reaching the
+                            // bottom again re-enables it. Without this the
+                            // emulator still thinks auto-scroll is on and new
+                            // lines snap the view back to the bottom mid-drag.
+                            mEmulator.setAutoScrollDisabled(mTopRow != 0);
                             invalidate();
                         }
                         return true;
@@ -1061,10 +1069,10 @@ public final class TerminalView extends View {
                 stopFlingAndClear();
                 if (getParent() != null) getParent().requestDisallowInterceptTouchEvent(true);
                 mScrollbarDragging = true;
-                // Don't jump the thumb — record current position; MOVE applies
-                // a relative delta so the thumb stays anchored under the finger.
+                // Don't jump the thumb — anchor the finger; each MOVE applies an
+                // incremental delta so the thumb stays under the finger and the
+                // content-stable shift for new output isn't reverted.
                 mScrollbarDragStartRawY = event.getY();
-                mScrollbarDragStartTopRow = mTopRow;
                 invalidate();
                 return true;
             }
