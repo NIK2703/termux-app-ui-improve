@@ -978,23 +978,21 @@ public class TermuxSessionTabsController {
      * Set the background of the trailing (+) add button as an oval {@link StateListDrawable}
      * that shows an active (pressed / swipe-selected) fill. Unlike {@link #setTabBackground},
      * this preserves the press/swipe visual activation required by the add button, instead of
-     * replacing it with a flat state-less rectangle.
+     * replacing it with a flat state-less rectangle. No stroke — the idle and active states
+     * differ by fill only.
      */
     private void setAddButtonBackground(View view) {
-        int strokePx = Math.round(mActivity.getResources().getDimension(R.dimen.terminal_text_input_stroke));
-        view.setBackground(buildOvalStateListDrawable(strokePx));
+        view.setBackground(buildOvalStateListDrawable());
     }
 
-    private StateListDrawable buildOvalStateListDrawable(int strokePx) {
+    private StateListDrawable buildOvalStateListDrawable() {
         GradientDrawable idle = new GradientDrawable();
         idle.setShape(GradientDrawable.OVAL);
         idle.setColor(mSchemeBg);
-        idle.setStroke(strokePx, mSchemeBgActive);
 
         GradientDrawable active = new GradientDrawable();
         active.setShape(GradientDrawable.OVAL);
         active.setColor(mSchemeBgActive);
-        active.setStroke(strokePx, mSchemeBgActive);
 
         StateListDrawable states = new StateListDrawable();
         states.addState(new int[]{android.R.attr.state_pressed}, active);

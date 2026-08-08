@@ -1036,7 +1036,7 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
         int toggleButtonStroke = withAlpha(
                 TermuxColorSchemeManager.compositeColors(mActivity.getColorSchemeManager().getSchemeBackground(), overlayActive),
                 buttonFillAlpha);
-        // Plain tab button (new session): normal fill + stroke, with an active
+        // Plain tab button (new session): no stroke — fill only, with an active
         // (pressed/swiped) background so the press/swipe gesture gives visible feedback.
         // Use the same scheme-derived colours as the extra-keys buttons so the contrast
         // between idle and active states is clearly visible.
@@ -1046,7 +1046,6 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
                     new android.graphics.drawable.GradientDrawable();
             normalState.setShape(android.graphics.drawable.GradientDrawable.OVAL);
             normalState.setColor(buttonBg);
-            normalState.setStroke(buttonStrokePx, buttonActiveBg);
 
             // Active background: a clearly visible highlight. The scheme-derived
             // buttonActiveBg is only a faint (default ~12% alpha) tint, so compose a
@@ -1061,7 +1060,6 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
                     new android.graphics.drawable.GradientDrawable();
             activeState.setShape(android.graphics.drawable.GradientDrawable.OVAL);
             activeState.setColor(activeFill);
-            activeState.setStroke(buttonStrokePx, activeFill);
 
             android.graphics.drawable.StateListDrawable states =
                     new android.graphics.drawable.StateListDrawable();
