@@ -84,6 +84,15 @@ public final class TermuxBackupService extends Service {
     private volatile boolean mIsRestore = false;
     private volatile long mProgressCopied = 0;
     private volatile long mProgressTotal = 0;
+
+    /** Progress keys: -2 = nothing posted yet, -1 = indeterminate, 0..100 = determinate percent. */
+    private static final int PROGRESS_KEY_NONE = -2;
+    private static final int PROGRESS_KEY_INDETERMINATE = -1;
+    /**
+     * Last progress key actually posted to NotificationManager. Throttles the per-1MB
+     * re-post (the app-icon flicker on MIUI/HyperOS) to visible state changes only.
+     */
+    private volatile int mLastPostedProgressKey = PROGRESS_KEY_NONE;
     private final AtomicReference<Error> mResult = new AtomicReference<>();
     /** Ensures showResult() runs exactly once across worker / enterBackground races. */
     private final AtomicBoolean mResultShown = new AtomicBoolean(false);
@@ -176,6 +185,9 @@ public final class TermuxBackupService extends Service {
         } else {
             stopForeground(true);
         }
+        // The progress notification is gone; a later enterBackground() must re-post the
+        // current state instead of being throttled by the stale key.
+        mLastPostedProgressKey = PROGRESS_KEY_NONE;
     }
     public boolean isFinished() { return mFinished; }
     public long getProgressCopied() { return mProgressCopied; }
@@ -195,9 +207,19 @@ public final class TermuxBackupService extends Service {
         // like any other background completion. We just skip the live progress notification.
         mInForeground = true;
         setupNotificationChannels();
+        // Snapshot the progress ONCE and derive BOTH the posted notification and the
+        // throttling key from that single snapshot. Reading the volatile fields twice
+        // (once for the builder, once for calculateProgressKey below) lets a concurrent
+        // publishProgress() tick — the 1 MB data pump fires every ~10-100 ms — write the
+        // du estimate in between: the key then says "determinate pct" while the shade
+        // actually shows the indeterminate spinner, and the throttle suppresses every
+        // following determinate re-post until the whole percent advances (minutes on a
+        // multi-GB container). The snapshot keeps key and posted state consistent.
+        final long snapshotCopied = mProgressCopied;
+        final long snapshotTotal = mProgressTotal;
         Notification notification = mFinished
             ? null
-            : buildProgressNotification(mIsRestore, mProgressCopied, mProgressTotal);
+            : buildProgressNotification(mIsRestore, snapshotCopied, snapshotTotal);
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 startForeground(TermuxConstants.TERMUX_BACKUP_NOTIFICATION_ID,
@@ -211,6 +233,16 @@ public final class TermuxBackupService extends Service {
             // Only flag "started" AFTER startForeground() actually succeeded, so the
             // worker-thread showResult() cannot race a stopForeground() before we are foreground.
             mStartedForeground = true;
+
+            // We just posted the notification via startForeground(). Record the current
+            // progress key so the next publishProgress() tick does not re-post the same
+            // visible state (which would trigger another icon re-render on MIUI/HyperOS).
+            // The key MUST describe the snapshot actually posted above — see the snapshot
+            // comment at the top of this method.
+            if (!mFinished) {
+                mLastPostedProgressKey = calculateProgressKey(snapshotCopied, snapshotTotal);
+            }
+
             if (mFinished) {
                 // Already done: surface the result immediately (head-up + auto-dismiss timer).
                 showResult(mIsRestore, mResult.get());
@@ -268,6 +300,9 @@ public final class TermuxBackupService extends Service {
         }
 
         mEpoch.incrementAndGet(); // new operation => invalidate any pending auto-dismiss timer
+        // New operation: the previous progress notification (if any) is gone; the next
+        // publishProgress() must re-post the current state instead of being throttled.
+        mLastPostedProgressKey = PROGRESS_KEY_NONE;
         mIsRestore = ACTION_RESTORE.equals(intent.getAction());
         final boolean isRestore = mIsRestore;
         final Uri uri = intent.getData();
@@ -485,6 +520,7 @@ public final class TermuxBackupService extends Service {
                 .setContentTitle(title).setContentText(text);
         }
         builder.setSmallIcon(R.drawable.ic_service_notification)
+            .setShowWhen(false)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .addAction(android.R.drawable.ic_menu_close_clear_cancel,
@@ -501,15 +537,46 @@ public final class TermuxBackupService extends Service {
         return builder.build();
     }
 
+    /**
+     * Map the current copy progress to the notification's visible state key:
+     * {@link #PROGRESS_KEY_INDETERMINATE} while the total is unknown (du estimate pending),
+     * otherwise the integer percent clamped to 0..100. Used to throttle {@code notify()}
+     * calls to actual visible state changes.
+     */
+    private static int calculateProgressKey(long copied, long total) {
+        if (total <= 0) {
+            return PROGRESS_KEY_INDETERMINATE;
+        }
+        long pct = (copied * 100L) / total;
+        if (pct < 0) pct = 0;
+        if (pct > 100) pct = 100;
+        return (int) pct;
+    }
+
     private void publishProgress(boolean isRestore, long copied, long total) {
         if (mFinished) return;
+
+        // Progress fields are updated on EVERY tick: the progress dialog polls these
+        // directly and must stay smooth even when the notification is throttled.
         mProgressCopied = copied;
         mProgressTotal = total;
+
         if (!mInForeground) return; // dialog observes these fields directly
+
+        // Re-post the notification only when the visible state actually changed
+        // (indeterminate -> determinate, or a whole new percent). Posting on every
+        // 1MB tick makes MIUI/HyperOS re-render the whole notification row (including
+        // the app icon) hundreds of times per operation — the observed flicker.
+        int key = calculateProgressKey(copied, total);
+        if (key == mLastPostedProgressKey) return;
+
         NotificationManager nm = NotificationUtils.getNotificationManager(this);
         if (nm == null) return;
+
         nm.notify(TermuxConstants.TERMUX_BACKUP_NOTIFICATION_ID,
             buildProgressNotification(isRestore, copied, total));
+
+        mLastPostedProgressKey = key;
     }
 
     /** Build the final (success / failed / cancelled) heads-up notification, without posting it. */
