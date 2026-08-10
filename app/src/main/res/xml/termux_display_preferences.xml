@@ -129,7 +129,7 @@
             app:title="@string/terminal_margin_horizontal_title"
             app:summary="@string/terminal_margin_horizontal_summary"
             app:min="0"
-            android:max="100"
+            android:max="20"
             app:defaultValue="3"
             app:showSeekBarValue="true"
             app:iconSpaceReserved="false" />
@@ -139,7 +139,7 @@
             app:title="@string/terminal_margin_vertical_title"
             app:summary="@string/terminal_margin_vertical_summary"
             app:min="0"
-            android:max="100"
+            android:max="20"
             app:defaultValue="0"
             app:showSeekBarValue="true"
             app:iconSpaceReserved="false" />

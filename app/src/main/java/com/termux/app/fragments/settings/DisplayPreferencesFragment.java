@@ -203,6 +203,14 @@ public class DisplayPreferencesFragment extends TermuxPreferenceFragmentBase {
         final SeekBarPreference pref = findPreference(key);
         if (pref == null) return;
         pref.setPersistent(false);
+        // The seek bar max is defined in the XML preference; clamp any previously
+        // stored value (e.g. from an older build with a higher max) so the terminal
+        // never keeps an out-of-range margin.
+        int max = pref.getMax();
+        if (current > max) {
+            current = max;
+            setter.set(current);
+        }
         pref.setValue(current);
         pref.setOnPreferenceChangeListener((preference, newValue) -> {
             setter.set((Integer) newValue);

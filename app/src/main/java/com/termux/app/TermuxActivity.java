@@ -99,14 +99,12 @@ import com.termux.shared.theme.NightMode;
 import com.termux.shared.theme.ThemeUtils;
 import com.termux.shared.view.ImeVisibilityDetector;
 import com.termux.shared.view.KeyboardUtils;
-import com.termux.shared.view.ViewUtils;
-import com.termux.terminal.TerminalColors;
+import com.termux.shared.termux.shell.command.runner.terminal.TermuxSession;
 import com.termux.terminal.TerminalSession;
 import com.termux.terminal.TerminalSessionClient;
 import com.termux.terminal.TextStyle;
 import android.graphics.drawable.GradientDrawable;
 import com.termux.shared.shell.command.ExecutionCommand;
-import com.termux.shared.termux.shell.command.runner.terminal.TermuxSession;
 import com.termux.view.TerminalView;
 import com.termux.view.TerminalViewClient;
 
@@ -823,10 +821,24 @@ if (!TermuxInstaller.isBootstrapInstalled(this)) {
     }
 
     private void setMargins() {
-        RelativeLayout relativeLayout = findViewById(R.id.activity_termux_root_relative_layout);
+        // The margins are applied to each terminal page INSIDE the pager (via
+        // SessionPagerManager -> TerminalPagerAdapter), NOT to the pager container:
+        // with the margins on the container, the pager itself is inset from the screen
+        // edges and a horizontal swipe clips the neighbouring page at the container
+        // boundary instead of revealing it edge-to-edge. When the pager does not exist
+        // yet (first call from onCreate, before setTermuxTerminalViewAndClients()),
+        // SessionPagerManager.setup() applies the margins from the properties itself.
+        if (mSessionPagerManager == null) return;
         int marginHorizontal = mProperties.getTerminalMarginHorizontal();
         int marginVertical = mProperties.getTerminalMarginVertical();
-        ViewUtils.setLayoutMarginsInDp(relativeLayout, marginHorizontal, marginVertical, marginHorizontal, marginVertical);
+        mSessionPagerManager.setTerminalMargins(marginHorizontal, marginVertical);
+
+        // The floating toggle-text-input button used to live inside the (margin-inset)
+        // container, so it followed the terminal's right margin automatically. Now that
+        // the margins live on the terminal pages, push the button's own right margin by
+        // the terminal's right inset so it keeps clearing the terminal edge (and its
+        // scrollbar) by the same gap as before.
+        updateFloatingButtonMargin();
     }
 
 
@@ -1479,9 +1491,18 @@ if (!TermuxInstaller.isBootstrapInstalled(this)) {
         }
     }
 
-    public static int computeFloatingButtonMarginEnd(TerminalView view, android.content.res.Resources resources) {
-        boolean hasScrollbar = view != null && view.mEmulator != null
+    /**
+     * Whether the given terminal view currently shows a scrollbar (i.e. has scrollable
+     * transcript content). Used both for the button's base margin and to decide whether
+     * the terminal's own right inset must be added to the button margin.
+     */
+    public static boolean hasScrollbar(@Nullable TerminalView view) {
+        return view != null && view.mEmulator != null
             && view.mEmulator.getScreen().getActiveTranscriptRows() > 0;
+    }
+
+    public static int computeFloatingButtonMarginEnd(TerminalView view, android.content.res.Resources resources) {
+        boolean hasScrollbar = hasScrollbar(view);
         float density = resources.getDisplayMetrics().density;
         return hasScrollbar ? Math.max((int)(30 * density + 0.5f) - 2, 0) : (int)(6 * density + 0.5f);
     }
@@ -1492,10 +1513,31 @@ if (!TermuxInstaller.isBootstrapInstalled(this)) {
 
         RelativeLayout.LayoutParams params = (RelativeLayout.LayoutParams) toggleButton.getLayoutParams();
         int targetMarginEnd = computeFloatingButtonMarginEnd(mTerminalView, getResources());
+        // The terminal's own right inset only pushes the button further in when this
+        // page actually shows a scrollbar — that is when the button must clear the
+        // terminal edge/scrollbar. Without a scrollbar the button keeps its standard
+        // margin, independent of the terminal margins.
+        if (hasScrollbar(mTerminalView)) {
+            targetMarginEnd += getTerminalRightInsetPx();
+        }
         if (params.rightMargin != targetMarginEnd) {
             params.rightMargin = targetMarginEnd;
             toggleButton.setLayoutParams(params);
         }
+    }
+
+    /**
+     * The terminal's right margin in pixels (from the "terminal-margin-horizontal"
+     * setting). The floating toggle-text-input button is offset by this amount so it
+     * stays clear of the terminal's right edge (and its scrollbar) — previously the
+     * button lived inside the margin-inset container and followed the margin
+     * automatically; now the margins live on the terminal pages, so the button adds
+     * this inset to its own marginEnd.
+     */
+    public int getTerminalRightInsetPx() {
+        if (mProperties == null) return 0;
+        return (int) (mProperties.getTerminalMarginHorizontal()
+                * getResources().getDisplayMetrics().density + 0.5f);
     }
 
     /**

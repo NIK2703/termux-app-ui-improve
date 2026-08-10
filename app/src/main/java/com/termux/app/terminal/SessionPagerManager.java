@@ -79,6 +79,24 @@ public final class SessionPagerManager {
     }
 
     /**
+     * Apply the user-configured terminal margins (from the "terminal-margin-horizontal" /
+     * "terminal-margin-vertical" settings) to every terminal page inside the pager.
+     * <p/>
+     * The margins are applied to the TerminalView of each page — NOT to the pager container.
+     * With the margins on the container, the pager itself is inset from the screen edges and
+     * a horizontal swipe clips the neighbouring page at the container boundary instead of
+     * revealing it edge-to-edge. Applying them per-page keeps the pager full-bleed while each
+     * terminal screen keeps its own inset from the screen edges.
+     *
+     * @param horizontalDp horizontal margin in dp (applied to left and right).
+     * @param verticalDp   vertical margin in dp (applied to top and bottom).
+     */
+    public void setTerminalMargins(int horizontalDp, int verticalDp) {
+        if (mTerminalPagerAdapter != null)
+            mTerminalPagerAdapter.setTerminalMargins(horizontalDp, verticalDp);
+    }
+
+    /**
      * True while the pager is being dragged by the user (a real swipe gesture), as opposed to a
      * programmatic {@code setCurrentItem()} triggered by the "+" button, a tab click or a keyboard
      * shortcut. The trailing placeholder page is only meant to be committed into a real session when
@@ -131,6 +149,13 @@ public final class SessionPagerManager {
         // sliding in with a default animation — it must read as a normal tab page, not a popup.
         final RecyclerView pagerRv = getPagerRecyclerView();
         if (pagerRv != null) pagerRv.setItemAnimator(null);
+
+        // Apply the user-configured terminal margins to the pages. TermuxActivity.setMargins()
+        // cannot do this on first launch — it runs in onCreate() before this manager exists — so
+        // the margins are (re)applied here from the live properties. Later changes arrive via
+        // TermuxActivity.setMargins() -> SessionPagerManager.setTerminalMargins().
+        setTerminalMargins(mActivity.getProperties().getTerminalMarginHorizontal(),
+                mActivity.getProperties().getTerminalMarginVertical());
 
         mTerminalPager.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {
             @Override
@@ -598,11 +623,20 @@ public final class SessionPagerManager {
 
     /**
      * Compute the button's right marginEnd in pixels based on scrollbar visibility.
-     * Matches the logic in {@link TermuxActivity#updateFloatingButtonMargin()}.
+     * Matches the logic in {@link TermuxActivity#updateFloatingButtonMargin()}: the
+     * terminal's own right inset is only added when THIS page shows a scrollbar —
+     * that is when the button must clear the terminal edge/scrollbar. Without a
+     * scrollbar the button keeps its standard margin. Because the margin is computed
+     * per page and interpolated during a swipe, the button animates smoothly between
+     * the two pages' positions.
      */
     private int computeMarginEnd(@Nullable TerminalView view) {
         if (mActivity == null) return 0;
-        return TermuxActivity.computeFloatingButtonMarginEnd(view, mActivity.getResources());
+        int marginEnd = TermuxActivity.computeFloatingButtonMarginEnd(view, mActivity.getResources());
+        if (TermuxActivity.hasScrollbar(view)) {
+            marginEnd += mActivity.getTerminalRightInsetPx();
+        }
+        return marginEnd;
     }
 
     /** Returns the {@link TerminalView} for the pager page at {@code position}, or null if not bound. */

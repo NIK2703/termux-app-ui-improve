@@ -12,6 +12,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.termux.R;
 import com.termux.app.TermuxActivity;
 import com.termux.shared.termux.shell.command.runner.terminal.TermuxSession;
+import com.termux.shared.view.ViewUtils;
 import com.termux.terminal.TerminalColors;
 import com.termux.terminal.TerminalSession;
 import com.termux.terminal.TextStyle;
@@ -69,6 +70,15 @@ public final class TerminalPagerAdapter extends RecyclerView.Adapter<TerminalPag
     private View mPlaceholderHintContent = null;
     /** The ViewHolder currently displaying the placeholder page (so we can clear state on recycle). */
     private TerminalPageViewHolder mPlaceholderHolder = null;
+
+    /**
+     * User-configured terminal margins in dp (settings "terminal-margin-horizontal" /
+     * "terminal-margin-vertical"). Applied to the TerminalView of EVERY page so the pager itself
+     * stays full-bleed (a swipe reveals the neighbouring page edge-to-edge) while each terminal
+     * screen keeps its own inset from the screen edges.
+     */
+    private int mMarginHorizontalDp = 0;
+    private int mMarginVerticalDp = 0;
 
     public TerminalPagerAdapter(@NonNull TermuxActivity activity,
                                  @NonNull TermuxTerminalViewClient viewClient,
@@ -166,6 +176,30 @@ public final class TerminalPagerAdapter extends RecyclerView.Adapter<TerminalPag
         return session == null ? RecyclerView.NO_ID : (long) session.mHandle.hashCode();
     }
 
+    /**
+     * Update the per-page terminal margins (settings "terminal-margin-horizontal" /
+     * "terminal-margin-vertical"). Applied to the TerminalView of every attached page so the
+     * pager container itself stays full-bleed and a swipe reveals the neighbouring page
+     * edge-to-edge; each terminal screen keeps its own inset from the screen edges.
+     *
+     * @param horizontalDp horizontal margin in dp (left + right).
+     * @param verticalDp   vertical margin in dp (top + bottom).
+     */
+    public void setTerminalMargins(int horizontalDp, int verticalDp) {
+        mMarginHorizontalDp = horizontalDp;
+        mMarginVerticalDp = verticalDp;
+        for (TerminalView terminalView : mAttachedViews.values()) {
+            applyTerminalMargins(terminalView);
+        }
+    }
+
+    /** Apply the configured margins to one page's TerminalView (safe when null/not yet bound). */
+    private void applyTerminalMargins(@androidx.annotation.Nullable TerminalView terminalView) {
+        if (terminalView == null) return;
+        ViewUtils.setLayoutMarginsInDp(terminalView,
+                mMarginHorizontalDp, mMarginVerticalDp, mMarginHorizontalDp, mMarginVerticalDp);
+    }
+
     // NOTE: the placeholder page uses the SAME view type (and layout) as a normal terminal page.
     // This is deliberate — committing the placeholder is an in-place rebind of the same ViewHolder
     // (notifyItemChanged reuses it), so there is no ViewHolder recreation / flash and the activity's
@@ -182,7 +216,13 @@ public final class TerminalPagerAdapter extends RecyclerView.Adapter<TerminalPag
         // the placeholder TerminalView has mClient == null and any IME/gesture access (e.g.
         // onCreateInputConnection) crashes with a NullPointerException. onCreateViewHolder runs once
         // per ViewHolder, so this is cheap and keeps every page safe to display.
-        if (holder.mTerminalView != null) holder.mTerminalView.setTerminalViewClient(mViewClient);
+        if (holder.mTerminalView != null) {
+            holder.mTerminalView.setTerminalViewClient(mViewClient);
+            // Apply the per-page terminal margins right away so even the not-yet-bound
+            // placeholder page carries the configured inset (the pager container itself
+            // stays full-bleed, so a swipe is never clipped at the container boundary).
+            applyTerminalMargins(holder.mTerminalView);
+        }
         return holder;
     }
 
@@ -232,6 +272,10 @@ public final class TerminalPagerAdapter extends RecyclerView.Adapter<TerminalPag
         TerminalView terminalView = holder.mTerminalView;
         // Bind the shared client so input/IME/gestures route here.
         terminalView.setTerminalViewClient(mViewClient);
+        // (Re)apply the per-page terminal margins: the view may be a recycled holder
+        // whose margins were last set for a different configuration, and the pager
+        // container itself stays full-bleed so swipes are never clipped.
+        applyTerminalMargins(terminalView);
 
         // Attach the focus-change listener that drives the soft keyboard to THIS page's view.
         // Done here (not in TermuxTerminalViewClient.setSoftKeyboardState) because the shared
