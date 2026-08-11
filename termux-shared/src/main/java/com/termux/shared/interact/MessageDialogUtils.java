@@ -5,10 +5,7 @@ import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 
-import androidx.annotation.NonNull;
 
-import com.termux.shared.R;
-import com.termux.shared.logger.Logger;
 
 public class MessageDialogUtils {
 

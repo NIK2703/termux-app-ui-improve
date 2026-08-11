@@ -1,0 +1,24 @@
+---
+# clang-tidy checks for native C/C++ sources.
+#
+# Run: ./gradlew cppLint
+# Tune by adding/removing check families (see `clang-tidy --help` and
+# https://clang.llvm.org/extra/clang-tidy/checks/list.html).
+#
+# Deliberately disabled checks for this tree:
+#   - clang-analyzer-security.insecureAPI.*: suggests snprintf_s/memcpy_s which
+#     bionic does not provide (false positives)
+#   - bugprone-easily-swappable-parameters: JNI / libc-hook signatures are
+#     fixed by the ABI
+#   - bugprone-reserved-identifier: glibc-internal symbols (__open_2, __xstat)
+#     are required by the remap shim
+#   - bugprone-multi-level-implicit-pointer-conversion: free(char**) idiom
+#   - misc-const-correctness / misc-use-internal-linkage: legacy style noise
+#   - misc-unused-parameters: JNI requires the clazz parameter
+#   - misc-include-cleaner: needs IWYU tooling
+Checks: '-*,clang-analyzer-*,-clang-analyzer-security.insecureAPI.*,bugprone-*,-bugprone-easily-swappable-parameters,-bugprone-reserved-identifier,-bugprone-multi-level-implicit-pointer-conversion,performance-*,portability-*,misc-*,-misc-const-correctness,-misc-use-internal-linkage,-misc-unused-parameters,-misc-include-cleaner'
+# Warnings do not fail the build; flip to '*' to enforce.
+WarningsAsErrors: ''
+# Only diagnostics with a location in the main file are reported.
+HeaderFilterRegex: ''
+FormatStyle: file

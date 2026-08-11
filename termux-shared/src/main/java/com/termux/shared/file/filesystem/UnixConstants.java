@@ -32,10 +32,8 @@ package com.termux.shared.file.filesystem;
 // Those constants are initialized by native code to ensure correctness on different architectures.
 // AT_SYMLINK_NOFOLLOW (used by fstatat) and AT_REMOVEDIR (used by unlinkat) as of July 2018 do not
 // have equivalents in android.system.OsConstants so left unchanged.
-import android.os.Build;
 import android.system.OsConstants;
 
-import androidx.annotation.RequiresApi;
 
 /**
  * https://cs.android.com/android/platform/superproject/+/android-11.0.0_r3:libcore/ojluni/src/main/java/sun/nio/fs/UnixConstants.java

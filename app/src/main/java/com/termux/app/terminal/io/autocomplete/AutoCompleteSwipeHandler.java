@@ -1,9 +1,7 @@
 package com.termux.app.terminal.io.autocomplete;
 
 import android.content.Context;
-import android.graphics.Typeface;
 import android.text.Editable;
-import android.os.Vibrator;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewConfiguration;

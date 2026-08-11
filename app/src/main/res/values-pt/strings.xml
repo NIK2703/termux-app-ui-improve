@@ -84,6 +84,7 @@
     <string name="backup_service_notification_title">Backup de Dados do Termux</string>
     <string name="backup_restore_backup_filename">termux-data-backup.tar.gz</string>
     <string name="backup_service_notification_progress">%1$d%%</string>
+    <string name="backup_progress_calculating_size">A calcular o tamanho da cópia de segurança…</string>
     <string name="bootstrap_error_abort">Cancelar</string>
     <string name="bootstrap_error_body">O Termux não conseguiu instalar os pacotes de bootstrap.</string>
     <string name="bootstrap_error_installed_on_portable_sd">O Termux não pode ser instalado em um cartão SD portátil/externo/removível do seu dispositivo.\nOs binários de bootstrap compilados para o Termux têm o caminho $PREFIX codificado e não podem ser instalados em um caminho diferente de:\n%1$s.</string>

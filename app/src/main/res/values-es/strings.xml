@@ -577,6 +577,7 @@
     <!-- Backup -->
     <string name="backup_restore_backup_filename">termux-data-backup.tar.gz</string>
     <string name="backup_service_notification_progress">%1$d%%</string>
+    <string name="backup_progress_calculating_size">Calculando el tamaño de la copia de seguridad…</string>
 
     <!-- Report Issue -->
     <string name="report_issue_transcript_footer">\n##\n</string>

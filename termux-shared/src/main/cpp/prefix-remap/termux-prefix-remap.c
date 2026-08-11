@@ -39,16 +39,14 @@ static char g_new_data[PATH_BUF];
 static char g_loader[PATH_BUF];
 static char g_libpath[PATH_BUF];
 
-static int has_prefix_boundary(const char *s, const char *prefix, size_t prefix_len)
-{
+static int has_prefix_boundary(const char *s, const char *prefix, size_t prefix_len) {
     if (strncmp(s, prefix, prefix_len) != 0)
         return 0;
     char c = s[prefix_len];
     return c == '\0' || c == '/';
 }
 
-static void add_rule(const char *from, const char *to)
-{
+static void add_rule(const char *from, const char *to) {
     if (!from || !to || !*from || !*to || g_nrules >= MAX_RULES)
         return;
     snprintf(g_rules[g_nrules].from, sizeof(g_rules[g_nrules].from), "%s", from);
@@ -57,8 +55,7 @@ static void add_rule(const char *from, const char *to)
     g_nrules++;
 }
 
-static void strip_files_suffix(const char *files_dir, char *out, size_t out_len)
-{
+static void strip_files_suffix(const char *files_dir, char *out, size_t out_len) {
     size_t len = strlen(files_dir);
     if (len > 6 && strcmp(files_dir + len - 6, "/files") == 0)
         len -= 6;
@@ -67,8 +64,7 @@ static void strip_files_suffix(const char *files_dir, char *out, size_t out_len)
     out[len] = '\0';
 }
 
-static void sort_rules_by_from_length_desc(void)
-{
+static void sort_rules_by_from_length_desc(void) {
     for (int i = 0; i < g_nrules; i++) {
         for (int j = i + 1; j < g_nrules; j++) {
             if (g_rules[j].from_len > g_rules[i].from_len) {
@@ -80,8 +76,7 @@ static void sort_rules_by_from_length_desc(void)
     }
 }
 
-static void init_rules(void)
-{
+static void init_rules(void) {
     const char *old_files = getenv("TERMUX_REMAP_OLD_FILES_DIR");
     const char *new_files = getenv("TERMUX_REMAP_NEW_FILES_DIR");
 
@@ -138,8 +133,7 @@ static void init_rules(void)
     }
 }
 
-static const char *remap_path(const char *path, char *buf, size_t buf_len)
-{
+static const char *remap_path(const char *path, char *buf, size_t buf_len) {
     if (!path || path[0] != '/')
         return path;
 
@@ -161,20 +155,17 @@ static const char *remap_path(const char *path, char *buf, size_t buf_len)
 
 // ── Raw syscall helpers (no recursion into hooks) ──
 
-static int raw_exists(const char *path)
-{
+static int raw_exists(const char *path) {
     return syscall(__NR_faccessat, AT_FDCWD, path, F_OK, 0) == 0;
 }
 
-static int raw_open_readonly(const char *path)
-{
+static int raw_open_readonly(const char *path) {
     return (int)syscall(__NR_openat, AT_FDCWD, path, O_RDONLY | O_CLOEXEC, 0);
 }
 
 // ── ELF inspection ──
 
-static int elf_needs_loader_wrap(const char *path)
-{
+static int elf_needs_loader_wrap(const char *path) {
     if (!g_enabled)
         return 0;
 
@@ -251,8 +242,8 @@ typedef int (*access_fn)(const char *, int);
 typedef int (*faccessat_fn)(int, const char *, int, int);
 typedef int (*stat_fn)(const char *, struct stat *);
 typedef int (*lstat_fn)(const char *, struct stat *);
-typedef int (*execve_fn)(const char *, char *const [], char *const []);
-typedef int (*execveat_fn)(int, const char *, char *const [], char *const [], int);
+typedef int (*execve_fn)(const char *, char *const[], char *const[]);
+typedef int (*execveat_fn)(int, const char *, char *const[], char *const[], int);
 typedef int (*fstatat_fn)(int, const char *, struct stat *, int);
 typedef ssize_t (*readlink_fn)(const char *, char *, size_t);
 typedef ssize_t (*readlinkat_fn)(int, const char *, char *, size_t);
@@ -260,8 +251,7 @@ typedef int (*statx_fn)(int, const char *, int, unsigned int, struct statx *);
 typedef DIR *(*opendir_fn)(const char *);
 typedef char *(*realpath_fn)(const char *, char *);
 
-int openat(int dirfd, const char *pathname, int flags, ...)
-{
+int openat(int dirfd, const char *pathname, int flags, ...) {
     static openat_fn real = NULL;
     if (!real) real = (openat_fn)dlsym(RTLD_NEXT, "openat");
 
@@ -282,8 +272,7 @@ int openat(int dirfd, const char *pathname, int flags, ...)
     return real(dirfd, p, flags, mode);
 }
 
-int openat64(int dirfd, const char *pathname, int flags, ...)
-{
+int openat64(int dirfd, const char *pathname, int flags, ...) {
     static openat_fn real = NULL;
     if (!real) real = (openat_fn)dlsym(RTLD_NEXT, "openat64");
 
@@ -304,8 +293,7 @@ int openat64(int dirfd, const char *pathname, int flags, ...)
     return real(dirfd, p, flags, mode);
 }
 
-int open(const char *pathname, int flags, ...)
-{
+int open(const char *pathname, int flags, ...) {
     static open_fn real = NULL;
     if (!real) real = (open_fn)dlsym(RTLD_NEXT, "open");
 
@@ -323,8 +311,7 @@ int open(const char *pathname, int flags, ...)
     return real(p, flags, mode);
 }
 
-FILE *fopen(const char *pathname, const char *mode)
-{
+FILE *fopen(const char *pathname, const char *mode) {
     static fopen_fn real = NULL;
     if (!real) real = (fopen_fn)dlsym(RTLD_NEXT, "fopen");
 
@@ -333,8 +320,7 @@ FILE *fopen(const char *pathname, const char *mode)
     return real(p, mode);
 }
 
-int access(const char *pathname, int mode)
-{
+int access(const char *pathname, int mode) {
     static access_fn real = NULL;
     if (!real) real = (access_fn)dlsym(RTLD_NEXT, "access");
 
@@ -343,8 +329,7 @@ int access(const char *pathname, int mode)
     return real(p, mode);
 }
 
-int stat(const char *pathname, struct stat *statbuf)
-{
+int stat(const char *pathname, struct stat *statbuf) {
     static stat_fn real = NULL;
     if (!real) real = (stat_fn)dlsym(RTLD_NEXT, "stat");
 
@@ -353,8 +338,7 @@ int stat(const char *pathname, struct stat *statbuf)
     return real(p, statbuf);
 }
 
-int lstat(const char *pathname, struct stat *statbuf)
-{
+int lstat(const char *pathname, struct stat *statbuf) {
     static lstat_fn real = NULL;
     if (!real) real = (lstat_fn)dlsym(RTLD_NEXT, "lstat");
 
@@ -363,8 +347,7 @@ int lstat(const char *pathname, struct stat *statbuf)
     return real(p, statbuf);
 }
 
-int fstatat(int dirfd, const char *pathname, struct stat *statbuf, int flags)
-{
+int fstatat(int dirfd, const char *pathname, struct stat *statbuf, int flags) {
     static fstatat_fn real = NULL;
     if (!real) real = (fstatat_fn)dlsym(RTLD_NEXT, "fstatat");
 
@@ -377,8 +360,7 @@ int fstatat(int dirfd, const char *pathname, struct stat *statbuf, int flags)
     return real(dirfd, p, statbuf, flags);
 }
 
-DIR *opendir(const char *name)
-{
+DIR *opendir(const char *name) {
     static opendir_fn real = NULL;
     if (!real) real = (opendir_fn)dlsym(RTLD_NEXT, "opendir");
 
@@ -387,8 +369,7 @@ DIR *opendir(const char *name)
     return real(p);
 }
 
-ssize_t readlink(const char *pathname, char *buf, size_t bufsiz)
-{
+ssize_t readlink(const char *pathname, char *buf, size_t bufsiz) {
     static readlink_fn real = NULL;
     if (!real) real = (readlink_fn)dlsym(RTLD_NEXT, "readlink");
 
@@ -397,8 +378,7 @@ ssize_t readlink(const char *pathname, char *buf, size_t bufsiz)
     return real(p, buf, bufsiz);
 }
 
-ssize_t readlinkat(int dirfd, const char *pathname, char *buf, size_t bufsiz)
-{
+ssize_t readlinkat(int dirfd, const char *pathname, char *buf, size_t bufsiz) {
     static readlinkat_fn real = NULL;
     if (!real) real = (readlinkat_fn)dlsym(RTLD_NEXT, "readlinkat");
 
@@ -411,8 +391,7 @@ ssize_t readlinkat(int dirfd, const char *pathname, char *buf, size_t bufsiz)
     return real(dirfd, p, buf, bufsiz);
 }
 
-int execve(const char *pathname, char *const argv[], char *const envp[])
-{
+int execve(const char *pathname, char *const argv[], char *const envp[]) {
     static execve_fn real = NULL;
     if (!real) real = (execve_fn)dlsym(RTLD_NEXT, "execve");
 
@@ -451,8 +430,7 @@ int execve(const char *pathname, char *const argv[], char *const envp[])
 }
 
 int execveat(int dirfd, const char *pathname,
-             char *const argv[], char *const envp[], int flags)
-{
+             char *const argv[], char *const envp[], int flags) {
     static execveat_fn real = NULL;
     if (!real) real = (execveat_fn)dlsym(RTLD_NEXT, "execveat");
 
@@ -494,8 +472,7 @@ int execveat(int dirfd, const char *pathname,
 }
 
 int statx(int dirfd, const char *pathname, int flags,
-          unsigned int mask, struct statx *statxbuf)
-{
+          unsigned int mask, struct statx *statxbuf) {
     static statx_fn real = NULL;
     if (!real) real = (statx_fn)dlsym(RTLD_NEXT, "statx");
 
@@ -510,8 +487,7 @@ int statx(int dirfd, const char *pathname, int flags,
 
 // ── Additional hardening hooks ──
 
-int open64(const char *pathname, int flags, ...)
-{
+int open64(const char *pathname, int flags, ...) {
     static open_fn real = NULL;
     if (!real) real = (open_fn)dlsym(RTLD_NEXT, "open64");
 
@@ -529,8 +505,7 @@ int open64(const char *pathname, int flags, ...)
     return real(p, flags, mode);
 }
 
-FILE *fopen64(const char *pathname, const char *mode)
-{
+FILE *fopen64(const char *pathname, const char *mode) {
     static fopen64_fn real = NULL;
     if (!real) real = (fopen64_fn)dlsym(RTLD_NEXT, "fopen64");
 
@@ -539,8 +514,7 @@ FILE *fopen64(const char *pathname, const char *mode)
     return real(p, mode);
 }
 
-int faccessat(int dirfd, const char *pathname, int mode, int flags)
-{
+int faccessat(int dirfd, const char *pathname, int mode, int flags) {
     static faccessat_fn real = NULL;
     if (!real) real = (faccessat_fn)dlsym(RTLD_NEXT, "faccessat");
 
@@ -553,8 +527,7 @@ int faccessat(int dirfd, const char *pathname, int mode, int flags)
     return real(dirfd, p, mode, flags);
 }
 
-char *realpath(const char *pathname, char *resolved)
-{
+char *realpath(const char *pathname, char *resolved) {
     static realpath_fn real = NULL;
     if (!real) real = (realpath_fn)dlsym(RTLD_NEXT, "realpath");
 
@@ -565,8 +538,7 @@ char *realpath(const char *pathname, char *resolved)
 
 // ── glibc internal aliases ──
 
-int __open_2(const char *pathname, int flags)
-{
+int __open_2(const char *pathname, int flags) {
     static open_fn real = NULL;
     if (!real) real = (open_fn)dlsym(RTLD_NEXT, "__open_2");
 
@@ -575,8 +547,7 @@ int __open_2(const char *pathname, int flags)
     return real(p, flags);
 }
 
-int __openat_2(int dirfd, const char *pathname, int flags)
-{
+int __openat_2(int dirfd, const char *pathname, int flags) {
     static openat_fn real = NULL;
     if (!real) real = (openat_fn)dlsym(RTLD_NEXT, "__openat_2");
 
@@ -589,8 +560,7 @@ int __openat_2(int dirfd, const char *pathname, int flags)
     return real(dirfd, p, flags);
 }
 
-int __xstat(int ver, const char *pathname, struct stat *statbuf)
-{
+int __xstat(int ver, const char *pathname, struct stat *statbuf) {
     static stat_fn real = NULL;
     if (!real) real = (stat_fn)dlsym(RTLD_NEXT, "__xstat");
 
@@ -599,8 +569,7 @@ int __xstat(int ver, const char *pathname, struct stat *statbuf)
     return real(p, statbuf);
 }
 
-int __lxstat(int ver, const char *pathname, struct stat *statbuf)
-{
+int __lxstat(int ver, const char *pathname, struct stat *statbuf) {
     static lstat_fn real = NULL;
     if (!real) real = (lstat_fn)dlsym(RTLD_NEXT, "__lxstat");
 
@@ -609,8 +578,7 @@ int __lxstat(int ver, const char *pathname, struct stat *statbuf)
     return real(p, statbuf);
 }
 
-int __fxstatat(int ver, int dirfd, const char *pathname, struct stat *statbuf, int flags)
-{
+int __fxstatat(int ver, int dirfd, const char *pathname, struct stat *statbuf, int flags) {
     static fstatat_fn real = NULL;
     if (!real) real = (fstatat_fn)dlsym(RTLD_NEXT, "__fxstatat");
 

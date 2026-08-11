@@ -5,12 +5,9 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
-import android.text.TextUtils;
-import android.util.TypedValue;
 
 import androidx.annotation.NonNull;
 
-import com.termux.R;
 import com.termux.shared.activity.ActivityUtils;
 import com.termux.shared.termux.TermuxConstants.TERMUX_APP.TERMUX_ACTIVITY;
 

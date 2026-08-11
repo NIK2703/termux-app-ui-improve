@@ -1,7 +1,6 @@
 package com.termux.shared.termux.shell;
 
 import android.content.Context;
-import android.content.pm.PackageManager;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -15,7 +14,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.Collections;
 
 /**
  * Helper for the LD_PRELOAD path-remapping shim (libtermux-prefix-remap.so).

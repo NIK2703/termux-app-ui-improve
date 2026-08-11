@@ -93,3 +93,19 @@ afterEvaluate {
     // (pointed at toolchains/llvm/prebuilt/linux-aarch64/bin/llvm-strip).
     // That fix was applied 2026-07-29; no Gradle workaround needed here.
 }
+
+apply plugin: 'checkstyle'
+
+checkstyle {
+    toolVersion = '10.21.4'
+    configFile = rootProject.file('config/checkstyle/checkstyle.xml')
+}
+
+tasks.register('checkstyle', Checkstyle) {
+    group = 'verification'
+    description = 'Run Checkstyle on Java sources'
+    source android.sourceSets.main.java.srcDirs
+    include '**/*.java'
+    classpath = files()
+    showViolations = true
+}

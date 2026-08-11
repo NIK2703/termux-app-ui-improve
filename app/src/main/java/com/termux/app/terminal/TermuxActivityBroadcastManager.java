@@ -7,7 +7,6 @@ import android.content.Intent;
 import android.content.IntentFilter;
 
 import com.termux.app.TermuxActivity;
-import com.termux.shared.logger.Logger;
 import com.termux.shared.termux.TermuxConstants.TERMUX_APP.TERMUX_ACTIVITY;
 import com.termux.shared.termux.crash.TermuxCrashUtils;
 

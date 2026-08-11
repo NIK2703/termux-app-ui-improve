@@ -12,8 +12,6 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.FragmentActivity;
 
 import com.termux.R;
-import com.termux.app.TermuxBackupService;
-import com.termux.app.TermuxBackupUtils;
 import com.termux.shared.errors.Error;
 
 import java.lang.ref.WeakReference;
@@ -127,6 +125,12 @@ public final class BackupProgressController {
         // Restore: starts indeterminate, switches to determinate once progress is calculated.
         progress.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
         progress.setIndeterminate(true);
+        // While the total is unknown (backup: parallel du estimate; restore: SAF size
+        // unavailable) show a "calculating size" hint so the empty spinner does not look
+        // like the operation is stuck.
+        if (mBackupEstimated <= 0) {
+            progress.setMessage(activity.getString(R.string.backup_progress_calculating_size));
+        }
         // Start indeterminate (du estimate may still be computing). Once the service
         // publishes a non-zero total, the poll loop below flips to a determinate bar
         // for both backup and restore. Hide the percentage labels only while the
@@ -167,6 +171,8 @@ public final class BackupProgressController {
                 if (effective > 0) {
                     if (mLastIndeterminate) {
                         mBackupDialog.setIndeterminate(false);
+                        // Drop the "calculating size" hint once progress is meaningful.
+                        mBackupDialog.setMessage(null);
                         // Show a plain percentage (e.g. "10%") once progress is meaningful.
                         // On LOLLIPOP_MR1+ we clear the "current / max" number format so only
                         // the built-in percent label remains; on older versions the dialog shows
@@ -183,6 +189,11 @@ public final class BackupProgressController {
                 } else {
                     if (!mLastIndeterminate) {
                         mBackupDialog.setIndeterminate(true);
+                        // Restore the hint if the total becomes unknown again.
+                        mBackupDialog.setMessage(mBackupEstimated <= 0
+                            ? mBackupDialog.getContext().getString(
+                                R.string.backup_progress_calculating_size)
+                            : null);
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP_MR1) {
                             mBackupDialog.setProgressNumberFormat(null);
                             mBackupDialog.setProgressPercentFormat(null);

@@ -1,6 +1,5 @@
 package com.termux.app.terminal;
 
-import android.view.Gravity;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;

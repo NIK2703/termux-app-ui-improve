@@ -1,18 +1,14 @@
 package com.termux.app.terminal;
 
-import android.app.Activity;
 import android.content.Context;
 import android.view.ContextMenu;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.View;
-import android.view.ViewConfiguration;
-import android.widget.ImageButton;
 import android.widget.LinearLayout;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.AppCompatActivity;
 
 import com.termux.R;
 import com.termux.app.TermuxActivity;
@@ -20,7 +16,6 @@ import com.termux.app.terminal.io.autocomplete.DirectoryHistoryPopupController;
 import com.termux.shared.activity.media.AppCompatActivityUtils;
 import com.termux.shared.android.PackageUtils;
 import com.termux.shared.termux.TermuxConstants;
-import com.termux.shared.termux.interact.TextInputDialogUtils;
 import com.termux.shared.termux.theme.TermuxThemeUtils;
 import com.termux.shared.theme.NightMode;
 import com.termux.terminal.TerminalSession;

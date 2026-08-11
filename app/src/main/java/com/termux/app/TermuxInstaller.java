@@ -31,7 +31,6 @@ import com.termux.shared.termux.TermuxUtils;
 import com.termux.shared.termux.shell.command.environment.TermuxShellEnvironment;
 import com.termux.installer.AbiUtils;
 import com.termux.installer.BootstrapManifest;
-import com.termux.installer.Sha256;
 import com.termux.installer.TermuxBootstrapState;
 
 import java.io.BufferedReader;
@@ -61,8 +60,6 @@ import java.util.zip.ZipFile;
 
 import static com.termux.shared.termux.TermuxConstants.TERMUX_PREFIX_DIR;
 import static com.termux.shared.termux.TermuxConstants.TERMUX_PREFIX_DIR_PATH;
-import static com.termux.shared.termux.TermuxConstants.TERMUX_STAGING_PREFIX_DIR;
-import static com.termux.shared.termux.TermuxConstants.TERMUX_STAGING_PREFIX_DIR_PATH;
 
 public final class TermuxInstaller {
 

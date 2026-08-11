@@ -1,7 +1,6 @@
 package com.termux.app.terminal.io;
 
 import android.content.Context;
-import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.EditText;
@@ -12,8 +11,6 @@ import androidx.annotation.Nullable;
 
 import com.termux.R;
 import com.termux.terminal.TerminalSession;
-import com.termux.view.TerminalView;
-import com.termux.shared.termux.extrakeys.ExtraKeysView;
 
 /**
  * Controller for the terminal "text input" panel and its toggle button.

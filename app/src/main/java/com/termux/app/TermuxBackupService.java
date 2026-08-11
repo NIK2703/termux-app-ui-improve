@@ -19,8 +19,6 @@ import android.widget.Toast;
 import androidx.annotation.Nullable;
 
 import com.termux.R;
-import com.termux.app.TermuxActivity;
-import com.termux.app.BackupDialogActivity;
 import com.termux.shared.errors.Error;
 import com.termux.shared.logger.Logger;
 import com.termux.shared.notification.NotificationUtils;
@@ -404,7 +402,7 @@ public final class TermuxBackupService extends Service {
             // determinate (copied vs the du-based total) without restarting tar.
             final AtomicReference<Long> estimateRef = new AtomicReference<>(0L);
             final Thread duThread = new Thread(() -> {
-                long e = TermuxBackupUtils.getEstimatedBackupSize(this);
+                long e = TermuxBackupUtils.getEstimatedBackupSize(this, excludeTmp);
                 long est = e > 0 ? e : estimatedSize;
                 estimateRef.set(est);
                 // du just finished: if the operation is already in foreground (notification)
@@ -420,7 +418,11 @@ public final class TermuxBackupService extends Service {
             TermuxBackupUtils.backup(this, os, error -> holder[0] = error,
                 (copied, total) -> {
                     long est = estimateRef.get();
-                    publishProgress(false, copied, est > 0 ? est : 0);
+                    // Pass the pump-provided total through when the du estimate is not
+                    // available: the data pump's end-of-stream snap (total = bytesCopied)
+                    // then still flips the bar to a determinate 100% instead of leaving
+                    // it spinning when du failed or timed out.
+                    publishProgress(false, copied, est > 0 ? est : total);
                 },
                 mCancelled, excludeTmp);
             // The data pump inside TermuxBackupUtils.backup() -> runTar() already closed 'os'.
@@ -501,13 +503,13 @@ public final class TermuxBackupService extends Service {
             : R.string.backup_service_notification_title);
         // Show the calculated percentage for both restore and backup. For backup the
         // total comes from the parallel du estimate and may be 0 until du finishes —
-        // in that window we show an empty text (indeterminate spinner in the bar).
+        // in that window we show a "calculating" hint instead of an empty text.
         CharSequence text;
         if (total > 0) {
             int pct = (int) Math.min(copied * 100 / total, 100);
             text = getString(R.string.backup_service_notification_progress, pct);
         } else {
-            text = "";
+            text = getString(R.string.backup_progress_calculating_size);
         }
 
         Notification.Builder builder = NotificationUtils.geNotificationBuilder(this,

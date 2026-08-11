@@ -1,6 +1,7 @@
 package com.termux.app;
 
 import android.content.Context;
+import android.os.Build;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -14,10 +15,14 @@ import com.termux.shared.termux.TermuxBootstrapType;
 import com.termux.shared.termux.TermuxConstants;
 import com.termux.shared.termux.shell.TermuxPrefixRemap;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -55,24 +60,93 @@ public final class TermuxBackupUtils {
      * adds a small tar-overhead budget so the bar reaches 100% at true EOF.
      * Returns 0 if the estimate cannot be obtained.
      */
-    public static long getEstimatedBackupSize(@NonNull Context context) {
+    /** Upper bound for a single {@code du -sb} run; on timeout du is killed and the estimate
+     * falls back to 0 — the tar data pump's end-of-stream snap then drives the bar to 100%. */
+    private static final long DU_ESTIMATE_TIMEOUT_SECONDS = 120;
+
+    /**
+     * Estimates the total uncompressed size of the Termux data directory
+     * ({@code $FILES}) by running {@code du -sb}. This is close to (slightly
+     * below) the uncompressed tar stream we measure progress against; the caller
+     * adds a small tar-overhead budget so the bar reaches 100% at true EOF.
+     * Returns 0 if the estimate cannot be obtained.
+     */
+    public static long getEstimatedBackupSize(@NonNull Context context, boolean excludeTmp) {
         Error health = checkTarHealth(context);
         if (health != null) return 0;
         final String filesDir = context.getFilesDir().getAbsolutePath();
+        long total = runDuSize(filesDir, filesDir);
+        // tar honors --exclude=usr/tmp, but toybox du has no --exclude flag, so subtract
+        // the excluded subtree's size explicitly to keep the determinate percentage
+        // aligned with the actual tar stream.
+        if (excludeTmp && total > 0) {
+            total -= runDuSize(filesDir, filesDir + "/usr/tmp");
+        }
+        return Math.max(total, 0);
+    }
+
+    /**
+     * Runs a single {@code du -sb} over {@code path} and returns the summary size in bytes,
+     * or 0 if it cannot be obtained.
+     *
+     * <p>Hardened against the failure modes that previously wedged the backup progress on the
+     * indeterminate bar forever:
+     * <ul>
+     *   <li>stderr is drained on a side thread — a flood of "cannot read directory" warnings
+     *       (e.g. from root-owned subdirectories inside a container) can no longer fill the
+     *       64&nbsp;KiB pipe buffer and block du indefinitely. The old code never read stderr
+     *       and had no timeout, so a wedged du made {@code waitFor()} hang and the estimate
+     *       (and with it the determinate transition) never arrived.</li>
+     *   <li>the wait is bounded; on timeout the process is killed and 0 is returned, so a
+     *       pathological tree cannot stall the UI for the whole backup.</li>
+     *   <li>the summary line is read fully (not a single 128-byte read).</li>
+     * </ul>
+     */
+    private static long runDuSize(@NonNull String filesDir, @NonNull String path) {
         try {
-            ProcessBuilder pb = new ProcessBuilder("/system/bin/du", "-sb", filesDir);
+            ProcessBuilder pb = new ProcessBuilder("/system/bin/du", "-sb", path);
             pb.environment().clear();
-            pb.environment().put("PATH", context.getFilesDir().getAbsolutePath() + "/usr/bin");
+            pb.environment().put("PATH", filesDir + "/usr/bin");
             Process proc = pb.start();
-            byte[] buf = new byte[128];
-            int n = proc.getInputStream().read(buf);
-            proc.waitFor();
-            if (n > 0) {
-                String line = new String(buf, 0, n, java.nio.charset.StandardCharsets.US_ASCII).trim();
-                int space = line.indexOf('\t');
-                if (space < 0) space = line.indexOf(' ');
+
+            // Drain stderr concurrently so du can never block on a full stderr pipe.
+            Thread stderrDrain = new Thread(() -> {
+                try (InputStream e = proc.getErrorStream()) {
+                    byte[] buf = new byte[4096];
+                    while (e.read(buf) > 0) { /* discard */ }
+                } catch (IOException ignored) { }
+            }, "DuStderrDrain");
+            stderrDrain.start();
+
+            boolean exited;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                exited = proc.waitFor(DU_ESTIMATE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            } else {
+                // Pre-O: no bounded waitFor(); stderr is drained so the process still
+                // terminates on its own as long as the kernel schedules it.
+                proc.waitFor();
+                exited = true;
+            }
+            if (!exited) {
+                proc.destroy();
+                try { proc.waitFor(5, TimeUnit.SECONDS); } catch (InterruptedException ignored) { }
+                return 0;
+            }
+
+            // du -sb prints a single short summary line, so reading after waitFor()
+            // cannot stall on the pipe.
+            String line = null;
+            try (BufferedReader r = new BufferedReader(
+                    new InputStreamReader(proc.getInputStream(), StandardCharsets.US_ASCII))) {
+                line = r.readLine();
+            }
+            try { stderrDrain.join(1000); } catch (InterruptedException ignored) { }
+            if (line != null) {
+                String trimmed = line.trim();
+                int space = trimmed.indexOf('\t');
+                if (space < 0) space = trimmed.indexOf(' ');
                 if (space > 0) {
-                    return Long.parseLong(line.substring(0, space));
+                    return Long.parseLong(trimmed.substring(0, space));
                 }
             }
         } catch (Exception ignored) {

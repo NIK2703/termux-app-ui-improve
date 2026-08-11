@@ -15,3 +15,133 @@ allprojects {
         maven { url "https://jitpack.io" }
     }
 }
+
+// ---------------------------------------------------------------------------
+// Linters: Java (checkstyle, per module), Kotlin (ktlint), C/C++
+// (clang-tidy / clang-format, NDK toolchain).
+// Run everything with: ./gradlew lintAll
+// ---------------------------------------------------------------------------
+
+configurations {
+    ktlintCli
+}
+
+dependencies {
+    // Standalone ktlint CLI (fat jar). The ktlint Gradle plugin is not used
+    // because it only activates when a Kotlin plugin is applied, and this
+    // project's modules are Java-only.
+    ktlintCli "com.pinterest.ktlint:ktlint-cli:1.8.0:all@jar"
+}
+
+def ktlintSources() {
+    return fileTree(rootDir) {
+        include '**/*.kt', '**/*.kts'
+        exclude '**/build/**', '**/.gradle/**', '**/.cxx/**', '**/.hermes/**',
+                '**/downloads/**', '**/node_modules/**', '**/.idea/**'
+    }.files.toList()
+}
+
+tasks.register('ktlintCheck', JavaExec) {
+    group = 'verification'
+    description = 'Run ktlint on all Kotlin sources (no-op while the project has no Kotlin files)'
+    def sources = ktlintSources()
+    onlyIf { !sources.isEmpty() }
+    inputs.files(sources)
+    classpath = files(configurations.ktlintCli.singleFile)
+    mainClass = 'com.pinterest.ktlint.Main'
+    args = sources
+}
+
+tasks.register('ktlintFormat', JavaExec) {
+    group = 'verification'
+    description = 'Auto-format all Kotlin sources with ktlint'
+    def sources = ktlintSources()
+    onlyIf { !sources.isEmpty() }
+    inputs.files(sources)
+    classpath = files(configurations.ktlintCli.singleFile)
+    mainClass = 'com.pinterest.ktlint.Main'
+    args = ['-F'] + sources
+}
+
+def ndkPrebuiltDir() {
+    def ndkRoot = System.getenv('ANDROID_NDK_HOME')
+    if (!ndkRoot) {
+        def props = new Properties()
+        def localProps = rootProject.file('local.properties')
+        if (localProps.exists()) localProps.withInputStream { props.load(it) }
+        ndkRoot = props.getProperty('ndk.dir') ?: "${props.getProperty('sdk.dir')}/ndk/${project.properties.ndkVersion}"
+    }
+    def prebuilt = "${ndkRoot}/toolchains/llvm/prebuilt"
+    for (arch in ['linux-aarch64', 'linux-x86_64']) {
+        if (new File("${prebuilt}/${arch}/bin/clang-tidy").canExecute()) return "${prebuilt}/${arch}"
+    }
+    throw new GradleException("clang-tidy not found under ANDROID_NDK_HOME=${ndkRoot}; check the NDK layout")
+}
+
+def nativeSources = [
+        'termux-shared/src/main/cpp/local-socket.cpp',
+        'termux-shared/src/main/cpp/prefix-remap/termux-prefix-remap.c',
+        'terminal-emulator/src/main/jni/termux.c',
+]
+
+def nativeCppSources = nativeSources.findAll { it.endsWith('.cpp') }
+def nativeCSources = nativeSources.findAll { it.endsWith('.c') }
+
+def tidyBin = "${ndkPrebuiltDir()}/bin/clang-tidy"
+
+def tidyFlags = { String std ->
+    return ["--target=aarch64-linux-android21",
+            "--sysroot=${ndkPrebuiltDir()}/sysroot",
+            "-std=${std}",
+            '-DANDROID',
+            '-fPIC',
+            // bionic headers produce tens of thousands of driver warnings;
+            // silence them, clang-tidy diagnostics are unaffected.
+            '-Wno-everything']
+}
+
+tasks.register('cppLintCpp', Exec) {
+    group = 'verification'
+    description = 'Run clang-tidy on native C++ sources'
+    workingDir rootProject.projectDir
+    inputs.files(nativeCppSources + ['.clang-tidy']).withPropertyName('sources')
+    commandLine([tidyBin, '--quiet'] + nativeCppSources + ['--'] + tidyFlags('gnu++17'))
+}
+
+tasks.register('cppLintC', Exec) {
+    group = 'verification'
+    description = 'Run clang-tidy on native C sources'
+    workingDir rootProject.projectDir
+    inputs.files(nativeCSources + ['.clang-tidy']).withPropertyName('sources')
+    commandLine([tidyBin, '--quiet'] + nativeCSources + ['--'] + tidyFlags('gnu11'))
+}
+
+
+tasks.register('cppLint') {
+    group = 'verification'
+    description = 'Run clang-tidy on all native C/C++ sources'
+    dependsOn 'cppLintCpp', 'cppLintC'
+}
+
+tasks.register('cppFormatCheck', Exec) {
+    group = 'verification'
+    description = 'Check native sources against .clang-format'
+    workingDir rootProject.projectDir
+    inputs.files(nativeSources + ['.clang-format']).withPropertyName('sources')
+    commandLine([file("${ndkPrebuiltDir()}/bin/clang-format").absolutePath, '--dry-run', '--Werror'] + nativeSources)
+}
+
+tasks.register('cppFormat', Exec) {
+    group = 'verification'
+    description = 'Format native sources with clang-format (-i)'
+    workingDir rootProject.projectDir
+    inputs.files(nativeSources + ['.clang-format']).withPropertyName('sources')
+    commandLine([file("${ndkPrebuiltDir()}/bin/clang-format").absolutePath, '-i'] + nativeSources)
+}
+
+tasks.register('lintAll') {
+    group = 'verification'
+    description = 'Run every configured linter (checkstyle, ktlint, clang-tidy, clang-format)'
+    dependsOn 'ktlintCheck', 'cppLint', 'cppFormatCheck',
+            ':app:checkstyle', ':termux-shared:checkstyle', ':terminal-view:checkstyle', ':terminal-emulator:checkstyle'
+}

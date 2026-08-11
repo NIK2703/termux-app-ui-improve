@@ -6,7 +6,6 @@ import android.os.Bundle;
 import androidx.annotation.Keep;
 import androidx.preference.EditTextPreference;
 import androidx.preference.ListPreference;
-import androidx.preference.Preference;
 import androidx.preference.SeekBarPreference;
 import androidx.preference.SwitchPreferenceCompat;
 

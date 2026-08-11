@@ -609,6 +609,7 @@ $HOME/bin/termux-url-opener
     <!-- Backup / Restore Preference -->
     <string name="backup_restore_backup_filename">termux-data-backup.tar.gz</string>
     <string name="backup_service_notification_progress">%1$d%%</string>
+    <string name="backup_progress_calculating_size">백업 크기 계산 중…</string>
 
     
     <!-- Extra Keys Editor swipe suffixes -->

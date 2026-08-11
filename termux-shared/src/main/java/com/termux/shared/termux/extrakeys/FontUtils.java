@@ -11,8 +11,6 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.termux.shared.android.PackageUtils;
 import com.termux.shared.logger.Logger;
 import com.termux.shared.termux.TermuxConstants;
-import com.termux.terminal.TerminalColors;
-import com.termux.terminal.TextStyle;
 
 import java.io.File;
 import java.io.FileOutputStream;

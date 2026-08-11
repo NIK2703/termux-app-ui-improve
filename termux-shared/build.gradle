@@ -106,3 +106,19 @@ afterEvaluate {
     // llvm-strip shipped in android-ndk-r29.  Run that script once after
     // every NDK reinstall to keep AGP stripping working.
 }
+
+apply plugin: 'checkstyle'
+
+checkstyle {
+    toolVersion = '10.21.4'
+    configFile = rootProject.file('config/checkstyle/checkstyle.xml')
+}
+
+tasks.register('checkstyle', Checkstyle) {
+    group = 'verification'
+    description = 'Run Checkstyle on Java sources'
+    source android.sourceSets.main.java.srcDirs
+    include '**/*.java'
+    classpath = files()
+    showViolations = true
+}

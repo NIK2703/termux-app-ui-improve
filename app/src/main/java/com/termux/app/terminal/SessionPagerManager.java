@@ -1,6 +1,5 @@
 package com.termux.app.terminal;
 
-import android.view.View;
 import android.widget.EditText;
 
 import androidx.annotation.NonNull;

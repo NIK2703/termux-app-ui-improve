@@ -1,6 +1,5 @@
 package com.termux.app.terminal.io;
 
-import android.annotation.SuppressLint;
 import android.view.View;
 
 import androidx.annotation.NonNull;

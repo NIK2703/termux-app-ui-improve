@@ -1,6 +1,5 @@
 package com.termux.app.terminal.io;
 
-import android.content.res.Resources;
 import android.graphics.Rect;
 import android.view.View;
 import android.view.ViewGroup;

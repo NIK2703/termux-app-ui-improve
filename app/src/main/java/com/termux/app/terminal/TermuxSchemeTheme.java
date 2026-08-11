@@ -1,6 +1,5 @@
 package com.termux.app.terminal;
 
-import android.content.Context;
 import android.graphics.drawable.ColorDrawable;
 import android.view.View;
 import android.view.ViewGroup;
@@ -8,7 +7,6 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 
-import com.termux.shared.interact.SchemeDialogTheme;
 
 /**
  * Single apply-path for the Termux:Style colour scheme across every non-panel surface

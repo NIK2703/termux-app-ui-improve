@@ -9,11 +9,9 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.preference.ListPreference;
 import androidx.preference.Preference;
-import androidx.preference.PreferenceFragmentCompat;
 
 import com.termux.R;
 import com.termux.app.TermuxLocaleUtils;
-import com.termux.app.fragments.settings.DisplayPreferencesFragment;
 import com.termux.app.fragments.settings.TermuxPreferenceFragmentBase;
 import com.termux.shared.activities.ReportActivity;
 import com.termux.shared.file.FileUtils;

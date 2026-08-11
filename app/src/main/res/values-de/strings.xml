@@ -599,6 +599,7 @@
     <!-- Backup -->
     <string name="backup_restore_backup_filename">termux-data-backup.tar.gz</string>
     <string name="backup_service_notification_progress">%1$d%%</string>
+    <string name="backup_progress_calculating_size">Backup-Größe wird berechnet…</string>
 
     <!-- Extra Keys Editor signal entries -->
     <string name="extra_keys_editor_signal_ctrl">CTRL</string>

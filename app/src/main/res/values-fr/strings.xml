@@ -746,6 +746,7 @@
 
     <!-- Backup notification progress -->
     <string name="backup_service_notification_progress">%1$d%%</string>
+    <string name="backup_progress_calculating_size">Calcul de la taille de la sauvegarde…</string>
 
     <!-- Human-readable size format -->
     <string name="human_size_format" formatted="false">%.1f %s</string>

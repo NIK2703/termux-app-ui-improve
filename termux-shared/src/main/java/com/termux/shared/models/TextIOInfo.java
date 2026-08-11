@@ -1,6 +1,5 @@
 package com.termux.shared.models;
 
-import android.graphics.Color;
 import android.graphics.Typeface;
 
 import androidx.annotation.Keep;

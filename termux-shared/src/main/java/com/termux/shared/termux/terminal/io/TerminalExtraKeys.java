@@ -12,10 +12,8 @@ import com.termux.shared.termux.extrakeys.ExtraKeysView;
 import com.termux.shared.termux.extrakeys.SpecialButton;
 
 import com.termux.terminal.TerminalSession;
-import com.termux.shared.termux.extrakeys.BindingTokenizer;
 import com.termux.view.TerminalView;
 
-import androidx.annotation.NonNull;
 
 import java.util.List;
 import androidx.annotation.Nullable;

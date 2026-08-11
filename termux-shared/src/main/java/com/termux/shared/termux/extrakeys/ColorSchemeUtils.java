@@ -8,7 +8,6 @@ import androidx.appcompat.app.AlertDialog;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import com.termux.terminal.TerminalColors;
-import com.termux.terminal.TerminalColorScheme;
 import com.termux.terminal.TextStyle;
 import com.termux.shared.android.PackageUtils;
 import com.termux.shared.logger.Logger;

@@ -5,7 +5,6 @@ import android.os.Bundle;
 
 import androidx.annotation.Keep;
 import androidx.preference.PreferenceDataStore;
-import com.termux.app.fragments.settings.TermuxPreferenceFragmentBase;
 import androidx.preference.PreferenceManager;
 
 import com.termux.R;

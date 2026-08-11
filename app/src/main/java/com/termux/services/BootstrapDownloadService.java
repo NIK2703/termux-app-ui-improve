@@ -16,7 +16,6 @@ import android.os.Looper;
 import android.os.PowerManager;
 import android.os.StatFs;
 
-import androidx.annotation.RequiresApi;
 
 import com.termux.app.TermuxInstaller;
 import com.termux.installer.AbiUtils;

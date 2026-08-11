@@ -16,7 +16,6 @@ import com.termux.shared.termux.shell.command.environment.TermuxShellEnvironment
 import com.termux.shared.termux.shell.am.TermuxAmSocketServer;
 import com.termux.shared.termux.shell.TermuxShellManager;
 import com.termux.shared.termux.theme.TermuxThemeUtils;
-import com.termux.app.TermuxLocaleUtils;
 
 public class TermuxApplication extends Application {
 

@@ -12,27 +12,25 @@
 
 #define TERMUX_UNUSED(x) x __attribute__((__unused__))
 #ifdef __APPLE__
-# define LACKS_PTSNAME_R
+#define LACKS_PTSNAME_R
 #endif
 
-static int throw_runtime_exception(JNIEnv* env, char const* message)
-{
+static int throw_runtime_exception(JNIEnv* env, char const* message) {
     jclass exClass = (*env)->FindClass(env, "java/lang/RuntimeException");
     (*env)->ThrowNew(env, exClass, message);
     return -1;
 }
 
 static int create_subprocess(JNIEnv* env,
-        char const* cmd,
-        char const* cwd,
-        char* const argv[],
-        char** envp,
-        int* pProcessId,
-        jint rows,
-        jint columns,
-        jint cell_width,
-        jint cell_height)
-{
+                             char const* cmd,
+                             char const* cwd,
+                             char* const argv[],
+                             char** envp,
+                             int* pProcessId,
+                             jint rows,
+                             jint columns,
+                             jint cell_width,
+                             jint cell_height) {
     int ptm = open("/dev/ptmx", O_RDWR | O_CLOEXEC);
     if (ptm < 0) return throw_runtime_exception(env, "Cannot open /dev/ptmx");
 
@@ -43,11 +41,11 @@ static int create_subprocess(JNIEnv* env,
 #endif
     if (grantpt(ptm) || unlockpt(ptm) ||
 #ifdef LACKS_PTSNAME_R
-            (devname = ptsname(ptm)) == NULL
+        (devname = ptsname(ptm)) == NULL
 #else
-            ptsname_r(ptm, devname, sizeof(devname))
+        ptsname_r(ptm, devname, sizeof(devname))
 #endif
-       ) {
+    ) {
         return throw_runtime_exception(env, "Cannot grantpt()/unlockpt()/ptsname_r() on /dev/ptmx");
     }
 
@@ -59,14 +57,14 @@ static int create_subprocess(JNIEnv* env,
     tcsetattr(ptm, TCSANOW, &tios);
 
     /** Set initial winsize. */
-    struct winsize sz = { .ws_row = (unsigned short) rows, .ws_col = (unsigned short) columns, .ws_xpixel = (unsigned short) (columns * cell_width), .ws_ypixel = (unsigned short) (rows * cell_height)};
+    struct winsize sz = {.ws_row = (unsigned short)rows, .ws_col = (unsigned short)columns, .ws_xpixel = (unsigned short)(columns * cell_width), .ws_ypixel = (unsigned short)(rows * cell_height)};
     ioctl(ptm, TIOCSWINSZ, &sz);
 
     pid_t pid = fork();
     if (pid < 0) {
         return throw_runtime_exception(env, "Fork failed");
     } else if (pid > 0) {
-        *pProcessId = (int) pid;
+        *pProcessId = (int)pid;
         return ptm;
     } else {
         // Clear signals which the Android java process may have blocked:
@@ -96,7 +94,8 @@ static int create_subprocess(JNIEnv* env,
         }
 
         clearenv();
-        if (envp) for (; *envp; ++envp) putenv(*envp);
+        if (envp)
+            for (; *envp; ++envp) putenv(*envp);
 
         if (chdir(cwd) != 0) {
             char* error_message;
@@ -114,28 +113,37 @@ static int create_subprocess(JNIEnv* env,
     }
 }
 
+static void free_string_array(char** arr) {
+    if (arr) {
+        for (char** tmp = arr; *tmp; ++tmp) free(*tmp);
+        free(arr);
+    }
+}
+
 JNIEXPORT jint JNICALL Java_com_termux_terminal_JNI_createSubprocess(
-        JNIEnv* env,
-        jclass TERMUX_UNUSED(clazz),
-        jstring cmd,
-        jstring cwd,
-        jobjectArray args,
-        jobjectArray envVars,
-        jintArray processIdArray,
-        jint rows,
-        jint columns,
-        jint cell_width,
-        jint cell_height)
-{
+    JNIEnv* env,
+    jclass TERMUX_UNUSED(clazz),
+    jstring cmd,
+    jstring cwd,
+    jobjectArray args,
+    jobjectArray envVars,
+    jintArray processIdArray,
+    jint rows,
+    jint columns,
+    jint cell_width,
+    jint cell_height) {
     jsize size = args ? (*env)->GetArrayLength(env, args) : 0;
     char** argv = NULL;
     if (size > 0) {
-        argv = (char**) malloc((size + 1) * sizeof(char*));
+        argv = (char**)calloc(size + 1, sizeof(char*));
         if (!argv) return throw_runtime_exception(env, "Couldn't allocate argv array");
         for (int i = 0; i < size; ++i) {
-            jstring arg_java_string = (jstring) (*env)->GetObjectArrayElement(env, args, i);
+            jstring arg_java_string = (jstring)(*env)->GetObjectArrayElement(env, args, i);
             char const* arg_utf8 = (*env)->GetStringUTFChars(env, arg_java_string, NULL);
-            if (!arg_utf8) return throw_runtime_exception(env, "GetStringUTFChars() failed for argv");
+            if (!arg_utf8) {
+                free_string_array(argv);
+                return throw_runtime_exception(env, "GetStringUTFChars() failed for argv");
+            }
             argv[i] = strdup(arg_utf8);
             (*env)->ReleaseStringUTFChars(env, arg_java_string, arg_utf8);
         }
@@ -145,12 +153,19 @@ JNIEXPORT jint JNICALL Java_com_termux_terminal_JNI_createSubprocess(
     size = envVars ? (*env)->GetArrayLength(env, envVars) : 0;
     char** envp = NULL;
     if (size > 0) {
-        envp = (char**) malloc((size + 1) * sizeof(char *));
-        if (!envp) return throw_runtime_exception(env, "malloc() for envp array failed");
+        envp = (char**)calloc(size + 1, sizeof(char*));
+        if (!envp) {
+            free_string_array(argv);
+            return throw_runtime_exception(env, "malloc() for envp array failed");
+        }
         for (int i = 0; i < size; ++i) {
-            jstring env_java_string = (jstring) (*env)->GetObjectArrayElement(env, envVars, i);
+            jstring env_java_string = (jstring)(*env)->GetObjectArrayElement(env, envVars, i);
             char const* env_utf8 = (*env)->GetStringUTFChars(env, env_java_string, 0);
-            if (!env_utf8) return throw_runtime_exception(env, "GetStringUTFChars() failed for env");
+            if (!env_utf8) {
+                free_string_array(argv);
+                free_string_array(envp);
+                return throw_runtime_exception(env, "GetStringUTFChars() failed for env");
+            }
             envp[i] = strdup(env_utf8);
             (*env)->ReleaseStringUTFChars(env, env_java_string, env_utf8);
         }
@@ -164,16 +179,10 @@ JNIEXPORT jint JNICALL Java_com_termux_terminal_JNI_createSubprocess(
     (*env)->ReleaseStringUTFChars(env, cmd, cmd_utf8);
     (*env)->ReleaseStringUTFChars(env, cmd, cmd_cwd);
 
-    if (argv) {
-        for (char** tmp = argv; *tmp; ++tmp) free(*tmp);
-        free(argv);
-    }
-    if (envp) {
-        for (char** tmp = envp; *tmp; ++tmp) free(*tmp);
-        free(envp);
-    }
+    free_string_array(argv);
+    free_string_array(envp);
 
-    int* pProcId = (int*) (*env)->GetPrimitiveArrayCritical(env, processIdArray, NULL);
+    int* pProcId = (int*)(*env)->GetPrimitiveArrayCritical(env, processIdArray, NULL);
     if (!pProcId) return throw_runtime_exception(env, "JNI call GetPrimitiveArrayCritical(processIdArray, &isCopy) failed");
 
     *pProcId = procId;
@@ -182,14 +191,12 @@ JNIEXPORT jint JNICALL Java_com_termux_terminal_JNI_createSubprocess(
     return ptm;
 }
 
-JNIEXPORT void JNICALL Java_com_termux_terminal_JNI_setPtyWindowSize(JNIEnv* TERMUX_UNUSED(env), jclass TERMUX_UNUSED(clazz), jint fd, jint rows, jint cols, jint cell_width, jint cell_height)
-{
-    struct winsize sz = { .ws_row = (unsigned short) rows, .ws_col = (unsigned short) cols, .ws_xpixel = (unsigned short) (cols * cell_width), .ws_ypixel = (unsigned short) (rows * cell_height) };
+JNIEXPORT void JNICALL Java_com_termux_terminal_JNI_setPtyWindowSize(JNIEnv* TERMUX_UNUSED(env), jclass TERMUX_UNUSED(clazz), jint fd, jint rows, jint cols, jint cell_width, jint cell_height) {
+    struct winsize sz = {.ws_row = (unsigned short)rows, .ws_col = (unsigned short)cols, .ws_xpixel = (unsigned short)(cols * cell_width), .ws_ypixel = (unsigned short)(rows * cell_height)};
     ioctl(fd, TIOCSWINSZ, &sz);
 }
 
-JNIEXPORT void JNICALL Java_com_termux_terminal_JNI_setPtyUTF8Mode(JNIEnv* TERMUX_UNUSED(env), jclass TERMUX_UNUSED(clazz), jint fd)
-{
+JNIEXPORT void JNICALL Java_com_termux_terminal_JNI_setPtyUTF8Mode(JNIEnv* TERMUX_UNUSED(env), jclass TERMUX_UNUSED(clazz), jint fd) {
     struct termios tios;
     tcgetattr(fd, &tios);
     if ((tios.c_iflag & IUTF8) == 0) {
@@ -198,8 +205,7 @@ JNIEXPORT void JNICALL Java_com_termux_terminal_JNI_setPtyUTF8Mode(JNIEnv* TERMU
     }
 }
 
-JNIEXPORT jint JNICALL Java_com_termux_terminal_JNI_waitFor(JNIEnv* TERMUX_UNUSED(env), jclass TERMUX_UNUSED(clazz), jint pid)
-{
+JNIEXPORT jint JNICALL Java_com_termux_terminal_JNI_waitFor(JNIEnv* TERMUX_UNUSED(env), jclass TERMUX_UNUSED(clazz), jint pid) {
     int status;
     waitpid(pid, &status, 0);
     if (WIFEXITED(status)) {
@@ -212,7 +218,6 @@ JNIEXPORT jint JNICALL Java_com_termux_terminal_JNI_waitFor(JNIEnv* TERMUX_UNUSE
     }
 }
 
-JNIEXPORT void JNICALL Java_com_termux_terminal_JNI_close(JNIEnv* TERMUX_UNUSED(env), jclass TERMUX_UNUSED(clazz), jint fileDescriptor)
-{
+JNIEXPORT void JNICALL Java_com_termux_terminal_JNI_close(JNIEnv* TERMUX_UNUSED(env), jclass TERMUX_UNUSED(clazz), jint fileDescriptor) {
     close(fileDescriptor);
 }

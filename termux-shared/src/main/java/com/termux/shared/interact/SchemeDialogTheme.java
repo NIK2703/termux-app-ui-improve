@@ -4,7 +4,6 @@ import android.content.Context;
 import android.content.res.ColorStateList;
 import android.content.res.Resources;
 import android.content.res.Resources.Theme;
-import android.content.res.XmlResourceParser;
 import android.util.TypedValue;
 import android.view.ContextThemeWrapper;
 

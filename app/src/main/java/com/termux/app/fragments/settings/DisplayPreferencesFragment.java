@@ -6,11 +6,9 @@ import android.content.SharedPreferences;
 import android.os.Bundle;
 
 import androidx.annotation.Keep;
-import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.preference.ListPreference;
 import androidx.preference.Preference;
-import com.termux.app.fragments.settings.TermuxPreferenceFragmentBase;
 import androidx.preference.SeekBarPreference;
 import androidx.preference.SwitchPreferenceCompat;
 

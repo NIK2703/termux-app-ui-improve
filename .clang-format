@@ -1,0 +1,12 @@
+# clang-format configuration for native C/C++ sources.
+#
+# Style: Google base, 4-space indent (matches the tree), line length NOT
+# enforced (ColumnLimit: 0) to keep diffs minimal, includes left untouched.
+#
+# Check:  ./gradlew cppFormatCheck
+# Format: ./gradlew cppFormat
+BasedOnStyle: Google
+IndentWidth: 4
+TabWidth: 4
+ColumnLimit: 0
+SortIncludes: Never
