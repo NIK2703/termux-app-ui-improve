@@ -72,6 +72,7 @@ public class TermuxTerminalExtraKeys extends TerminalExtraKeys {
      * resolution guarantees the freshest profile set on the next tab switch.
      */
     public void reloadSessionMap() {
+        Logger.logInfo(LOG_TAG, "reloadSessionMap(): re-reading extra-keys-session");
         parseSessionMap();
     }
 
@@ -241,6 +242,8 @@ public class TermuxTerminalExtraKeys extends TerminalExtraKeys {
                     }
                 }
             }
+            Logger.logInfo(LOG_TAG, "parseSessionMap: parsed " + mSessionLayouts.size()
+                    + " prefix(es) from extra-keys-session: " + mSessionLayouts.keySet());
         } catch (JSONException e) {
             Logger.logStackTraceWithMessage(LOG_TAG,
                     "Failed to parse extra-keys-session property: ", e);
@@ -289,19 +292,33 @@ public class TermuxTerminalExtraKeys extends TerminalExtraKeys {
      */
     public void onSessionNameChanged(@Nullable String sessionName) {
         mLastSessionName = sessionName;
-        if (!isSessionSwitchingEnabled()) return;
+        Logger.logInfo(LOG_TAG, "onSessionNameChanged: sessionName=\"" + sessionName
+                + "\", sessionSwitchingEnabled=" + isSessionSwitchingEnabled()
+                + ", processContextActive=" + (mCurrentContext != null)
+                + ", currentSessionContext=" + mCurrentSessionContext
+                + ", prefixes=" + mSessionLayouts.keySet());
+        if (!isSessionSwitchingEnabled()) {
+            Logger.logInfo(LOG_TAG, "onSessionNameChanged: session switching disabled (no prefixes configured)");
+            return;
+        }
 
         String sessionContext = resolveSessionForPrefix(sessionName);
+        Logger.logInfo(LOG_TAG, "onSessionNameChanged: resolved profile for \"" + sessionName
+                + "\" -> " + sessionContext);
 
         // Priority: process-based context takes precedence — do not switch by session.
         if (mCurrentContext != null) {
             // Remember the pending session profile for when the process context ends.
             mCurrentSessionContext = sessionContext; // may be null
+            Logger.logInfo(LOG_TAG, "onSessionNameChanged: process context \"" + mCurrentContext
+                    + "\" active — session profile \"" + sessionContext + "\" deferred");
             return;
         }
 
         if (sessionContext == null) {
             // No prefix match — revert to the default layout if a session profile was shown.
+            Logger.logInfo(LOG_TAG, "onSessionNameChanged: no prefix match for \"" + sessionName
+                    + "\", currentSessionContext=" + mCurrentSessionContext);
             if (mCurrentSessionContext != null) {
                 reloadDefaultLayout();
                 mCurrentSessionContext = null;
@@ -311,6 +328,9 @@ public class TermuxTerminalExtraKeys extends TerminalExtraKeys {
 
         if (!sessionContext.equals(mCurrentSessionContext)) {
             applySessionLayout(sessionContext, sessionName);
+        } else {
+            Logger.logInfo(LOG_TAG, "onSessionNameChanged: profile \"" + sessionContext
+                    + "\" already active — skip");
         }
     }
 
@@ -406,6 +426,8 @@ public class TermuxTerminalExtraKeys extends TerminalExtraKeys {
      */
     private void applySessionLayout(@NonNull String profileName, @Nullable String sessionName) {
         String sessionLayoutJson = mSessionLayouts.get(profileName);
+        Logger.logInfo(LOG_TAG, "applySessionLayout: profile=\"" + profileName
+                + "\", session=\"" + sessionName + "\", layout=" + (sessionLayoutJson != null));
         if (sessionLayoutJson == null) {
             Logger.logError(LOG_TAG, "Session layout not found for: " + profileName);
             return;
@@ -426,6 +448,9 @@ public class TermuxTerminalExtraKeys extends TerminalExtraKeys {
                 Logger.logDebug(LOG_TAG, "Switched extra-keys to session profile \""
                         + profileName + "\""
                         + (sessionName != null ? " for session: " + sessionName : ""));
+            } else {
+                Logger.logInfo(LOG_TAG, "applySessionLayout: layout for profile \""
+                        + profileName + "\" identical to current — skip reload");
             }
             mCurrentSessionContext = profileName;
         } catch (JSONException e) {

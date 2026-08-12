@@ -542,10 +542,14 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
     private void applySessionExtraKeys(@NonNull TerminalSession session) {
         TermuxTerminalExtraKeys extraKeys = mActivity.getTermuxTerminalExtraKeys();
         if (extraKeys != null) {
+            Logger.logInfo(LOG_TAG, "applySessionExtraKeys: sessionName=\""
+                    + session.mSessionName + "\"");
             // Profiles may have been saved while this activity was stopped (broadcast missed),
             // so re-read them before resolving the session name.
             extraKeys.reloadSessionMap();
             extraKeys.onSessionNameChanged(session.mSessionName);
+        } else {
+            Logger.logInfo(LOG_TAG, "applySessionExtraKeys: extraKeys panel not initialized yet (null)");
         }
     }
 
