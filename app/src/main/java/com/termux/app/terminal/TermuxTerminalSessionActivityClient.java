@@ -13,10 +13,8 @@ import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.media.AudioAttributes;
 import android.media.SoundPool;
-import android.os.Build;
 import android.text.TextUtils;
 import android.view.View;
-import android.view.Window;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.TextView;
@@ -1168,17 +1166,8 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
     }
 
     private void applyStatusBarTheme(boolean isSchemeLight) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            Window window = mActivity.getWindow();
-            if (window == null) return;
-            int flags = window.getDecorView().getSystemUiVisibility();
-            if (isSchemeLight) {
-                flags |= View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
-            } else {
-                flags &= ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
-            }
-            window.getDecorView().setSystemUiVisibility(flags);
-        }
+        TermuxActivity.applySystemBarColors(mActivity.getWindow(),
+            mActivity.getColorSchemeManager().getSchemeBackground(), isSchemeLight);
     }
 
     public void updateBackgroundColor() {
@@ -1191,10 +1180,7 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
             // applyTerminalColorScheme() (invoked from checkForFontAndColors(), which runs again in
             // onServiceConnected() once the session is attached after a recreate()).
             int bg = session.getEmulator().mColors.mCurrentColors[TextStyle.COLOR_INDEX_BACKGROUND];
-            mActivity.getWindow().getDecorView().setBackgroundColor(bg);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                mActivity.getWindow().setStatusBarColor(bg);
-            }
+            TermuxActivity.applySystemBarColors(mActivity.getWindow(), bg, mActivity.isCachedSchemeLight());
         }
     }
 

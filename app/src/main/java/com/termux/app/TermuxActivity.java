@@ -1874,23 +1874,73 @@ if (!TermuxInstaller.isBootstrapInstalled(this)) {
         int schemeBg = csm.getSchemeBackground();
         boolean isLight = csm.isSchemeLight();
 
-        // Window background follows the scheme; status-bar background and icons follow the scheme.
+        // Window surface follows the scheme; the status and navigation bars are transparent so the
+        // scheme background shows through, with matching icon/text appearance (dark on a light
+        // scheme, light on a dark one) — the bars never stand out from or darken the terminal.
         Window window = getWindow();
         if (window != null) {
-            window.getDecorView().setBackgroundColor(schemeBg);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                window.setStatusBarColor(schemeBg);
-            }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                int flags = window.getDecorView().getSystemUiVisibility();
-                if (isLight) {
-                    flags |= View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
-                } else {
-                    flags &= ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
-                }
-                window.getDecorView().setSystemUiVisibility(flags);
+            applySystemBarColors(window, schemeBg, isLight);
+        }
+    }
+
+    /**
+     * Make the status and navigation bars fully transparent so the content (or the window
+     * surface painted below with {@code surfaceBackground}) shows through unchanged, and set
+     * their icon/text appearance: dark icons when {@code isLight} is true, light icons otherwise.
+     * <p>
+     * The activity theme sets {@code windowTranslucentStatus} / {@code windowTranslucentNavigation}
+     * (for edge-to-edge drawing), which on API 21-28 draws a dark translucent scrim over both bars
+     * and makes {@code setStatusBarColor()} / {@code setNavigationBarColor()} no-ops. Clearing those
+     * flags and painting the window surface ourselves with the scheme colour kills the scrim while
+     * the {@code LAYOUT_*} flags keep the content laid out edge-to-edge exactly as before, so the
+     * terminal size does not change. On Android 10+ the system would additionally draw a contrast
+     * scrim over the bars with gesture navigation, so that is disabled too — the transparent bars
+     * then always show exactly what is behind them: the terminal background.
+     */
+    public static void applySystemBarColors(Window window, int surfaceBackground, boolean isLight) {
+        if (window == null) return;
+        View decorView = window.getDecorView();
+
+        // Colour the window surface (visible through the transparent bars) with the scheme
+        // background, so the bar areas always match the terminal colours exactly.
+        decorView.setBackgroundColor(surfaceBackground);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS
+                | WindowManager.LayoutParams.FLAG_TRANSLUCENT_NAVIGATION);
+            window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
+            window.setStatusBarColor(Color.TRANSPARENT);
+            window.setNavigationBarColor(Color.TRANSPARENT);
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            window.setNavigationBarDividerColor(Color.TRANSPARENT);
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            // Android 10+ draws a translucent contrast scrim over the bars with gesture
+            // navigation, darkening them even when transparent/coloured. Disable it.
+            window.setStatusBarContrastEnforced(false);
+            window.setNavigationBarContrastEnforced(false);
+        }
+
+        int flags = decorView.getSystemUiVisibility();
+        flags |= View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (isLight) {
+                flags |= View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+            } else {
+                flags &= ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
             }
         }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (isLight) {
+                flags |= View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+            } else {
+                flags &= ~View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+            }
+        }
+        decorView.setSystemUiVisibility(flags);
     }
 
 
