@@ -5,7 +5,13 @@ import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.EditText;
+import android.widget.ImageButton;
+import android.widget.Spinner;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.Keep;
 import androidx.annotation.NonNull;
@@ -14,6 +20,7 @@ import androidx.preference.ListPreference;
 import androidx.preference.SeekBarPreference;
 import androidx.preference.SwitchPreferenceCompat;
 
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.termux.R;
 import com.termux.app.TermuxActivity;
 import com.termux.app.fragments.settings.TermuxPreferenceFragmentBase;
@@ -34,6 +41,10 @@ import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
@@ -57,6 +68,12 @@ public class ExtraKeysEditorFragment extends TermuxPreferenceFragmentBase {
         String swipeRight = "";
     }
 
+    /** Один именованный профиль: список префиксов + JSON-матрица раскладки. */
+    private static class SessionProfile {
+        final List<String> prefixes = new ArrayList<>();
+        String layout = ""; // строка JSON-матрицы extra-keys
+    }
+
     private TermuxAppSharedPreferences mPrefs;
     private ExtraKeysView mPreviewView;
     private KeyCell[][] mGrid;
@@ -67,6 +84,23 @@ public class ExtraKeysEditorFragment extends TermuxPreferenceFragmentBase {
     private ExtraKeysView.EditorMode mCurrentMode = ExtraKeysView.EditorMode.ASSIGN;
     @Nullable
     private TextView mHintTextView;
+
+    @Nullable
+    private Spinner mProfileSpinner;
+    @Nullable
+    private ImageButton mProfileDeleteBtn;
+    @Nullable
+    private View mPrefixRow;
+    @Nullable
+    private EditText mPrefixEdit;
+
+    /** Имена для дропдауна; индекс 0 — всегда дефолт. */
+    private final List<String> mProfileNames = new ArrayList<>();
+    /** Выбранный профиль; null = дефолт. */
+    @Nullable
+    private String mCurrentProfile;
+    /** Подавление колбэков Spinner при программном заполнении. */
+    private boolean mSuppressSpinnerEvents = false;
 
     private int visibleRowStart() { return MAX_ROWS - mRows; }
     private int visibleColStart() { return MAX_COLS - mCols; }
@@ -254,7 +288,194 @@ public class ExtraKeysEditorFragment extends TermuxPreferenceFragmentBase {
         mHintTextView = root.findViewById(R.id.extra_keys_editor_hint_text);
         updateHintText();
 
+        wireProfileSelector(root);
+
         rebuildPreview();
+    }
+
+    private void wireProfileSelector(View root) {
+        mProfileSpinner = root.findViewById(R.id.profile_spinner);
+        mProfileDeleteBtn = root.findViewById(R.id.profile_delete_btn);
+        mPrefixRow = root.findViewById(R.id.prefix_row);
+        mPrefixEdit = root.findViewById(R.id.profile_prefix_edit);
+
+        View addBtn = root.findViewById(R.id.profile_add_btn);
+        if (addBtn != null) addBtn.setOnClickListener(v -> showAddProfileDialog());
+        if (mProfileDeleteBtn != null) mProfileDeleteBtn.setOnClickListener(v -> showDeleteProfileDialog());
+
+        if (mPrefixEdit != null) {
+            mPrefixEdit.setOnFocusChangeListener((v, hasFocus) -> {
+                // Зафиксировать префиксы при уходе с поля
+                if (!hasFocus && mCurrentProfile != null) save();
+            });
+        }
+
+        if (mProfileSpinner != null) {
+            mProfileSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                @Override
+                public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                    if (mSuppressSpinnerEvents || position < 0 || position >= mProfileNames.size()) return;
+                    mCurrentProfile = (position == 0) ? null : mProfileNames.get(position);
+                    onProfileSelected();
+                }
+
+                @Override
+                public void onNothingSelected(AdapterView<?> parent) {}
+            });
+        }
+        populateProfileSpinner();
+    }
+
+    /**
+     * Заполняет дропдаун профилей: дефолт + имена из {@code extra-keys-session}.
+     * Сохраняет текущий выбор (mCurrentProfile), если он ещё существует.
+     */
+    private void populateProfileSpinner() {
+        if (mProfileSpinner == null) return;
+        mProfileNames.clear();
+        mProfileNames.add(getString(R.string.extra_keys_editor_profile_default));
+        mProfileNames.addAll(loadProfiles().keySet());
+
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(requireContext(),
+            android.R.layout.simple_spinner_item, mProfileNames);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+
+        mSuppressSpinnerEvents = true;
+        mProfileSpinner.setAdapter(adapter);
+        int idx = (mCurrentProfile == null) ? 0 : mProfileNames.indexOf(mCurrentProfile);
+        mProfileSpinner.setSelection(Math.max(idx, 0));
+        mSuppressSpinnerEvents = false;
+    }
+
+    private void onProfileSelected() {
+        if (mCurrentProfile == null) {
+            // Дефолтный профиль → extra-keys
+            loadLayoutIntoGrid(mPrefs.getExtraKeys());
+            if (mPrefixRow != null) mPrefixRow.setVisibility(View.GONE);
+            if (mProfileDeleteBtn != null) mProfileDeleteBtn.setVisibility(View.GONE);
+        } else {
+            SessionProfile p = loadProfiles().get(mCurrentProfile);
+            loadLayoutIntoGrid(p != null ? p.layout : null);
+            if (mPrefixRow != null) mPrefixRow.setVisibility(View.VISIBLE);
+            if (mPrefixEdit != null)
+                mPrefixEdit.setText(p != null ? TextUtils.join(", ", p.prefixes) : "");
+            if (mProfileDeleteBtn != null) mProfileDeleteBtn.setVisibility(View.VISIBLE);
+        }
+        rebuildPreview();
+    }
+
+    /**
+     * Читает {@code extra-keys-session}; понимает и новый, и старый (legacy) формат.
+     * @return LinkedHashMap имя профиля → SessionProfile (порядок из JSON сохраняется)
+     */
+    private Map<String, SessionProfile> loadProfiles() {
+        Map<String, SessionProfile> profiles = new LinkedHashMap<>();
+        String raw = mPrefs.getExtraKeysSession();
+        if (raw == null || raw.isEmpty()) return profiles;
+        try {
+            JSONObject json = new JSONObject(raw);
+            Iterator<String> keys = json.keys();
+            while (keys.hasNext()) {
+                String name = keys.next();
+                Object value = json.opt(name);
+                SessionProfile p = new SessionProfile();
+                if (value instanceof JSONObject) {
+                    // Новый формат: { "layout": "...", "prefixes": [...] }
+                    JSONObject obj = (JSONObject) value;
+                    p.layout = obj.optString("layout", "");
+                    JSONArray arr = obj.optJSONArray("prefixes");
+                    if (arr != null) {
+                        for (int i = 0; i < arr.length(); i++) {
+                            String pf = arr.optString(i, "");
+                            if (!pf.isEmpty()) p.prefixes.add(pf);
+                        }
+                    }
+                } else if (value instanceof String) {
+                    // Legacy: ключ = префикс, значение = раскладка
+                    p.layout = (String) value;
+                    p.prefixes.add(name);
+                }
+                profiles.put(name, p);
+            }
+        } catch (JSONException e) {
+            Log.e(TAG, "Failed to parse extra-keys-session", e);
+        }
+        return profiles;
+    }
+
+    /** Сериализует все профили целиком (ничего не теряется). */
+    private void saveProfiles(Map<String, SessionProfile> profiles) {
+        try {
+            JSONObject json = new JSONObject();
+            for (Map.Entry<String, SessionProfile> e : profiles.entrySet()) {
+                JSONObject obj = new JSONObject();
+                obj.put("layout", e.getValue().layout);
+                obj.put("prefixes", new JSONArray(e.getValue().prefixes));
+                json.put(e.getKey(), obj);
+            }
+            mPrefs.setExtraKeysSession(json.toString());
+        } catch (JSONException e) {
+            Log.e(TAG, "Failed to serialize extra-keys profiles", e);
+        }
+    }
+
+    private void showAddProfileDialog() {
+        EditText input = new EditText(requireContext());
+        input.setHint(R.string.extra_keys_editor_profile_name_hint);
+        new MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.extra_keys_editor_profile_add_title)
+            .setView(input)
+            .setPositiveButton(android.R.string.ok, (d, w) -> {
+                String name = input.getText().toString().trim();
+                if (name.isEmpty()) return;
+                Map<String, SessionProfile> profiles = loadProfiles();
+                if (profiles.containsKey(name)) {
+                    Toast.makeText(requireContext(),
+                        R.string.extra_keys_editor_profile_exists, Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                SessionProfile p = new SessionProfile();
+                p.layout = TermuxPropertyConstants.DEFAULT_IVALUE_EXTRA_KEYS; // старт из дефолта
+                profiles.put(name, p);
+                saveProfiles(profiles);
+                mCurrentProfile = name;
+                populateProfileSpinner();
+                int idx = mProfileNames.indexOf(name);
+                mSuppressSpinnerEvents = true;
+                if (mProfileSpinner != null) mProfileSpinner.setSelection(Math.max(idx, 0));
+                mSuppressSpinnerEvents = false;
+                onProfileSelected();
+            })
+            .setNegativeButton(android.R.string.cancel, null)
+            .show();
+    }
+
+    private void showDeleteProfileDialog() {
+        if (mCurrentProfile == null) return;
+        final String toDelete = mCurrentProfile;
+        new MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.extra_keys_editor_profile_delete_title)
+            .setMessage(getString(R.string.extra_keys_editor_profile_delete_confirm, toDelete))
+            .setPositiveButton(android.R.string.ok, (d, w) -> {
+                Map<String, SessionProfile> profiles = loadProfiles();
+                profiles.remove(toDelete);
+                saveProfiles(profiles);
+                mCurrentProfile = null;
+                populateProfileSpinner();
+                onProfileSelected(); // возврат к дефолту
+            })
+            .setNegativeButton(android.R.string.cancel, null)
+            .show();
+    }
+
+    private List<String> parsePrefixesFromField() {
+        List<String> result = new ArrayList<>();
+        if (mPrefixEdit == null) return result;
+        for (String part : mPrefixEdit.getText().toString().split(",")) {
+            String t = part.trim();
+            if (!t.isEmpty()) result.add(t);
+        }
+        return result;
     }
 
     private void applyEditorMode() {
@@ -425,6 +646,11 @@ public class ExtraKeysEditorFragment extends TermuxPreferenceFragmentBase {
     }
 
     private void loadCurrentExtraKeys() {
+        loadLayoutIntoGrid(mPrefs.getExtraKeys());
+    }
+
+    /** Загружает переданную JSON-раскладку в mGrid (null/пусто → дефолтная). */
+    private void loadLayoutIntoGrid(@Nullable String layoutJson) {
         String style = mPrefs.getExtraKeysStyle();
         if (style == null) style = "default";
         mDisplayMap = ExtraKeysInfo.getCharDisplayMapForStyle(style);
@@ -435,7 +661,7 @@ public class ExtraKeysEditorFragment extends TermuxPreferenceFragmentBase {
             for (int c = 0; c < MAX_COLS; c++)
                 mGrid[r][c] = new KeyCell();
 
-        String current = mPrefs.getExtraKeys();
+        String current = layoutJson;
         if (current == null || current.isEmpty()) {
             current = TermuxPropertyConstants.DEFAULT_IVALUE_EXTRA_KEYS;
         }
@@ -446,10 +672,7 @@ public class ExtraKeysEditorFragment extends TermuxPreferenceFragmentBase {
         } catch (JSONException e) {
             Log.e(TAG, "Failed to parse extra-keys JSON", e);
             mRows = 2; mCols = 5;
-            SeekBarPreference colsPref = findPreference("extra_keys_editor_columns");
-            if (colsPref != null) colsPref.setValue(mCols);
-            SeekBarPreference rowsPref = findPreference("extra_keys_editor_rows");
-            if (rowsPref != null) rowsPref.setValue(mRows);
+            syncRowColSeekbars();
             return;
         }
 
@@ -482,6 +705,10 @@ public class ExtraKeysEditorFragment extends TermuxPreferenceFragmentBase {
         mRows = loadedRows;
         mCols = loadedCols;
 
+        syncRowColSeekbars();
+    }
+
+    private void syncRowColSeekbars() {
         SeekBarPreference colsPref = findPreference("extra_keys_editor_columns");
         if (colsPref != null) colsPref.setValue(mCols);
         SeekBarPreference rowsPref = findPreference("extra_keys_editor_rows");
@@ -650,7 +877,21 @@ public class ExtraKeysEditorFragment extends TermuxPreferenceFragmentBase {
             Log.e(TAG, "Failed to validate extra-keys JSON in save", e);
             return;
         }
-        mPrefs.setExtraKeys(json);
+
+        if (mCurrentProfile == null) {
+            // Дефолтный профиль → extra-keys
+            mPrefs.setExtraKeys(json);
+        } else {
+            // Именованный профиль → его слот в extra-keys-session
+            Map<String, SessionProfile> profiles = loadProfiles();
+            SessionProfile p = profiles.get(mCurrentProfile);
+            if (p == null) p = new SessionProfile();
+            p.layout = json;
+            p.prefixes.clear();
+            p.prefixes.addAll(parsePrefixesFromField());
+            profiles.put(mCurrentProfile, p);
+            saveProfiles(profiles);
+        }
         TermuxActivity.updateTermuxActivityStyling(requireContext(), true);
     }
 

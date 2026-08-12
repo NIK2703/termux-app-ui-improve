@@ -399,6 +399,9 @@ public final class TermuxPreferenceConstants {
         public static final String KEY_EXTRA_KEYS = "extra-keys";
         public static final String DEFAULT_VALUE_EXTRA_KEYS = TermuxPropertyConstants.DEFAULT_IVALUE_EXTRA_KEYS;
 
+        public static final String KEY_EXTRA_KEYS_SESSION = "extra-keys-session";
+        public static final String DEFAULT_VALUE_EXTRA_KEYS_SESSION =
+                TermuxPropertyConstants.DEFAULT_IVALUE_EXTRA_KEYS_SESSION; // ""
 
         public static final String KEY_EXTRA_KEYS_STYLE = "extra-keys-style";
         public static final String DEFAULT_VALUE_EXTRA_KEYS_STYLE = TermuxPropertyConstants.DEFAULT_IVALUE_EXTRA_KEYS_STYLE;

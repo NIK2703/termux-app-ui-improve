@@ -44,6 +44,7 @@ import com.termux.terminal.TerminalSessionClient;
 import com.termux.terminal.TextStyle;
 import com.termux.shared.termux.extrakeys.ColorSchemeUtils;
 import com.termux.shared.termux.extrakeys.ExtraKeysView;
+import com.termux.app.terminal.io.TermuxTerminalExtraKeys;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -472,6 +473,9 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
         // If per-directory message history is enabled, swap to the new
         // session's directory history.
         mActivity.onHistoryDirectoryChanged();
+
+        // Session-name based extra-keys profile switching.
+        applySessionExtraKeys(session);
     }
 
     void notifyOfSessionChange() {
@@ -523,6 +527,25 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
             TermuxSession termuxSession = service.getTermuxSessionForTerminalSession(sessionToRename);
             if (termuxSession != null)
                 termuxSession.getExecutionCommand().shellName = text;
+        }
+        // Session-name based extra-keys: re-evaluate if the renamed session is the active one.
+        if (mActivity.getCurrentSession() == sessionToRename) {
+            applySessionExtraKeys(sessionToRename);
+        }
+    }
+
+    /**
+     * Notify the extra-keys controller of the active session's name so a session-name based
+     * layout profile (property "extra-keys-session") can be applied. Priority vs the
+     * process-based context is handled inside the controller.
+     */
+    private void applySessionExtraKeys(@NonNull TerminalSession session) {
+        TermuxTerminalExtraKeys extraKeys = mActivity.getTermuxTerminalExtraKeys();
+        if (extraKeys != null) {
+            // Profiles may have been saved while this activity was stopped (broadcast missed),
+            // so re-read them before resolving the session name.
+            extraKeys.reloadSessionMap();
+            extraKeys.onSessionNameChanged(session.mSessionName);
         }
     }
 

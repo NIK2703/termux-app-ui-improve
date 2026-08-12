@@ -713,6 +713,21 @@ public class TermuxAppSharedPreferences extends AppSharedPreferences {
         SharedPreferenceUtils.setString(mSharedPreferences, TERMUX_APP.KEY_EXTRA_KEYS, value, false);
     }
 
+    /**
+     * Get the {@code extra-keys-session} property: named extra-keys profiles, each with session
+     * name prefixes that auto-activate its layout. Returns {@code null} when unset or empty.
+     */
+    public String getExtraKeysSession() {
+        String value = SharedPreferenceUtils.getString(mSharedPreferences,
+            TERMUX_APP.KEY_EXTRA_KEYS_SESSION, null, true);
+        return (value == null || value.isEmpty()) ? null : value;
+    }
+
+    public void setExtraKeysSession(String value) {
+        SharedPreferenceUtils.setString(mSharedPreferences,
+            TERMUX_APP.KEY_EXTRA_KEYS_SESSION, value, false);
+    }
+
 
 
 
