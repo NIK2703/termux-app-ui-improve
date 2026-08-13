@@ -13,6 +13,7 @@ import com.termux.R;
 import java.util.function.Consumer;
 import com.termux.app.TermuxActivity;
 import com.termux.app.TermuxService;
+import com.termux.app.terminal.debug.SessionSwitchLog;
 import com.termux.shared.termux.shell.command.runner.terminal.TermuxSession;
 import com.termux.terminal.TerminalSession;
 import com.termux.view.TerminalView;
@@ -454,6 +455,9 @@ public final class SessionPagerManager {
         }
         if (selected == null) return;
 
+        SessionSwitchLog.log(mActivity, "pager: onTerminalPageSelected pos=" + position
+            + " sessionName=\"" + selected.mSessionName + "\"");
+
         // Mark a page switch in progress so the per-page focus listener
         // (registerTerminalViewFocusListener) suppresses IME hide/show churn while the old page
         // loses focus and the new one gains it during a swipe / tab / hotkey switch. Cleared at the
@@ -484,6 +488,8 @@ public final class SessionPagerManager {
         // (used by IME, extra keys, context menu, selection, etc.) routes to the visible session.
         TerminalView pageView = getPagerPageView(position);
         if (pageView == null) {
+            SessionSwitchLog.log(mActivity, "pager: pageView==null for pos=" + position
+                + " — deferring bookkeeping (attach/fallback paths)");
             // The pager has not bound the ViewHolder for this position yet. This is expected when a
             // keyboard shortcut jumps two or more pages in a single smooth scroll: with
             // offscreenPageLimit == 1 (see setup) only the neighbouring pages are attached, so the
@@ -569,6 +575,9 @@ public final class SessionPagerManager {
         // authority for focus + IME here, so we must NOT also requestFocus()/showSoftInput() below —
         // doing both caused the keyboard to flicker (hide+show) when switching tabs/sessions.
         mActivity.getTermuxTerminalSessionClient().onSessionPageSelected(selected);
+
+        SessionSwitchLog.log(mActivity, "pager: onSessionPageSelected(selected) fired for \""
+            + selected.mSessionName + "\"");
 
         // Page switch bookkeeping done. The IME-suppression guard (mTerminalPageSwitchInProgress)
         // must stay raised until the focus change requested inside onSessionPageSelected()/applyTextInputVisibilityForSession

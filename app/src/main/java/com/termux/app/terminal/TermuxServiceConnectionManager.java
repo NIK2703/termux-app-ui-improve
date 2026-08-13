@@ -12,6 +12,7 @@ import com.termux.app.TermuxInstaller;
 import com.termux.app.TermuxService;
 import com.termux.shared.logger.Logger;
 import com.termux.shared.termux.TermuxConstants;
+import com.termux.app.terminal.debug.SessionSwitchLog;
 import com.termux.shared.termux.shell.command.runner.terminal.TermuxSession;
 import com.termux.terminal.TerminalSession;
 
@@ -189,6 +190,9 @@ public class TermuxServiceConnectionManager implements ServiceConnection {
                                         }
                                         activity.runOnUiThread(() -> {
                                             if (activity.isFinishing()) return;
+                                            SessionSwitchLog.log(activity, "svc: cold start — "
+                                                + restoredSessions.size()
+                                                + " restored session(s), syncing pager");
                                             mActivity.setColdStartSessionPending(false);
                                             mActivity.syncTerminalPagerToService();
                                         });
@@ -232,6 +236,7 @@ public class TermuxServiceConnectionManager implements ServiceConnection {
         // page (honouring a pending session requested before the adapter had items, otherwise the
         // stored/last session). Safe to call even if sessions were added asynchronously above —
         // it is a no-op when the list is still empty.
+        SessionSwitchLog.log(mActivity, "svc: onServiceConnected — syncing pager");
         mActivity.syncTerminalPagerToService();
 
         // Populate the tab strip with existing sessions after activity recreate (theme change

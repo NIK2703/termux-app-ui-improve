@@ -10,6 +10,7 @@ import com.termux.app.TermuxActivity;
 
 import com.termux.app.terminal.TermuxTerminalSessionActivityClient;
 import com.termux.app.terminal.TermuxTerminalViewClient;
+import com.termux.app.terminal.debug.SessionSwitchLog;
 import com.termux.shared.logger.Logger;
 import com.termux.shared.termux.extrakeys.ExtraKeysConstants;
 import com.termux.shared.termux.extrakeys.ExtraKeysInfo;
@@ -61,6 +62,8 @@ public class TermuxTerminalExtraKeys extends TerminalExtraKeys {
         setExtraKeys();
         parseContextMap();
         parseSessionMap();
+        SessionSwitchLog.log(mActivity, "ctor: parsed session prefix map=" + mSessionLayouts.keySet()
+            + ", session switching enabled=" + isSessionSwitchingEnabled());
     }
 
     /**
@@ -74,19 +77,44 @@ public class TermuxTerminalExtraKeys extends TerminalExtraKeys {
     public void reloadSessionMap() {
         Logger.logInfo(LOG_TAG, "reloadSessionMap(): re-reading extra-keys-session");
         parseSessionMap();
+        SessionSwitchLog.log(mActivity, "reloadSessionMap: prefixes=" + mSessionLayouts.keySet());
     }
 
     /**
      * Re-read the {@code extra-keys} and {@code extra-keys-style} properties from disk and rebuild
      * the {@link ExtraKeysInfo}. Call this after those properties change at runtime so the panel
      * updates without restarting the app.
+     *
+     * <p>Unlike the original implementation, the logically active session profile (or the profile
+     * matching the last known session name) is re-asserted AFTER the reload instead of being
+     * permanently dropped — otherwise any styling reload (theme change, returning from settings,
+     * {@code reload_style} broadcast) would silently reset the panel to the default layout until
+     * the next manual tab switch.</p>
      */
     public void reloadExtraKeys() {
         setExtraKeys();
         parseContextMap();
         parseSessionMap();
-        // setExtraKeys() reloaded the default layout, so the session profile is no longer shown.
-        mCurrentSessionContext = null;
+        if (mCurrentContext != null) {
+            // Process-based context has priority — the session profile must not override it.
+            SessionSwitchLog.log(mActivity, "reloadExtraKeys: process context active=\""
+                + mCurrentContext + "\" — session profile not re-asserted");
+            mCurrentSessionContext = null;
+            return;
+        }
+        String target = (mCurrentSessionContext != null
+            && mSessionLayouts.containsKey(mCurrentSessionContext))
+            ? mCurrentSessionContext : resolveSessionForPrefix(mLastSessionName);
+        if (target != null) {
+            SessionSwitchLog.log(mActivity, "reloadExtraKeys: re-asserting profile=\"" + target
+                + "\" previous=\"" + mCurrentSessionContext + "\" lastSession=\""
+                + mLastSessionName + "\"");
+            applySessionLayout(target, mLastSessionName);
+        } else {
+            mCurrentSessionContext = null;
+            SessionSwitchLog.log(mActivity, "reloadExtraKeys: no profile to re-assert (default "
+                + "layout loaded), lastSession=\"" + mLastSessionName + "\"");
+        }
     }
 
     /**
@@ -208,12 +236,19 @@ public class TermuxTerminalExtraKeys extends TerminalExtraKeys {
      */
     private void parseSessionMap() {
         mSessionLayouts.clear();
+        String rawStr = null;
         try {
             Object raw = mActivity.getProperties().getInternalPropertyValue(
                     TermuxPropertyConstants.KEY_EXTRA_KEYS_SESSION, true);
-            if (raw == null) return;
-            String rawStr = raw.toString();
-            if (rawStr.isEmpty()) return;
+            if (raw == null) {
+                SessionSwitchLog.log(mActivity, "parseSessionMap: property value is null");
+                return;
+            }
+            rawStr = raw.toString();
+            if (rawStr.isEmpty()) {
+                SessionSwitchLog.log(mActivity, "parseSessionMap: property value is empty");
+                return;
+            }
 
             JSONObject json = new JSONObject(rawStr);
             Iterator<String> keys = json.keys();
@@ -244,11 +279,21 @@ public class TermuxTerminalExtraKeys extends TerminalExtraKeys {
             }
             Logger.logInfo(LOG_TAG, "parseSessionMap: parsed " + mSessionLayouts.size()
                     + " prefix(es) from extra-keys-session: " + mSessionLayouts.keySet());
+            SessionSwitchLog.log(mActivity, "parseSessionMap: parsed " + mSessionLayouts.size()
+                + " prefix(es): " + mSessionLayouts.keySet());
         } catch (JSONException e) {
             Logger.logStackTraceWithMessage(LOG_TAG,
                     "Failed to parse extra-keys-session property: ", e);
+            SessionSwitchLog.log(mActivity, "parseSessionMap: JSON parse FAILED: "
+                + e.getMessage() + " raw=" + safeRaw(rawStr));
             mSessionLayouts.clear();
         }
+    }
+
+    private String safeRaw(Object raw) {
+        if (raw == null) return "null";
+        String s = raw.toString();
+        return s.length() > 300 ? s.substring(0, 300) + "..." : s;
     }
 
     /**
@@ -297,14 +342,22 @@ public class TermuxTerminalExtraKeys extends TerminalExtraKeys {
                 + ", processContextActive=" + (mCurrentContext != null)
                 + ", currentSessionContext=" + mCurrentSessionContext
                 + ", prefixes=" + mSessionLayouts.keySet());
+        SessionSwitchLog.log(mActivity, "onSessionNameChanged: sessionName=\"" + sessionName
+            + "\" enabled=" + isSessionSwitchingEnabled()
+            + " processCtx=" + mCurrentContext
+            + " sessionCtx=" + mCurrentSessionContext
+            + " prefixes=" + mSessionLayouts.keySet());
         if (!isSessionSwitchingEnabled()) {
             Logger.logInfo(LOG_TAG, "onSessionNameChanged: session switching disabled (no prefixes configured)");
+            SessionSwitchLog.log(mActivity, "onSessionNameChanged: DISABLED — no prefixes");
             return;
         }
 
         String sessionContext = resolveSessionForPrefix(sessionName);
         Logger.logInfo(LOG_TAG, "onSessionNameChanged: resolved profile for \"" + sessionName
                 + "\" -> " + sessionContext);
+        SessionSwitchLog.log(mActivity, "onSessionNameChanged: resolved profile -> "
+            + sessionContext);
 
         // Priority: process-based context takes precedence — do not switch by session.
         if (mCurrentContext != null) {
@@ -312,13 +365,15 @@ public class TermuxTerminalExtraKeys extends TerminalExtraKeys {
             mCurrentSessionContext = sessionContext; // may be null
             Logger.logInfo(LOG_TAG, "onSessionNameChanged: process context \"" + mCurrentContext
                     + "\" active — session profile \"" + sessionContext + "\" deferred");
+            SessionSwitchLog.log(mActivity, "onSessionNameChanged: DEFERRED by process context \""
+                + mCurrentContext + "\"");
             return;
         }
 
         if (sessionContext == null) {
             // No prefix match — revert to the default layout if a session profile was shown.
-            Logger.logInfo(LOG_TAG, "onSessionNameChanged: no prefix match for \"" + sessionName
-                    + "\", currentSessionContext=" + mCurrentSessionContext);
+            SessionSwitchLog.log(mActivity, "onSessionNameChanged: no prefix match"
+                + " (currentSessionContext=" + mCurrentSessionContext + ")");
             if (mCurrentSessionContext != null) {
                 reloadDefaultLayout();
                 mCurrentSessionContext = null;
@@ -331,6 +386,8 @@ public class TermuxTerminalExtraKeys extends TerminalExtraKeys {
         } else {
             Logger.logInfo(LOG_TAG, "onSessionNameChanged: profile \"" + sessionContext
                     + "\" already active — skip");
+            SessionSwitchLog.log(mActivity, "onSessionNameChanged: profile \"" + sessionContext
+                + "\" already active — skip");
         }
     }
 
@@ -430,6 +487,8 @@ public class TermuxTerminalExtraKeys extends TerminalExtraKeys {
                 + "\", session=\"" + sessionName + "\", layout=" + (sessionLayoutJson != null));
         if (sessionLayoutJson == null) {
             Logger.logError(LOG_TAG, "Session layout not found for: " + profileName);
+            SessionSwitchLog.log(mActivity, "applySessionLayout: LAYOUT MISSING for "
+                + profileName);
             return;
         }
         try {
@@ -437,6 +496,12 @@ public class TermuxTerminalExtraKeys extends TerminalExtraKeys {
                     TermuxPropertyConstants.KEY_EXTRA_KEYS_STYLE, true);
             ExtraKeysInfo newInfo = new ExtraKeysInfo(sessionLayoutJson, extraKeysStyle,
                     ExtraKeysConstants.CONTROL_CHARS_ALIASES);
+            boolean sameLayout = mExtraKeysInfo != null
+                && ExtraKeysInfo.isSameLayout(mExtraKeysInfo, newInfo);
+            SessionSwitchLog.log(mActivity, "applySessionLayout: profile=\"" + profileName
+                + "\" sameAsCurrent=" + sameLayout
+                + " viewAttached=" + (mActivity.getExtraKeysView() != null)
+                + " currentCtx=" + mCurrentSessionContext);
             // Avoid redundant reload if the matrix is structurally identical.
             if (mExtraKeysInfo == null || !ExtraKeysInfo.isSameLayout(mExtraKeysInfo, newInfo)) {
                 mExtraKeysInfo = newInfo;
@@ -444,6 +509,11 @@ public class TermuxTerminalExtraKeys extends TerminalExtraKeys {
                 if (mActivity.getExtraKeysView() != null) {
                     mActivity.getExtraKeysView().reload(newInfo,
                             mActivity.getTerminalToolbarDefaultHeight());
+                    SessionSwitchLog.log(mActivity, "applySessionLayout: view RELOADED with "
+                        + "profile \"" + profileName + "\"");
+                } else {
+                    SessionSwitchLog.log(mActivity, "applySessionLayout: VIEW IS NULL — reload "
+                        + "skipped, profile stored in memory only");
                 }
                 Logger.logDebug(LOG_TAG, "Switched extra-keys to session profile \""
                         + profileName + "\""
@@ -456,6 +526,8 @@ public class TermuxTerminalExtraKeys extends TerminalExtraKeys {
         } catch (JSONException e) {
             Logger.logStackTraceWithMessage(LOG_TAG,
                     "Failed to create ExtraKeysInfo for session profile \"" + profileName + "\": ", e);
+            SessionSwitchLog.log(mActivity, "applySessionLayout: ExtraKeysInfo FAILED for "
+                + profileName + ": " + e.getMessage());
         }
     }
 
@@ -465,6 +537,9 @@ public class TermuxTerminalExtraKeys extends TerminalExtraKeys {
     private void reloadDefaultLayout() {
         ExtraKeysInfo previousInfo = mExtraKeysInfo;
         setExtraKeys(); // Re-reads the "extra-keys" property from disk
+        SessionSwitchLog.log(mActivity, "reloadDefaultLayout: sameAsPrev="
+            + (previousInfo != null && mExtraKeysInfo != null
+                && ExtraKeysInfo.isSameLayout(previousInfo, mExtraKeysInfo)));
         if (mExtraKeysInfo == null || !ExtraKeysInfo.isSameLayout(previousInfo, mExtraKeysInfo)) {
             mActivity.setTerminalToolbarHeight();
             if (mActivity.getExtraKeysView() != null && mExtraKeysInfo != null) {
