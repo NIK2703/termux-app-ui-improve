@@ -1087,11 +1087,11 @@ try {
         EditText input = new EditText(requireContext());
         input.setMaxLines(1);
         input.setText(cell.display);
-        // The hint shows exactly the text drawn on the preview button (via
-        // ExtraKeyButton.getDisplay(): alias map + style display map), not a hand-made
-        // composition. The field is empty, so the preview carries the same text, making the hint honest.
-        ExtraKeyButton previewBtn = mPreviewView.getExtraKeyButtonAt(row, col);
-        input.setHint(previewBtn != null ? previewBtn.getDisplay() : "");
+        // The hint previews what the button will show if the label is left empty:
+        // the auto-composed display of the main action macro (cell.tap). It must NOT come
+        // from previewBtn.getDisplay(), which already reflects the current custom label and
+        // would leak that label back into the hint after the field contents are deleted.
+        input.setHint(computeDisplay(cell.tap));
         new MaterialAlertDialogBuilder(requireContext())
             .setTitle(R.string.extra_keys_editor_label_dialog_title)
             .setView(input)
