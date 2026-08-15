@@ -62,6 +62,7 @@ import com.termux.shared.activity.media.AppCompatActivityUtils;
 import com.termux.shared.data.IntentUtils;
 import com.termux.shared.android.PermissionUtils;
 import com.termux.shared.data.DataUtils;
+import com.termux.shared.interact.ShareUtils;
 import com.termux.shared.termux.TermuxConstants;
 import com.termux.shared.termux.TermuxConstants.TERMUX_APP.TERMUX_ACTIVITY;
 import com.termux.app.activities.HelpActivity;
@@ -1383,6 +1384,11 @@ if (!TermuxInstaller.isBootstrapInstalled(this)) {
             // ACTION_DOWN, which may trigger an IME-hide and (via WindowInsetsListener)
             // auto-close the panel before ACTION_UP.
             final boolean[] panelOpenAtDown = { false };
+            // Set once the finger has swiped down past the touch slop: a swipe down on
+            // the button pastes the clipboard text into the text input panel at the cursor
+            // (showing the panel first if it is hidden), and must not fall back to a plain
+            // tap on release.
+            final boolean[] swipeDownPending = { false };
 
             toggleTextInputButton.setOnTouchListener((v, event) -> {
                 switch (event.getActionMasked()) {
@@ -1391,6 +1397,7 @@ if (!TermuxInstaller.isBootstrapInstalled(this)) {
                         downXY[0] = event.getRawX();
                         downXY[1] = event.getRawY();
                         panelOpenAtDown[0] = isTextInputVisible();
+                        swipeDownPending[0] = false;
                         gestureActive[0] = true;
                         mButtonTouchInProgress = true;
                         v.setPressed(true);
@@ -1404,6 +1411,15 @@ if (!TermuxInstaller.isBootstrapInstalled(this)) {
                         if (!mPopupCtrl.isHistoryPopupShowing()
                                 && dy < -touchSlop && Math.abs(dy) > Math.abs(dx)) {
                             mPopupCtrl.showMessageHistoryPopup(v);
+                        }
+                        // Swipe down past the touch slop (more vertical than sideways) pastes
+                        // the clipboard text into the text input panel at the cursor, firing
+                        // immediately upon recognition (not on release). Latched so a wiggle
+                        // back up mid-drag does not paste again or fall back to a toggle.
+                        if (!mPopupCtrl.isHistoryPopupShowing() && !swipeDownPending[0]
+                                && dy > touchSlop && Math.abs(dy) > Math.abs(dx)) {
+                            swipeDownPending[0] = true;
+                            pasteClipboardIntoTextInput();
                         }
                         if (mPopupCtrl.isHistoryPopupShowing()) {
                             // Keep the button visually active (filled with the stroke colour)
@@ -1432,6 +1448,9 @@ if (!TermuxInstaller.isBootstrapInstalled(this)) {
                                     onHistoryMessagePicked(mMessageHistoryCtrl.getHistoryList().get(selected));
                                 }
                             }
+                        } else if (swipeDownPending[0]) {
+                            // The swipe-down paste already fired on recognition in ACTION_MOVE;
+                            // on release (or cancel) it must never fall back to a toggle.
                         } else if (gestureActive[0]
                                 && event.getActionMasked() == MotionEvent.ACTION_UP) {
                             // No popup was opened: treat as a plain tap -> toggle panel.
@@ -1440,6 +1459,7 @@ if (!TermuxInstaller.isBootstrapInstalled(this)) {
                             updateToggleTextInputButtonIcon();
                         }
                         gestureActive[0] = false;
+                        swipeDownPending[0] = false;
                         mButtonTouchInProgress = false;
                         return true;
                     }
@@ -1465,6 +1485,47 @@ if (!TermuxInstaller.isBootstrapInstalled(this)) {
             // Apply the configured tab height mode (single-line / two-line).
             applyTabHeightMode();
         }
+    }
+
+    /**
+     * Paste clipboard text into the text input field at the cursor position, replacing any
+     * active selection. If the text input panel is currently hidden, it is shown first.
+     * Called from a swipe-down gesture on the toggle button. A clipboard that is unset or
+     * contains no text is a silent no-op (mirrors terminal paste behaviour).
+     */
+    private void pasteClipboardIntoTextInput() {
+        String text = ShareUtils.getTextStringFromClipboardIfSet(this, true);
+        if (text == null) return;
+
+        final EditText editText = findViewById(R.id.terminal_toolbar_text_input);
+        if (editText == null) return;
+
+        if (!isTextInputVisible()) {
+            setTextInputVisible(true);
+            updateToggleTextInputButtonIcon();
+        }
+
+        Editable editable = editText.getText();
+        int selStart = editText.getSelectionStart();
+        int selEnd   = editText.getSelectionEnd();
+        if (editable != null) {
+            if (selStart < 0) selStart = editable.length();
+            if (selEnd   < 0) selEnd   = selStart;
+            if (selStart > selEnd) {
+                int tmp = selStart;
+                selStart = selEnd;
+                selEnd = tmp;
+            }
+            editable.replace(selStart, selEnd, text);
+            editText.setSelection(selStart + text.length());
+        } else {
+            editText.setText(text);
+            editText.setSelection(text.length());
+        }
+
+        setFocusOnInputForCurrentSession(true);
+        saveTextInputForCurrentSession();
+        editText.requestFocus();
     }
 
     public void updateToggleTextInputButtonIcon() {
