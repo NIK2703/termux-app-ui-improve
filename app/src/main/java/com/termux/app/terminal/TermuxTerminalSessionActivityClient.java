@@ -42,7 +42,6 @@ import com.termux.terminal.TerminalSessionClient;
 import com.termux.terminal.TextStyle;
 import com.termux.shared.termux.extrakeys.ColorSchemeUtils;
 import com.termux.shared.termux.extrakeys.ExtraKeysView;
-import com.termux.app.terminal.debug.SessionSwitchLog;
 import com.termux.app.terminal.io.TermuxTerminalExtraKeys;
 
 import java.io.File;
@@ -555,20 +554,10 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
 
         TermuxTerminalExtraKeys extraKeys = mActivity.getTermuxTerminalExtraKeys();
         if (extraKeys != null) {
-            Logger.logInfo(LOG_TAG, "applySessionExtraKeys: sessionName=\""
-                    + sessionName + "\"");
-            SessionSwitchLog.log(mActivity.getApplicationContext(),
-                "applySessionExtraKeys: trigger sessionName=\"" + sessionName
-                    + "\" title=\"" + session.getTitle() + "\"");
             // Profiles may have been saved while this activity was stopped (broadcast missed),
             // so re-read them before resolving the session name.
             extraKeys.reloadSessionMap();
             extraKeys.onSessionNameChanged(sessionName);
-        } else {
-            Logger.logInfo(LOG_TAG, "applySessionExtraKeys: extraKeys panel not initialized yet (null)");
-            SessionSwitchLog.log(mActivity.getApplicationContext(),
-                "applySessionExtraKeys: extraKeys CONTROLLER NULL — switch dropped for \""
-                    + sessionName + "\"");
         }
     }
 
