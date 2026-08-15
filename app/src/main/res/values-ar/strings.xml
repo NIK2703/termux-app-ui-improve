@@ -381,7 +381,7 @@
     <string name="extra_keys_editor_profile_delete_title">حذف ملف التعريف</string>
     <string name="extra_keys_editor_profile_delete_confirm">حذف ملف التعريف “%1$s”؟ لن تقوم بادئات الجلسة بتفعيل هذا التخطيط بعد الآن.</string>
     <string name="extra_keys_editor_profile_prefix_title">بادئات الجلسة</string>
-    <string name="extra_keys_editor_profile_prefix_hint">مثل: nano, vim, htop</string>
+    <string name="extra_keys_editor_profile_prefix_hint">على سبيل المثال: nano, vim, htop</string>
     <string name="extra_keys_editor_profile_export">تصدير ملف التعريف</string>
     <string name="extra_keys_editor_profile_import">استيراد ملف التعريف</string>
     <string name="extra_keys_editor_profile_export_progress">جاري تصدير ملف التعريف…</string>

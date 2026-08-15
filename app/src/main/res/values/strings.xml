@@ -852,7 +852,7 @@
     <string name="extra_keys_editor_profile_delete_title">Delete profile</string>
     <string name="extra_keys_editor_profile_delete_confirm">Delete profile “%1$s”? Its session prefixes will no longer activate this layout.</string>
     <string name="extra_keys_editor_profile_prefix_title">Session prefixes</string>
-    <string name="extra_keys_editor_profile_prefix_hint">e.g. nano, vim, htop</string>
+    <string name="extra_keys_editor_profile_prefix_hint">for example nano, vim, htop</string>
 
     <!-- Extra Keys Editor: single profile export/import -->
     <string name="extra_keys_editor_profile_export">Export profile</string>

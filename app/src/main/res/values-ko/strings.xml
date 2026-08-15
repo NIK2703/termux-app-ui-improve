@@ -375,7 +375,7 @@ $HOME/bin/termux-url-opener
     <string name="extra_keys_editor_profile_delete_title">프로필 삭제</string>
     <string name="extra_keys_editor_profile_delete_confirm">프로필 “%1$s”을(를) 삭제하시겠습니까? 이 프로필의 세션 접두사는 더 이상 이 레이아웃을 활성화하지 않습니다.</string>
     <string name="extra_keys_editor_profile_prefix_title">세션 접두사</string>
-    <string name="extra_keys_editor_profile_prefix_hint">예: nano, vim, htop</string>
+    <string name="extra_keys_editor_profile_prefix_hint">예를 들어 nano, vim, htop</string>
     <string name="extra_keys_editor_profile_export">프로필 내보내기</string>
     <string name="extra_keys_editor_profile_import">프로필 가져오기</string>
     <string name="extra_keys_editor_profile_export_progress">프로필을 내보내는 중…</string>
