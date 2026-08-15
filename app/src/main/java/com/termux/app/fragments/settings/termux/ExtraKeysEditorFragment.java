@@ -1,6 +1,13 @@
 package com.termux.app.fragments.settings.termux;
 
+import android.app.Activity;
+import android.app.ProgressDialog;
+import android.content.Context;
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
@@ -39,6 +46,11 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -60,18 +72,25 @@ public class ExtraKeysEditorFragment extends TermuxPreferenceFragmentBase {
     private static final int MAX_COLS = 10;
     private static final String TAG = "ExtraKeysEditor";
 
+    /** Version of the profile export/import file format. */
+    private static final int FORMAT_VERSION = 1;
+    private static final int REQUEST_CODE_EXPORT_PROFILE = 2001;
+    private static final int REQUEST_CODE_IMPORT_PROFILE = 2002;
+
     private static class KeyCell {
         String tap = "";
         String swipeUp = "";
         String swipeDown = "";
         String swipeLeft = "";
         String swipeRight = "";
+        /** Custom key label; empty = auto-generated from the main action macro. */
+        String display = "";
     }
 
-    /** Один именованный профиль: список префиксов + JSON-матрица раскладки. */
+    /** One named profile: a list of prefixes + a JSON layout matrix. */
     private static class SessionProfile {
         final List<String> prefixes = new ArrayList<>();
-        String layout = ""; // строка JSON-матрицы extra-keys
+        String layout = ""; // extra-keys JSON matrix string
     }
 
     private TermuxAppSharedPreferences mPrefs;
@@ -89,18 +108,23 @@ public class ExtraKeysEditorFragment extends TermuxPreferenceFragmentBase {
     private Spinner mProfileSpinner;
     @Nullable
     private ImageButton mProfileDeleteBtn;
+    private ImageButton mProfileExportBtn;
+    private ImageButton mProfileImportBtn;
     @Nullable
     private View mPrefixRow;
     @Nullable
     private EditText mPrefixEdit;
 
-    /** Имена для дропдауна; индекс 0 — всегда дефолт. */
+    /** Dropdown names; index 0 is always the default. */
     private final List<String> mProfileNames = new ArrayList<>();
-    /** Выбранный профиль; null = дефолт. */
+    /** Selected profile; null = default. */
     @Nullable
     private String mCurrentProfile;
-    /** Подавление колбэков Spinner при программном заполнении. */
+    /** Suppresses Spinner callbacks during programmatic population. */
     private boolean mSuppressSpinnerEvents = false;
+
+    @Nullable
+    private ProgressDialog mProgressDialog;
 
     private int visibleRowStart() { return MAX_ROWS - mRows; }
     private int visibleColStart() { return MAX_COLS - mCols; }
@@ -263,6 +287,7 @@ public class ExtraKeysEditorFragment extends TermuxPreferenceFragmentBase {
         if (mPreviewView == null) return;
         mPreviewView.setEditorGestureListener(mEditorGestureListener);
         mPreviewView.setEditorMoveListener(mEditorMoveListener);
+        mPreviewView.setEditorLongPressListener(mEditorLongPressListener);
         applyEditorMode();
 
         View assignBtn = root.findViewById(R.id.mode_assign_btn);
@@ -296,16 +321,20 @@ public class ExtraKeysEditorFragment extends TermuxPreferenceFragmentBase {
     private void wireProfileSelector(View root) {
         mProfileSpinner = root.findViewById(R.id.profile_spinner);
         mProfileDeleteBtn = root.findViewById(R.id.profile_delete_btn);
+        mProfileExportBtn = root.findViewById(R.id.profile_export_btn);
+        mProfileImportBtn = root.findViewById(R.id.profile_import_btn);
         mPrefixRow = root.findViewById(R.id.prefix_row);
         mPrefixEdit = root.findViewById(R.id.profile_prefix_edit);
 
         View addBtn = root.findViewById(R.id.profile_add_btn);
         if (addBtn != null) addBtn.setOnClickListener(v -> showAddProfileDialog());
         if (mProfileDeleteBtn != null) mProfileDeleteBtn.setOnClickListener(v -> showDeleteProfileDialog());
+        if (mProfileExportBtn != null) mProfileExportBtn.setOnClickListener(v -> startProfileExport());
+        if (mProfileImportBtn != null) mProfileImportBtn.setOnClickListener(v -> startProfileImport());
 
         if (mPrefixEdit != null) {
             mPrefixEdit.setOnFocusChangeListener((v, hasFocus) -> {
-                // Зафиксировать префиксы при уходе с поля
+                // Commit prefixes when the field loses focus
                 if (!hasFocus && mCurrentProfile != null) save();
             });
         }
@@ -327,8 +356,8 @@ public class ExtraKeysEditorFragment extends TermuxPreferenceFragmentBase {
     }
 
     /**
-     * Заполняет дропдаун профилей: дефолт + имена из {@code extra-keys-session}.
-     * Сохраняет текущий выбор (mCurrentProfile), если он ещё существует.
+     * Fills the profile dropdown: default + names from {@code extra-keys-session}.
+     * Keeps the current selection (mCurrentProfile) if it still exists.
      */
     private void populateProfileSpinner() {
         if (mProfileSpinner == null) return;
@@ -349,24 +378,30 @@ public class ExtraKeysEditorFragment extends TermuxPreferenceFragmentBase {
 
     private void onProfileSelected() {
         if (mCurrentProfile == null) {
-            // Дефолтный профиль → extra-keys
+            // Default profile → extra-keys
             loadLayoutIntoGrid(mPrefs.getExtraKeys());
             if (mPrefixRow != null) mPrefixRow.setVisibility(View.GONE);
-            if (mProfileDeleteBtn != null) mProfileDeleteBtn.setVisibility(View.GONE);
+            setProfileRowVisibility(View.GONE);
         } else {
             SessionProfile p = loadProfiles().get(mCurrentProfile);
             loadLayoutIntoGrid(p != null ? p.layout : null);
             if (mPrefixRow != null) mPrefixRow.setVisibility(View.VISIBLE);
             if (mPrefixEdit != null)
                 mPrefixEdit.setText(p != null ? TextUtils.join(", ", p.prefixes) : "");
-            if (mProfileDeleteBtn != null) mProfileDeleteBtn.setVisibility(View.VISIBLE);
+            setProfileRowVisibility(View.VISIBLE);
         }
         rebuildPreview();
     }
 
+    /** Export/delete are only available for non-default profiles; import is always visible. */
+    private void setProfileRowVisibility(int visibility) {
+        if (mProfileDeleteBtn != null) mProfileDeleteBtn.setVisibility(visibility);
+        if (mProfileExportBtn != null) mProfileExportBtn.setVisibility(visibility);
+    }
+
     /**
-     * Читает {@code extra-keys-session}; понимает и новый, и старый (legacy) формат.
-     * @return LinkedHashMap имя профиля → SessionProfile (порядок из JSON сохраняется)
+     * Reads {@code extra-keys-session}; understands both the new and old (legacy) format.
+     * @return LinkedHashMap profile name → SessionProfile (order from JSON is preserved)
      */
     private Map<String, SessionProfile> loadProfiles() {
         Map<String, SessionProfile> profiles = new LinkedHashMap<>();
@@ -380,7 +415,7 @@ public class ExtraKeysEditorFragment extends TermuxPreferenceFragmentBase {
                 Object value = json.opt(name);
                 SessionProfile p = new SessionProfile();
                 if (value instanceof JSONObject) {
-                    // Новый формат: { "layout": "...", "prefixes": [...] }
+                    // New format: { "layout": "...", "prefixes": [...] }
                     JSONObject obj = (JSONObject) value;
                     p.layout = obj.optString("layout", "");
                     JSONArray arr = obj.optJSONArray("prefixes");
@@ -391,7 +426,7 @@ public class ExtraKeysEditorFragment extends TermuxPreferenceFragmentBase {
                         }
                     }
                 } else if (value instanceof String) {
-                    // Legacy: ключ = префикс, значение = раскладка
+                    // Legacy: key = prefix, value = layout
                     p.layout = (String) value;
                     p.prefixes.add(name);
                 }
@@ -403,7 +438,7 @@ public class ExtraKeysEditorFragment extends TermuxPreferenceFragmentBase {
         return profiles;
     }
 
-    /** Сериализует все профили целиком (ничего не теряется). */
+    /** Serializes all profiles in one go (nothing is lost). */
     private void saveProfiles(Map<String, SessionProfile> profiles) {
         try {
             JSONObject json = new JSONObject();
@@ -435,7 +470,12 @@ public class ExtraKeysEditorFragment extends TermuxPreferenceFragmentBase {
                     return;
                 }
                 SessionProfile p = new SessionProfile();
-                p.layout = TermuxPropertyConstants.DEFAULT_IVALUE_EXTRA_KEYS; // старт из дефолта
+                // Start from the configured default panel (extra-keys), not the base constant
+                String base = mPrefs.getExtraKeys();
+                if (base == null || base.isEmpty()) {
+                    base = TermuxPropertyConstants.DEFAULT_IVALUE_EXTRA_KEYS;
+                }
+                p.layout = base;
                 profiles.put(name, p);
                 saveProfiles(profiles);
                 mCurrentProfile = name;
@@ -462,10 +502,181 @@ public class ExtraKeysEditorFragment extends TermuxPreferenceFragmentBase {
                 saveProfiles(profiles);
                 mCurrentProfile = null;
                 populateProfileSpinner();
-                onProfileSelected(); // возврат к дефолту
+                onProfileSelected(); // fall back to default
             })
             .setNegativeButton(android.R.string.cancel, null)
             .show();
+    }
+
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (resultCode != Activity.RESULT_OK || data == null || data.getData() == null) return;
+        Uri uri = data.getData();
+        if (requestCode == REQUEST_CODE_EXPORT_PROFILE) {
+            runProfileExport(uri);
+        } else if (requestCode == REQUEST_CODE_IMPORT_PROFILE) {
+            runProfileImport(uri);
+        }
+    }
+
+    /** Exports the selected non-default profile to a single JSON file. */
+    private void startProfileExport() {
+        if (mCurrentProfile == null) return;
+        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("application/json");
+        intent.putExtra(Intent.EXTRA_TITLE, "termux-extra-keys-" + mCurrentProfile + ".json");
+        startActivityForResult(intent, REQUEST_CODE_EXPORT_PROFILE);
+    }
+
+    /** Writes the selected profile (name, prefixes, layout) to the chosen URI. */
+    private void runProfileExport(Uri uri) {
+        showProgressDialog(R.string.extra_keys_editor_profile_export_progress);
+        final Context appContext = requireContext().getApplicationContext();
+        new Thread(() -> {
+            String errorMsg = null;
+            try (OutputStream os = appContext.getContentResolver().openOutputStream(uri)) {
+                if (os == null) throw new IOException("Failed to open output stream");
+                SessionProfile p = loadProfiles().get(mCurrentProfile);
+                JSONObject root = new JSONObject();
+                root.put("format_version", FORMAT_VERSION);
+                root.put("name", mCurrentProfile);
+                root.put("layout", p != null ? p.layout : "");
+                root.put("prefixes", p != null ? new JSONArray(p.prefixes) : new JSONArray());
+                os.write(root.toString(2).getBytes(StandardCharsets.UTF_8));
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to export extra-keys profile", e);
+                errorMsg = e.getMessage();
+            }
+            final String finalError = errorMsg;
+            new Handler(Looper.getMainLooper()).post(() -> {
+                dismissProgressDialog();
+                if (!isAdded()) return;
+                if (finalError == null) {
+                    Toast.makeText(appContext, R.string.extra_keys_editor_profile_export_success, Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(appContext,
+                        getString(R.string.extra_keys_editor_profile_export_failed) + ": " + finalError,
+                        Toast.LENGTH_LONG).show();
+                }
+            });
+        }, "ExtraKeysProfileExport").start();
+    }
+
+    /** Import adds the profile from a file to the list (without touching the current one). */
+    private void startProfileImport() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("*/*");
+        startActivityForResult(intent, REQUEST_CODE_IMPORT_PROFILE);
+    }
+
+    /** Reads a single profile file, validates the JSON and layout, then applies it. */
+    private void runProfileImport(Uri uri) {
+        showProgressDialog(R.string.extra_keys_editor_profile_import_progress);
+        final Context appContext = requireContext().getApplicationContext();
+        new Thread(() -> {
+            String errorMsg = null;
+            JSONObject importedRoot = null;
+            try (InputStream is = appContext.getContentResolver().openInputStream(uri)) {
+                if (is == null) throw new IOException("Failed to open input stream");
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                byte[] buf = new byte[8192];
+                int n;
+                while ((n = is.read(buf)) >= 0) baos.write(buf, 0, n);
+                importedRoot = new JSONObject(new String(baos.toByteArray(), StandardCharsets.UTF_8));
+                int version = importedRoot.optInt("format_version", 0);
+                if (version > FORMAT_VERSION) {
+                    throw new JSONException("Unsupported format version: " + version);
+                }
+                String layout = importedRoot.optString("layout", "");
+                if (layout.isEmpty()) throw new JSONException("Missing profile layout");
+                new JSONArray(layout);
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to parse imported extra-keys profile file", e);
+                errorMsg = e.getMessage();
+            }
+            final String finalError = errorMsg;
+            final JSONObject finalRoot = importedRoot;
+            new Handler(Looper.getMainLooper()).post(() -> {
+                dismissProgressDialog();
+                if (!isAdded()) return;
+                if (finalError != null) {
+                    Toast.makeText(appContext,
+                        getString(R.string.extra_keys_editor_profile_import_failed) + ": " + finalError,
+                        Toast.LENGTH_LONG).show();
+                } else {
+                    applyImportedProfile(finalRoot);
+                }
+            });
+        }, "ExtraKeysProfileImport").start();
+    }
+
+    /** Adds the profile from the file to the list under its own name (a same-named one is overwritten). */
+    private void applyImportedProfile(JSONObject importedRoot) {
+        try {
+            String name = importedRoot.optString("name", "").trim();
+            if (name.isEmpty()) {
+                name = requireContext().getString(R.string.extra_keys_editor_profile_import_default_name);
+            }
+            SessionProfile p = new SessionProfile();
+            p.layout = importedRoot.optString("layout", "");
+            JSONArray prefixes = importedRoot.optJSONArray("prefixes");
+            if (prefixes != null) {
+                for (int i = 0; i < prefixes.length(); i++) {
+                    String pf = prefixes.optString(i, "").trim();
+                    if (!pf.isEmpty()) p.prefixes.add(pf);
+                }
+            }
+
+            Map<String, SessionProfile> profiles = loadProfiles();
+            profiles.put(name, p);
+            saveProfiles(profiles);
+
+            mCurrentProfile = name;
+            populateProfileSpinner();
+            int idx = mProfileNames.indexOf(name);
+            mSuppressSpinnerEvents = true;
+            if (mProfileSpinner != null) mProfileSpinner.setSelection(Math.max(idx, 0));
+            mSuppressSpinnerEvents = false;
+            onProfileSelected();
+            TermuxActivity.updateTermuxActivityStyling(requireContext(), true);
+            Toast.makeText(requireContext(),
+                getString(R.string.extra_keys_editor_profile_import_success, name),
+                Toast.LENGTH_SHORT).show();
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to apply imported extra-keys profile", e);
+            Toast.makeText(requireContext(),
+                getString(R.string.extra_keys_editor_profile_import_failed) + ": " + e.getMessage(),
+                Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void showProgressDialog(int msgRes) {
+        dismissProgressDialog();
+        mProgressDialog = new ProgressDialog(requireContext());
+        mProgressDialog.setMessage(getString(msgRes));
+        mProgressDialog.setCancelable(false);
+        mProgressDialog.show();
+    }
+
+    private void dismissProgressDialog() {
+        if (mProgressDialog != null) {
+            if (mProgressDialog.isShowing()) {
+                try {
+                    mProgressDialog.dismiss();
+                } catch (Exception ignored) {
+                }
+            }
+            mProgressDialog = null;
+        }
+    }
+
+    @Override
+    public void onDestroy() {
+        dismissProgressDialog();
+        super.onDestroy();
     }
 
     private List<String> parsePrefixesFromField() {
@@ -522,6 +733,9 @@ public class ExtraKeysEditorFragment extends TermuxPreferenceFragmentBase {
             }
         };
 
+    private final ExtraKeysView.EditorLongPressListener mEditorLongPressListener =
+        (button, row, col) -> openLabelDialog(row, col);
+
     private final ExtraKeysView.EditorMoveListener mEditorMoveListener =
         (fromRow, fromCol, toRow, toCol) -> {
             // Tag coordinates are relative to visible grid (0..mRows-1, 0..mCols-1)
@@ -537,18 +751,21 @@ public class ExtraKeysEditorFragment extends TermuxPreferenceFragmentBase {
             String tmpSwipeDown = src.swipeDown;
             String tmpSwipeLeft = src.swipeLeft;
             String tmpSwipeRight = src.swipeRight;
+            String tmpDisplay = src.display;
 
             src.tap = dst.tap;
             src.swipeUp = dst.swipeUp;
             src.swipeDown = dst.swipeDown;
             src.swipeLeft = dst.swipeLeft;
             src.swipeRight = dst.swipeRight;
+            src.display = dst.display;
 
             dst.tap = tmpTap;
             dst.swipeUp = tmpSwipeUp;
             dst.swipeDown = tmpSwipeDown;
             dst.swipeLeft = tmpSwipeLeft;
             dst.swipeRight = tmpSwipeRight;
+            dst.display = tmpDisplay;
 
             rebuildPreview();
             save();
@@ -649,7 +866,7 @@ public class ExtraKeysEditorFragment extends TermuxPreferenceFragmentBase {
         loadLayoutIntoGrid(mPrefs.getExtraKeys());
     }
 
-    /** Загружает переданную JSON-раскладку в mGrid (null/пусто → дефолтная). */
+    /** Loads the given JSON layout into mGrid (null/empty → default). */
     private void loadLayoutIntoGrid(@Nullable String layoutJson) {
         String style = mPrefs.getExtraKeysStyle();
         if (style == null) style = "default";
@@ -702,6 +919,33 @@ public class ExtraKeysEditorFragment extends TermuxPreferenceFragmentBase {
             }
         }
 
+        // Explicit {display: ...} is only meaningful when it was authored manually. The OLD editor
+// wrote auto-composed displays for macros; such entries must NOT fill the custom label, so
+// ignore any display that equals the legacy composition of the main action.
+try {
+            JSONArray layoutArr = new JSONArray(current);
+            for (int r = 0; r < loadedRows && r < layoutArr.length(); r++) {
+                Object line = layoutArr.opt(r);
+                if (!(line instanceof JSONArray)) continue;
+                JSONArray rowArr = (JSONArray) line;
+                for (int c = 0; c < loadedCols && c < rowArr.length(); c++) {
+                    Object cellObj = rowArr.opt(c);
+                    if (!(cellObj instanceof JSONObject)) continue;
+                    JSONObject obj = (JSONObject) cellObj;
+                    if (obj.has(ExtraKeyButton.KEY_DISPLAY_NAME)) {
+                        String d = obj.optString(ExtraKeyButton.KEY_DISPLAY_NAME, "");
+                        KeyCell cell = mGrid[gridStartRow + r][gridStartCol + c];
+                        String legacyAuto = computeDisplay(cell.tap);
+                        if (!d.isEmpty() && !d.equals(legacyAuto)) {
+                            cell.display = d;
+                        }
+                    }
+                }
+            }
+        } catch (JSONException e) {
+            Log.e(TAG, "Failed to parse custom labels", e);
+        }
+
         mRows = loadedRows;
         mCols = loadedCols;
 
@@ -732,6 +976,10 @@ public class ExtraKeysEditorFragment extends TermuxPreferenceFragmentBase {
                 JSONObject obj = new JSONObject();
                 if (!cell.tap.isEmpty()) {
                     putSignal(obj, ExtraKeyButton.KEY_KEY_NAME, cell.tap);
+                    // Custom label overrides the auto-composed display of the main action.
+                    if (!cell.display.isEmpty()) {
+                        obj.put(ExtraKeyButton.KEY_DISPLAY_NAME, cell.display);
+                    }
                 }
                 putSwipe(obj, ExtraKeyButton.KEY_SWIPE_UP, cell.swipeUp);
                 putSwipe(obj, ExtraKeyButton.KEY_SWIPE_DOWN, cell.swipeDown);
@@ -753,6 +1001,9 @@ public class ExtraKeysEditorFragment extends TermuxPreferenceFragmentBase {
         if (value == null || value.isEmpty()) return;
         if (value.contains(" ")) {
             obj.put(ExtraKeyButton.KEY_MACRO, value);
+            // Auto-composition with "+" between macro elements. The label stays
+            // separate and empty — on load this display is recognized as auto
+            // (see loadLayoutIntoGrid) and does not fill in the label field.
             obj.put(ExtraKeyButton.KEY_DISPLAY_NAME, computeDisplay(value));
         } else {
             obj.put(key, value);
@@ -771,6 +1022,11 @@ public class ExtraKeysEditorFragment extends TermuxPreferenceFragmentBase {
         }
     }
 
+    /**
+     * Composition that the old editor wrote into {@code display}. Used only to
+     * recognize old auto-generated labels on load, so they do not fill in the
+     * label field (see {@link #loadLayoutIntoGrid}).
+     */
     private String computeDisplay(String macroValue) {
         if (macroValue == null || macroValue.isEmpty()) return "";
         return Arrays.stream(macroValue.split(" "))
@@ -823,6 +1079,29 @@ public class ExtraKeysEditorFragment extends TermuxPreferenceFragmentBase {
 
         SignalPickerDialogFragment fragment = SignalPickerDialogFragment.newInstance(row, col, target, currentSignals);
         fragment.show(getChildFragmentManager(), "signal_picker");
+    }
+
+    /** Dialog for setting a key label. Empty field = auto-generated from the main action. */
+    private void openLabelDialog(int row, int col) {
+        KeyCell cell = mGrid[visibleRowStart() + row][visibleColStart() + col];
+        EditText input = new EditText(requireContext());
+        input.setMaxLines(1);
+        input.setText(cell.display);
+        // The hint shows exactly the text drawn on the preview button (via
+        // ExtraKeyButton.getDisplay(): alias map + style display map), not a hand-made
+        // composition. The field is empty, so the preview carries the same text, making the hint honest.
+        ExtraKeyButton previewBtn = mPreviewView.getExtraKeyButtonAt(row, col);
+        input.setHint(previewBtn != null ? previewBtn.getDisplay() : "");
+        new MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.extra_keys_editor_label_dialog_title)
+            .setView(input)
+            .setPositiveButton(android.R.string.ok, (d, w) -> {
+                cell.display = input.getText().toString().trim();
+                rebuildPreview();
+                save();
+            })
+            .setNegativeButton(android.R.string.cancel, null)
+            .show();
     }
 
     private void handleSignalPickerResult(@NonNull Bundle result) {
@@ -879,10 +1158,10 @@ public class ExtraKeysEditorFragment extends TermuxPreferenceFragmentBase {
         }
 
         if (mCurrentProfile == null) {
-            // Дефолтный профиль → extra-keys
+            // Default profile → extra-keys
             mPrefs.setExtraKeys(json);
         } else {
-            // Именованный профиль → его слот в extra-keys-session
+            // Named profile → its slot in extra-keys-session
             Map<String, SessionProfile> profiles = loadProfiles();
             SessionProfile p = profiles.get(mCurrentProfile);
             if (p == null) p = new SessionProfile();

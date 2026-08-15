@@ -367,10 +367,30 @@
     <string name="extra_keys_editor_open_editor_summary">تكوين التخطيط والتحجيم وربط المفاتيح</string>
     <string name="extra_keys_edge_indicators_title">مؤشرات اتجاه السحب</string>
     <string name="extra_keys_edge_indicators_summary">إظهار مؤشرات اتجاهات السحب مع الإجراءات المعينة على المفاتيح الإضافية</string>
-    <string name="extra_keys_editor_hint">اضغط لتعيين الإجراء الرئيسي · اسحب ↑ ↓ ← → لتعيين إجراءات الإيماءات</string>
+    <string name="extra_keys_editor_hint">اضغط لتعيين الإجراء الرئيسي · اسحب ↑ ↓ ← → لتعيين إجراءات الإيماءات · اضغط مطولاً على مفتاح لتعيين تسميته</string>
     <string name="extra_keys_editor_mode_assign">تعيين</string>
     <string name="extra_keys_editor_mode_move">نقل</string>
     <string name="extra_keys_editor_hint_move">اسحب مفتاحاً إلى خلية أخرى لنقل/تبادل جميع إجراءاته</string>
+    <string name="extra_keys_editor_label_dialog_title">تسمية</string>
+    <string name="extra_keys_editor_profile_default">الافتراضي</string>
+    <string name="extra_keys_editor_profile_add">إضافة ملف التعريف</string>
+    <string name="extra_keys_editor_profile_delete">حذف ملف التعريف</string>
+    <string name="extra_keys_editor_profile_add_title">ملف التعريف الجديد للمفاتيح الإضافية</string>
+    <string name="extra_keys_editor_profile_name_hint">اسم ملف التعريف</string>
+    <string name="extra_keys_editor_profile_exists">يوجد بالفعل ملف التعريف بهذا الاسم</string>
+    <string name="extra_keys_editor_profile_delete_title">حذف ملف التعريف</string>
+    <string name="extra_keys_editor_profile_delete_confirm">حذف ملف التعريف “%1$s”؟ لن تقوم بادئات الجلسة بتفعيل هذا التخطيط بعد الآن.</string>
+    <string name="extra_keys_editor_profile_prefix_title">بادئات الجلسة</string>
+    <string name="extra_keys_editor_profile_prefix_hint">مثل: nano, vim, htop</string>
+    <string name="extra_keys_editor_profile_export">تصدير ملف التعريف</string>
+    <string name="extra_keys_editor_profile_import">استيراد ملف التعريف</string>
+    <string name="extra_keys_editor_profile_export_progress">جاري تصدير ملف التعريف…</string>
+    <string name="extra_keys_editor_profile_import_progress">جاري استيراد ملف التعريف…</string>
+    <string name="extra_keys_editor_profile_export_success">تم تصدير ملف التعريف بنجاح</string>
+    <string name="extra_keys_editor_profile_import_success">تم استيراد ملف التعريف “%1$s” بنجاح</string>
+    <string name="extra_keys_editor_profile_export_failed">فشل التصدير</string>
+    <string name="extra_keys_editor_profile_import_failed">فشل الاستيراد</string>
+    <string name="extra_keys_editor_profile_import_default_name">مستورد</string>
 
     
     <string name="extra_keys_haptic_title">الاستجابة اللمسية</string>

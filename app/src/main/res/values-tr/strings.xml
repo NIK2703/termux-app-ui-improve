@@ -369,10 +369,34 @@
     <string name="extra_keys_editor_open_editor_summary">Düzen, ölçek ve tuş bağlamalarını yapılandırın</string>
     <string name="extra_keys_edge_indicators_title">Kaydırma yönü göstergeleri</string>
     <string name="extra_keys_edge_indicators_summary">Ek tuşlarda atanmış eylemlerin kaydırma yönü göstergelerini göster</string>
-    <string name="extra_keys_editor_hint">Ana eylem atamak için dokunun · Hareket eylemleri atamak için ↑ ↓ ← → kaydırın</string>
+    <string name="extra_keys_editor_hint">Ana eylem atamak için dokunun · Hareket eylemleri atamak için ↑ ↓ ← → kaydırın · Etiketini ayarlamak için bir tuşa uzun basın</string>
     <string name="extra_keys_editor_mode_assign">Ata</string>
     <string name="extra_keys_editor_mode_move">Taşı</string>
     <string name="extra_keys_editor_hint_move">Tüm eylemleri taşımak/değiştirmek için bir tuşu başka bir hücreye sürükleyin</string>
+
+    <!-- Extra Keys Editor: session profiles -->
+    <string name="extra_keys_editor_profile_default">Varsayılan</string>
+    <string name="extra_keys_editor_profile_add">Profil ekle</string>
+    <string name="extra_keys_editor_profile_delete">Profili sil</string>
+    <string name="extra_keys_editor_profile_add_title">Yeni ek tuşlar profili</string>
+    <string name="extra_keys_editor_profile_name_hint">Profil adı</string>
+    <string name="extra_keys_editor_profile_exists">Bu ada sahip bir profil zaten mevcut</string>
+    <string name="extra_keys_editor_profile_delete_title">Profili sil</string>
+    <string name="extra_keys_editor_profile_delete_confirm">“%1$s” profili silinsin mi? Oturum ön ekleri bu düzeni artık etkinleştirmeyecek.</string>
+    <string name="extra_keys_editor_profile_prefix_title">Oturum ön ekleri</string>
+    <string name="extra_keys_editor_profile_prefix_hint">örn. nano, vim, htop</string>
+
+    <!-- Extra Keys Editor: single profile export/import -->
+    <string name="extra_keys_editor_profile_export">Profili dışa aktar</string>
+    <string name="extra_keys_editor_profile_import">Profili içe aktar</string>
+    <string name="extra_keys_editor_profile_export_progress">Profil dışa aktarılıyor…</string>
+    <string name="extra_keys_editor_profile_import_progress">Profil içe aktarılıyor…</string>
+    <string name="extra_keys_editor_profile_export_success">Profil başarıyla dışa aktarıldı</string>
+    <string name="extra_keys_editor_profile_import_success">“%1$s” profili başarıyla içe aktarıldı</string>
+    <string name="extra_keys_editor_profile_export_failed">Dışa aktarma başarısız oldu</string>
+    <string name="extra_keys_editor_profile_import_failed">İçe aktarma başarısız oldu</string>
+    <string name="extra_keys_editor_profile_import_default_name">İçe aktarılan</string>
+    <string name="extra_keys_editor_label_dialog_title">Etiket</string>
 
     
     <string name="extra_keys_editor_signal_keyboard">Klavye aç/kapat</string>

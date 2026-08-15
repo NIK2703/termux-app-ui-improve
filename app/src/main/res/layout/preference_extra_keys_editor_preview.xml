@@ -5,7 +5,7 @@
     android:orientation="vertical"
     android:padding="8dp">
 
-    <!-- ── Выбор профиля ─────────────────────────────────────── -->
+    <!-- ── Profile selection ─────────────────────────────────── -->
     <LinearLayout
         android:id="@+id/profile_selector_row"
         android:layout_width="match_parent"
@@ -25,8 +25,27 @@
             style="?android:attr/buttonBarStyle"
             android:layout_width="40dp"
             android:layout_height="40dp"
-            android:src="@android:drawable/ic_input_add"
+            android:src="@drawable/ic_add"
             android:contentDescription="@string/extra_keys_editor_profile_add"
+            android:background="?android:attr/selectableItemBackgroundBorderless" />
+
+        <ImageButton
+            android:id="@+id/profile_export_btn"
+            style="?android:attr/buttonBarStyle"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_export"
+            android:contentDescription="@string/extra_keys_editor_profile_export"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:visibility="gone" />
+
+        <ImageButton
+            android:id="@+id/profile_import_btn"
+            style="?android:attr/buttonBarStyle"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_import"
+            android:contentDescription="@string/extra_keys_editor_profile_import"
             android:background="?android:attr/selectableItemBackgroundBorderless" />
 
         <ImageButton
@@ -34,13 +53,13 @@
             style="?android:attr/buttonBarStyle"
             android:layout_width="40dp"
             android:layout_height="40dp"
-            android:src="@android:drawable/ic_menu_delete"
+            android:src="@drawable/ic_delete"
             android:contentDescription="@string/extra_keys_editor_profile_delete"
             android:background="?android:attr/selectableItemBackgroundBorderless"
             android:visibility="gone" />
     </LinearLayout>
 
-    <!-- ── Префиксы сессий (только для не-дефолтного профиля) ── -->
+    <!-- ── Session prefixes (non-default profiles only) ──────── -->
     <LinearLayout
         android:id="@+id/prefix_row"
         android:layout_width="match_parent"
@@ -66,23 +85,12 @@
             android:imeOptions="actionDone" />
     </LinearLayout>
 
-    <!-- ── Панель превью ─────────────────────────────────────── -->
-    <com.termux.shared.termux.extrakeys.ExtraKeysView
-        android:id="@+id/extra_keys_editor_preview"
-        style="?android:attr/buttonBarStyle"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom"
-        android:background="@android:color/transparent"
-        android:orientation="horizontal" />
-
-    <!-- ── Assign/Move (под панелью) ─────────────────────────── -->
+    <!-- ── Assign/Move (above the panel) ─────────────────────── -->
     <LinearLayout
         android:id="@+id/editor_mode_toggle_row"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:layout_marginTop="8dp"
         android:layout_marginBottom="8dp">
 
         <TextView
@@ -110,7 +118,17 @@
             android:focusable="true" />
     </LinearLayout>
 
-    <!-- ── Подсказка ─────────────────────────────────────────── -->
+    <!-- ── Preview panel ─────────────────────────────────────── -->
+    <com.termux.shared.termux.extrakeys.ExtraKeysView
+        android:id="@+id/extra_keys_editor_preview"
+        style="?android:attr/buttonBarStyle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:background="@android:color/transparent"
+        android:orientation="horizontal" />
+
+    <!-- ── Hint ──────────────────────────────────────────────── -->
     <TextView
         android:id="@+id/extra_keys_editor_hint_text"
         android:layout_width="match_parent"

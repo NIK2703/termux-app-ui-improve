@@ -81,7 +81,7 @@ public class TermuxSessionTabsController {
 
     private int getTabCount() {
         if (mTabsContainer == null) return 0;
-        return mTabsContainer.getChildCount() - 1; // последний child — это (+) кнопка, не таб
+        return mTabsContainer.getChildCount() - 1; // last child is the (+) button, not a tab
     }
 
     @Nullable
@@ -669,7 +669,7 @@ public class TermuxSessionTabsController {
                 // Self-driven ValueAnimator writing a FIXED target is re-clamp-proof.
                 // This is the CENTRE equivalent of runEndScroll(): HorizontalScrollView.smoothScrollTo()
                 // re-clamps the in-flight animation to its (possibly changing) content width on
-                // every frame, so the strip could yank left mid-animation on cold start — "криво".
+                // every frame, so the strip could yank left mid-animation on cold start — "janky".
                 final int fromX = mTabsScroll.getScrollX();
                 if (fromX == scrollX) return;
                 final android.animation.ValueAnimator anim =

@@ -133,6 +133,17 @@ public final class ExtraKeysView extends GridLayout implements SpecialButtonStat
         void onKeySwipe(View button, int row, int col, SwipeDirection direction);
     }
 
+    /** Listener for editor-mode long presses (used to edit a button's custom label). */
+    public interface EditorLongPressListener {
+        /**
+         * Called when a button is held long enough to be a long press (release without movement).
+         * @param button The button view that was long-pressed.
+         * @param row Row index of the button.
+         * @param col Column index of the button.
+         */
+        void onKeyLongPress(View button, int row, int col);
+    }
+
     /** The client for the {@link ExtraKeysView}. */
     public interface IExtraKeysView {
 
@@ -387,6 +398,13 @@ public final class ExtraKeysView extends GridLayout implements SpecialButtonStat
     private boolean mGestureConsumed;
     @Nullable private View mActiveChild;
     private int mSwipeThreshold; // pixels
+    /** Long-press listener (editor mode). */
+    @Nullable
+    private EditorLongPressListener mEditorLongPressListener;
+    /** Pending delayed long-press task; fires while the finger is still held. */
+    @Nullable
+    private Runnable mLpRunnable;
+    private boolean mLpFired;
 
     /** Runtime swipe detection: X coordinate of finger down. */
     private float mTouchDownX;
@@ -1210,6 +1228,27 @@ public final class ExtraKeysView extends GridLayout implements SpecialButtonStat
 
         return true;
     }
+    /**
+     * Returns the {@link ExtraKeyButton} rendered at the given logical preview position,
+     * or {@code null} if there is no button there (empty cell or out of range).
+     *
+     * <p>The preview lays its buttons out row-major in child order, so index {@code row * getColumnCount() + col}
+     * matches the visual grid. The returned button's {@link ExtraKeyButton#getDisplay()} is exactly
+     * the text drawn on the button (after alias + style display-map resolution), so callers can
+     * reuse it instead of recomputing a label themselves.
+     *
+     * @param row zero-based logical row in the preview grid
+     * @param col zero-based logical column in the preview grid
+     */
+    @Nullable
+    public ExtraKeyButton getExtraKeyButtonAt(int row, int col) {
+        if (row < 0 || col < 0 || getColumnCount() <= 0) return null;
+        int index = row * getColumnCount() + col;
+        if (index < 0 || index >= getChildCount()) return null;
+        View child = getChildAt(index);
+        Object tag = child != null ? child.getTag(TAG_EXTRA_KEY_INFO) : null;
+        return tag instanceof ExtraKeyButton ? (ExtraKeyButton) tag : null;
+    }
 
     /**
      * Create a MaterialButton configured with zero internal padding/insets.
@@ -1301,6 +1340,11 @@ public final class ExtraKeysView extends GridLayout implements SpecialButtonStat
     /** Set the listener for move-mode drag-and-drop operations. */
     public void setEditorMoveListener(@Nullable EditorMoveListener listener) {
         mEditorMoveListener = listener;
+    }
+
+    /** Set the long-press listener (fires on a held press released without movement). */
+    public void setEditorLongPressListener(@Nullable EditorLongPressListener listener) {
+        mEditorLongPressListener = listener;
     }
 
     /** Cancel any ongoing editor gesture and reset touch state. */
@@ -1802,6 +1846,8 @@ public final class ExtraKeysView extends GridLayout implements SpecialButtonStat
                 mDownX = ev.getX();
                 mDownY = ev.getY();
                 mGestureConsumed = false;
+                mLpFired = false;
+                scheduleLongPress(mActiveChild);
 
                 mActiveChild.setPressed(true);
                 return true;
@@ -1823,6 +1869,8 @@ public final class ExtraKeysView extends GridLayout implements SpecialButtonStat
 
                 SwipeDirection direction = detectDirection(dx, dy);
                 if (direction != null) {
+                    // A swipe cancels the pending long press (it's a swipe, not a hold).
+                    cancelEditorLongPress();
                     mEditorSwipeDir = direction;
                     invalidate();
                     fireSwipe(mActiveChild, direction);
@@ -1841,6 +1889,12 @@ public final class ExtraKeysView extends GridLayout implements SpecialButtonStat
                 }
 
                 int pointerIndex = ev.findPointerIndex(mActivePointerId);
+                if (mLpFired) {
+                    // Long press already fired while the finger was held — nothing more to do.
+                    resetTouchState();
+                    return true;
+                }
+                cancelEditorLongPress();
                 if (pointerIndex >= 0 && !mGestureConsumed) {
                     float x = ev.getX(pointerIndex);
                     float y = ev.getY(pointerIndex);
@@ -1899,6 +1953,22 @@ public final class ExtraKeysView extends GridLayout implements SpecialButtonStat
         });
     }
 
+    private void fireLongPress(@Nullable View button) {
+        if (button == null) return;
+        Object tag = button.getTag();
+        if (!(tag instanceof int[])) return;
+        int[] coord = (int[]) tag;
+
+        final View fButton = button;
+        final int row = coord[0];
+        final int col = coord[1];
+
+        button.post(() -> {
+            if (!isAttachedToWindow() || mEditorLongPressListener == null) return;
+            mEditorLongPressListener.onKeyLongPress(fButton, row, col);
+        });
+    }
+
     private void fireSwipe(@Nullable View button, SwipeDirection direction) {
         if (button == null) return;
         Object tag = button.getTag();
@@ -1951,6 +2021,7 @@ public final class ExtraKeysView extends GridLayout implements SpecialButtonStat
     }
 
     private void resetTouchState() {
+        cancelEditorLongPress();
         if (mActiveChild != null) {
             mActiveChild.setPressed(false);
         }
@@ -1958,10 +2029,35 @@ public final class ExtraKeysView extends GridLayout implements SpecialButtonStat
         mActivePointerId = INVALID_POINTER_ID;
         mGestureConsumed = false;
         mEditorSwipeDir = null;
+        mLpFired = false;
 
         ViewParent parent = getParent();
         if (parent != null) {
             parent.requestDisallowInterceptTouchEvent(false);
+        }
+    }
+
+    /** Schedule a long press on {@code button} to fire after the system long-press timeout. */
+    private void scheduleLongPress(@Nullable View button) {
+        cancelEditorLongPress();
+        // Long press is only meaningful in tap-like editor modes (not MOVE) with a listener.
+        if (button == null || mEditorLongPressListener == null || mEditorMode == EditorMode.MOVE) {
+            return;
+        }
+        final View fb = button;
+        mLpRunnable = () -> {
+            mLpRunnable = null;
+            if (mLpFired) return;
+            mLpFired = true;
+            fireLongPress(fb);
+        };
+        postDelayed(mLpRunnable, ViewConfiguration.getLongPressTimeout());
+    }
+
+    private void cancelEditorLongPress() {
+        if (mLpRunnable != null) {
+            removeCallbacks(mLpRunnable);
+            mLpRunnable = null;
         }
     }
 

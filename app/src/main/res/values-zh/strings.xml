@@ -376,10 +376,32 @@
     <string name="extra_keys_editor_open_editor_summary">配置布局、缩放和按键绑定</string>
     <string name="extra_keys_edge_indicators_title">滑动方向指示器</string>
     <string name="extra_keys_edge_indicators_summary">在额外按键上显示滑动方向及其分配的操作</string>
-    <string name="extra_keys_editor_hint">点击分配主操作 · 滑动 ↑ ↓ ← → 分配手势操作</string>
+    <string name="extra_keys_editor_hint">点击分配主操作 · 滑动 ↑ ↓ ← → 分配手势操作 · 长按按键设置其标签</string>
     <string name="extra_keys_editor_mode_assign">分配</string>
     <string name="extra_keys_editor_mode_move">移动</string>
     <string name="extra_keys_editor_hint_move">将键拖到其他单元格以移动/交换其所有操作</string>
+    <string name="extra_keys_editor_label_dialog_title">标签</string>
+
+    <!-- Extra Keys Editor: session profiles -->
+    <string name="extra_keys_editor_profile_default">默认</string>
+    <string name="extra_keys_editor_profile_add">添加配置文件</string>
+    <string name="extra_keys_editor_profile_delete">删除配置文件</string>
+    <string name="extra_keys_editor_profile_add_title">新建额外按键配置文件</string>
+    <string name="extra_keys_editor_profile_name_hint">配置文件名称</string>
+    <string name="extra_keys_editor_profile_exists">已存在同名配置文件</string>
+    <string name="extra_keys_editor_profile_delete_title">删除配置文件</string>
+    <string name="extra_keys_editor_profile_delete_confirm">删除配置文件“%1$s”？其会话前缀将不再激活此布局。</string>
+    <string name="extra_keys_editor_profile_prefix_title">会话前缀</string>
+    <string name="extra_keys_editor_profile_prefix_hint">例如：nano、vim、htop</string>
+    <string name="extra_keys_editor_profile_export">导出配置文件</string>
+    <string name="extra_keys_editor_profile_import">导入配置文件</string>
+    <string name="extra_keys_editor_profile_export_progress">正在导出配置文件…</string>
+    <string name="extra_keys_editor_profile_import_progress">正在导入配置文件…</string>
+    <string name="extra_keys_editor_profile_export_success">配置文件导出成功</string>
+    <string name="extra_keys_editor_profile_import_success">配置文件“%1$s”导入成功</string>
+    <string name="extra_keys_editor_profile_export_failed">导出失败</string>
+    <string name="extra_keys_editor_profile_import_failed">导入失败</string>
+    <string name="extra_keys_editor_profile_import_default_name">已导入</string>
 
     
     <string name="extra_keys_editor_signal_keyboard">键盘切换</string>

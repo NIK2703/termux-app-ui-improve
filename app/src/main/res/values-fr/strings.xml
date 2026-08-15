@@ -345,10 +345,30 @@
     <string name="extra_keys_editor_open_editor_summary">Configurer la disposition, l\'échelle et les raccourcis clavier</string>
     <string name="extra_keys_edge_indicators_title">Indicateurs de direction de balayage</string>
     <string name="extra_keys_edge_indicators_summary">Afficher les indicateurs de direction de balayage avec les actions assignées aux touches supplémentaires</string>
-    <string name="extra_keys_editor_hint">Appuyez pour attribuer l\'action principale · Glissez ↑ ↓ ← → pour attribuer les actions gestuelles</string>
+    <string name="extra_keys_editor_hint">Appuyez pour attribuer l\'action principale · Glissez ↑ ↓ ← → pour attribuer les actions gestuelles · Appuyez longuement sur une touche pour définir son libellé</string>
+    <string name="extra_keys_editor_label_dialog_title">Libellé</string>
     <string name="extra_keys_editor_mode_assign">Attribuer</string>
     <string name="extra_keys_editor_mode_move">Déplacer</string>
     <string name="extra_keys_editor_hint_move">Faites glisser une touche vers une autre cellule pour déplacer/échanger toutes ses actions</string>
+    <string name="extra_keys_editor_profile_default">Par défaut</string>
+    <string name="extra_keys_editor_profile_add">Ajouter un profil</string>
+    <string name="extra_keys_editor_profile_delete">Supprimer le profil</string>
+    <string name="extra_keys_editor_profile_add_title">Nouveau profil de touches supplémentaires</string>
+    <string name="extra_keys_editor_profile_name_hint">Nom du profil</string>
+    <string name="extra_keys_editor_profile_exists">Un profil portant ce nom existe déjà</string>
+    <string name="extra_keys_editor_profile_delete_title">Supprimer le profil</string>
+    <string name="extra_keys_editor_profile_delete_confirm">Supprimer le profil « %1$s » ? Ses préfixes de session n\'activeront plus cette disposition.</string>
+    <string name="extra_keys_editor_profile_prefix_title">Préfixes de session</string>
+    <string name="extra_keys_editor_profile_prefix_hint">ex. nano, vim, htop</string>
+    <string name="extra_keys_editor_profile_export">Exporter le profil</string>
+    <string name="extra_keys_editor_profile_import">Importer le profil</string>
+    <string name="extra_keys_editor_profile_export_progress">Exportation du profil…</string>
+    <string name="extra_keys_editor_profile_import_progress">Importation du profil…</string>
+    <string name="extra_keys_editor_profile_export_success">Profil exporté avec succès</string>
+    <string name="extra_keys_editor_profile_import_success">Profil « %1$s » importé avec succès</string>
+    <string name="extra_keys_editor_profile_export_failed">Échec de l\'exportation</string>
+    <string name="extra_keys_editor_profile_import_failed">Échec de l\'importation</string>
+    <string name="extra_keys_editor_profile_import_default_name">Importé</string>
 
     
     <string name="extra_keys_haptic_title">Retour haptique</string>

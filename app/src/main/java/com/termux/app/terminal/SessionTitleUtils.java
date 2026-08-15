@@ -10,7 +10,7 @@ import com.termux.R;
 public final class SessionTitleUtils {
     private SessionTitleUtils() {}
 
-    /** Возвращает отображаемое имя сессии по правилу: name если не пуст, иначе title, иначе дефолтный ресурс. */
+    /** Returns the display name of a session by the rule: name if non-empty, else title, else the default resource. */
     public static String resolveDisplayName(@NonNull Context context,
             @Nullable String sessionName, @Nullable String title) {
         if (sessionName != null && !sessionName.isEmpty()) return sessionName;

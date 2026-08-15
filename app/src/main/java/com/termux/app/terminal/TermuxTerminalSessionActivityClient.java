@@ -193,6 +193,14 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
         }
 
         termuxSessionListNotifyUpdated();
+
+        // A title change can alter the session-name prefix match (e.g. a shell/CLI sets an
+        // OSC title once it starts). Re-evaluate the extra-keys profile for the active session
+        // so the panel switches without a manual tab change. applySessionExtraKeys is a no-op
+        // via isSameLayout when the profile (or default) is already shown.
+        if (mActivity.getCurrentSession() == updatedSession) {
+            applySessionExtraKeys(updatedSession);
+        }
         });
     }
 
@@ -539,22 +547,28 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
      * process-based context is handled inside the controller.
      */
     private void applySessionExtraKeys(@NonNull TerminalSession session) {
+        // mSessionName is null for unnamed sessions, so prefer it, then the emulator
+        // title (what the tab shows). Both null -> no profile match -> default layout.
+        String sessionName = session.mSessionName;
+        if (TextUtils.isEmpty(sessionName)) sessionName = session.getTitle();
+        if (TextUtils.isEmpty(sessionName)) sessionName = null;
+
         TermuxTerminalExtraKeys extraKeys = mActivity.getTermuxTerminalExtraKeys();
         if (extraKeys != null) {
             Logger.logInfo(LOG_TAG, "applySessionExtraKeys: sessionName=\""
-                    + session.mSessionName + "\"");
+                    + sessionName + "\"");
             SessionSwitchLog.log(mActivity.getApplicationContext(),
-                "applySessionExtraKeys: trigger sessionName=\"" + session.mSessionName
+                "applySessionExtraKeys: trigger sessionName=\"" + sessionName
                     + "\" title=\"" + session.getTitle() + "\"");
             // Profiles may have been saved while this activity was stopped (broadcast missed),
             // so re-read them before resolving the session name.
             extraKeys.reloadSessionMap();
-            extraKeys.onSessionNameChanged(session.mSessionName);
+            extraKeys.onSessionNameChanged(sessionName);
         } else {
             Logger.logInfo(LOG_TAG, "applySessionExtraKeys: extraKeys panel not initialized yet (null)");
             SessionSwitchLog.log(mActivity.getApplicationContext(),
                 "applySessionExtraKeys: extraKeys CONTROLLER NULL — switch dropped for \""
-                    + session.mSessionName + "\"");
+                    + sessionName + "\"");
         }
     }
 
