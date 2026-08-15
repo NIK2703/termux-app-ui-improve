@@ -5,6 +5,87 @@
     android:orientation="vertical"
     android:padding="8dp">
 
+    <!-- ── Profile selection ─────────────────────────────────── -->
+    <LinearLayout
+        android:id="@+id/profile_selector_row"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="4dp">
+
+        <Spinner
+            android:id="@+id/profile_spinner"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1" />
+
+        <ImageButton
+            android:id="@+id/profile_add_btn"
+            style="?android:attr/buttonBarStyle"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_add"
+            android:contentDescription="@string/extra_keys_editor_profile_add"
+            android:background="?android:attr/selectableItemBackgroundBorderless" />
+
+        <ImageButton
+            android:id="@+id/profile_export_btn"
+            style="?android:attr/buttonBarStyle"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_export"
+            android:contentDescription="@string/extra_keys_editor_profile_export"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:visibility="gone" />
+
+        <ImageButton
+            android:id="@+id/profile_import_btn"
+            style="?android:attr/buttonBarStyle"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_import"
+            android:contentDescription="@string/extra_keys_editor_profile_import"
+            android:background="?android:attr/selectableItemBackgroundBorderless" />
+
+        <ImageButton
+            android:id="@+id/profile_delete_btn"
+            style="?android:attr/buttonBarStyle"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_delete"
+            android:contentDescription="@string/extra_keys_editor_profile_delete"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:visibility="gone" />
+    </LinearLayout>
+
+    <!-- ── Session prefixes (non-default profiles only) ──────── -->
+    <LinearLayout
+        android:id="@+id/prefix_row"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginBottom="8dp"
+        android:visibility="gone">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/extra_keys_editor_profile_prefix_title"
+            android:textSize="12sp"
+            android:textColor="?android:attr/textColorSecondary" />
+
+        <EditText
+            android:id="@+id/profile_prefix_edit"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/extra_keys_editor_profile_prefix_hint"
+            android:inputType="text"
+            android:maxLines="1"
+            android:imeOptions="actionDone" />
+    </LinearLayout>
+
+    <!-- ── Assign/Move (above the panel) ─────────────────────── -->
     <LinearLayout
         android:id="@+id/editor_mode_toggle_row"
         android:layout_width="match_parent"
@@ -35,9 +116,9 @@
             android:text="@string/extra_keys_editor_mode_move"
             android:clickable="true"
             android:focusable="true" />
-
     </LinearLayout>
 
+    <!-- ── Preview panel ─────────────────────────────────────── -->
     <com.termux.shared.termux.extrakeys.ExtraKeysView
         android:id="@+id/extra_keys_editor_preview"
         style="?android:attr/buttonBarStyle"
@@ -47,6 +128,7 @@
         android:background="@android:color/transparent"
         android:orientation="horizontal" />
 
+    <!-- ── Hint ──────────────────────────────────────────────── -->
     <TextView
         android:id="@+id/extra_keys_editor_hint_text"
         android:layout_width="match_parent"

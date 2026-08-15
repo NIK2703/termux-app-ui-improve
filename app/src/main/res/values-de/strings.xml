@@ -339,10 +339,32 @@
     <string name="extra_keys_editor_open_editor_summary">Layout, Skalierung und Tastenzuweisungen konfigurieren</string>
     <string name="extra_keys_edge_indicators_title">Wischrichtungssymbole</string>
     <string name="extra_keys_edge_indicators_summary">Wischrichtungssymbole für Aktionen auf Zusatztasten anzeigen</string>
-    <string name="extra_keys_editor_hint">Tippen, um die Hauptaktion zuzuweisen · Wischen ↑ ↓ ← → für Gestenaktionen</string>
+    <string name="extra_keys_editor_hint">Tippen, um die Hauptaktion zuzuweisen · Wischen ↑ ↓ ← → für Gestenaktionen · langes Drücken, um das Label einer Taste festzulegen</string>
     <string name="extra_keys_editor_mode_assign">Zuweisen</string>
     <string name="extra_keys_editor_mode_move">Verschieben</string>
     <string name="extra_keys_editor_hint_move">Taste auf andere Zelle ziehen, um Aktionen zu verschieben/auszutauschen</string>
+
+    <!-- Extra Keys Editor: session profiles -->
+    <string name="extra_keys_editor_label_dialog_title">Label</string>
+    <string name="extra_keys_editor_profile_default">Standard</string>
+    <string name="extra_keys_editor_profile_add">Profil hinzufügen</string>
+    <string name="extra_keys_editor_profile_delete">Profil löschen</string>
+    <string name="extra_keys_editor_profile_add_title">Neues Zusatztasten-Profil</string>
+    <string name="extra_keys_editor_profile_name_hint">Profilname</string>
+    <string name="extra_keys_editor_profile_exists">Ein Profil mit diesem Namen ist bereits vorhanden</string>
+    <string name="extra_keys_editor_profile_delete_title">Profil löschen</string>
+    <string name="extra_keys_editor_profile_delete_confirm">Profil „%1$s“ löschen? Seine Sitzungs-Präfixe werden dieses Layout nicht mehr aktivieren.</string>
+    <string name="extra_keys_editor_profile_prefix_title">Sitzungs-Präfixe</string>
+    <string name="extra_keys_editor_profile_prefix_hint">zum Beispiel nano, vim, htop</string>
+    <string name="extra_keys_editor_profile_export">Profil exportieren</string>
+    <string name="extra_keys_editor_profile_import">Profil importieren</string>
+    <string name="extra_keys_editor_profile_export_progress">Profil wird exportiert…</string>
+    <string name="extra_keys_editor_profile_import_progress">Profil wird importiert…</string>
+    <string name="extra_keys_editor_profile_export_success">Profil erfolgreich exportiert</string>
+    <string name="extra_keys_editor_profile_import_success">Profil „%1$s“ erfolgreich importiert</string>
+    <string name="extra_keys_editor_profile_export_failed">Export fehlgeschlagen</string>
+    <string name="extra_keys_editor_profile_import_failed">Import fehlgeschlagen</string>
+    <string name="extra_keys_editor_profile_import_default_name">Importiert</string>
 
     
     <string name="extra_keys_haptic_title">Haptisches Feedback</string>

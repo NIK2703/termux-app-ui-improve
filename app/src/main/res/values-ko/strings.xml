@@ -361,10 +361,30 @@ $HOME/bin/termux-url-opener
     <string name="extra_keys_editor_open_editor_summary">레이아웃, 크기 및 키 바인딩 구성</string>
     <string name="extra_keys_edge_indicators_title">스와이프 방향 표시기</string>
     <string name="extra_keys_edge_indicators_summary">추가 키에 할당된 동작과 함께 스와이프 방향을 표시합니다</string>
-    <string name="extra_keys_editor_hint">탭하여 기본 동작 지정 · ↑ ↓ ← → 스와이프하여 제스처 동작 지정</string>
+    <string name="extra_keys_editor_hint">탭하여 기본 동작 지정 · ↑ ↓ ← → 스와이프하여 제스처 동작 지정 · 키를 길게 눌러 라벨 설정</string>
     <string name="extra_keys_editor_mode_assign">할당</string>
     <string name="extra_keys_editor_mode_move">이동</string>
     <string name="extra_keys_editor_hint_move">키를 다른 셀로 드래그하여 모든 동작 이동/교체</string>
+    <string name="extra_keys_editor_label_dialog_title">라벨</string>
+    <string name="extra_keys_editor_profile_default">기본값</string>
+    <string name="extra_keys_editor_profile_add">프로필 추가</string>
+    <string name="extra_keys_editor_profile_delete">프로필 삭제</string>
+    <string name="extra_keys_editor_profile_add_title">새 추가 키 프로필</string>
+    <string name="extra_keys_editor_profile_name_hint">프로필 이름</string>
+    <string name="extra_keys_editor_profile_exists">같은 이름의 프로필이 이미 존재합니다</string>
+    <string name="extra_keys_editor_profile_delete_title">프로필 삭제</string>
+    <string name="extra_keys_editor_profile_delete_confirm">프로필 “%1$s”을(를) 삭제하시겠습니까? 이 프로필의 세션 접두사는 더 이상 이 레이아웃을 활성화하지 않습니다.</string>
+    <string name="extra_keys_editor_profile_prefix_title">세션 접두사</string>
+    <string name="extra_keys_editor_profile_prefix_hint">예를 들어 nano, vim, htop</string>
+    <string name="extra_keys_editor_profile_export">프로필 내보내기</string>
+    <string name="extra_keys_editor_profile_import">프로필 가져오기</string>
+    <string name="extra_keys_editor_profile_export_progress">프로필을 내보내는 중…</string>
+    <string name="extra_keys_editor_profile_import_progress">프로필을 가져오는 중…</string>
+    <string name="extra_keys_editor_profile_export_success">프로필이 성공적으로 내보내졌습니다</string>
+    <string name="extra_keys_editor_profile_import_success">프로필 “%1$s”을(를) 성공적으로 가져왔습니다</string>
+    <string name="extra_keys_editor_profile_export_failed">내보내기 실패</string>
+    <string name="extra_keys_editor_profile_import_failed">가져오기 실패</string>
+    <string name="extra_keys_editor_profile_import_default_name">가져온 프로필</string>
 
     
     <string name="extra_keys_haptic_title">햅틱 피드백</string>

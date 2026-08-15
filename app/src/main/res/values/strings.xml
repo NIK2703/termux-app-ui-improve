@@ -652,10 +652,11 @@
     <string name="extra_keys_editor_open_editor_summary">Configure layout, scale and key bindings</string>
     <string name="extra_keys_edge_indicators_title">Swipe direction indicators</string>
     <string name="extra_keys_edge_indicators_summary">Show swipe direction indicators on extra keys</string>
-    <string name="extra_keys_editor_hint">Tap to assign the main action · Swipe ↑ ↓ ← → to assign gesture actions</string>
+    <string name="extra_keys_editor_hint">Tap to assign the main action · Swipe ↑ ↓ ← → to assign gesture actions · Long-press a key to set its label</string>
     <string name="extra_keys_editor_mode_assign">Assign</string>
     <string name="extra_keys_editor_mode_move">Move</string>
     <string name="extra_keys_editor_hint_move">Drag a key onto another cell to move/swap all its actions</string>
+    <string name="extra_keys_editor_label_dialog_title">Label</string>
 
     <string name="extra_keys_haptic_title">Haptic feedback</string>
     <string name="extra_keys_haptic_summary">Vibrate on extra keys panel interactions</string>
@@ -842,4 +843,27 @@
         <item>MB</item>
         <item>GB</item>
     </string-array>
+    <!-- Extra Keys Editor: session profiles -->
+    <string name="extra_keys_editor_profile_default">Default</string>
+    <string name="extra_keys_editor_profile_add">Add profile</string>
+    <string name="extra_keys_editor_profile_delete">Delete profile</string>
+    <string name="extra_keys_editor_profile_add_title">New extra-keys profile</string>
+    <string name="extra_keys_editor_profile_name_hint">Profile name</string>
+    <string name="extra_keys_editor_profile_exists">A profile with this name already exists</string>
+    <string name="extra_keys_editor_profile_delete_title">Delete profile</string>
+    <string name="extra_keys_editor_profile_delete_confirm">Delete profile “%1$s”? Its session prefixes will no longer activate this layout.</string>
+    <string name="extra_keys_editor_profile_prefix_title">Session prefixes</string>
+    <string name="extra_keys_editor_profile_prefix_hint">for example nano, vim, htop</string>
+
+    <!-- Extra Keys Editor: single profile export/import -->
+    <string name="extra_keys_editor_profile_export">Export profile</string>
+    <string name="extra_keys_editor_profile_import">Import profile</string>
+    <string name="extra_keys_editor_profile_export_progress">Exporting profile…</string>
+    <string name="extra_keys_editor_profile_import_progress">Importing profile…</string>
+    <string name="extra_keys_editor_profile_export_success">Profile exported successfully</string>
+    <string name="extra_keys_editor_profile_import_success">Profile “%1$s” imported successfully</string>
+    <string name="extra_keys_editor_profile_export_failed">Export failed</string>
+    <string name="extra_keys_editor_profile_import_failed">Import failed</string>
+    <string name="extra_keys_editor_profile_import_default_name">Imported</string>
+
 </resources>

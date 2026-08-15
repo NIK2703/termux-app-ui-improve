@@ -9,10 +9,8 @@ import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.media.AudioAttributes;
 import android.media.SoundPool;
-import android.os.Build;
 import android.text.TextUtils;
 import android.view.View;
-import android.view.Window;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.TextView;
@@ -40,6 +38,7 @@ import com.termux.terminal.TerminalSessionClient;
 import com.termux.terminal.TextStyle;
 import com.termux.shared.termux.extrakeys.ColorSchemeUtils;
 import com.termux.shared.termux.extrakeys.ExtraKeysView;
+import com.termux.app.terminal.io.TermuxTerminalExtraKeys;
 
 import java.io.File;
 import java.lang.reflect.Method;
@@ -187,6 +186,14 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
         }
 
         termuxSessionListNotifyUpdated();
+
+        // A title change can alter the session-name prefix match (e.g. a shell/CLI sets an
+        // OSC title once it starts). Re-evaluate the extra-keys profile for the active session
+        // so the panel switches without a manual tab change. applySessionExtraKeys is a no-op
+        // via isSameLayout when the profile (or default) is already shown.
+        if (mActivity.getCurrentSession() == updatedSession) {
+            applySessionExtraKeys(updatedSession);
+        }
         });
     }
 
@@ -466,6 +473,9 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
         // If per-directory message history is enabled, swap to the new
         // session's directory history.
         mActivity.onHistoryDirectoryChanged();
+
+        // Session-name based extra-keys profile switching.
+        applySessionExtraKeys(session);
     }
 
     void notifyOfSessionChange() {
@@ -517,6 +527,31 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
             TermuxSession termuxSession = service.getTermuxSessionForTerminalSession(sessionToRename);
             if (termuxSession != null)
                 termuxSession.getExecutionCommand().shellName = text;
+        }
+        // Session-name based extra-keys: re-evaluate if the renamed session is the active one.
+        if (mActivity.getCurrentSession() == sessionToRename) {
+            applySessionExtraKeys(sessionToRename);
+        }
+    }
+
+    /**
+     * Notify the extra-keys controller of the active session's name so a session-name based
+     * layout profile (property "extra-keys-session") can be applied. Priority vs the
+     * process-based context is handled inside the controller.
+     */
+    private void applySessionExtraKeys(@NonNull TerminalSession session) {
+        // mSessionName is null for unnamed sessions, so prefer it, then the emulator
+        // title (what the tab shows). Both null -> no profile match -> default layout.
+        String sessionName = session.mSessionName;
+        if (TextUtils.isEmpty(sessionName)) sessionName = session.getTitle();
+        if (TextUtils.isEmpty(sessionName)) sessionName = null;
+
+        TermuxTerminalExtraKeys extraKeys = mActivity.getTermuxTerminalExtraKeys();
+        if (extraKeys != null) {
+            // Profiles may have been saved while this activity was stopped (broadcast missed),
+            // so re-read them before resolving the session name.
+            extraKeys.reloadSessionMap();
+            extraKeys.onSessionNameChanged(sessionName);
         }
     }
 
@@ -1135,17 +1170,8 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
     }
 
     private void applyStatusBarTheme(boolean isSchemeLight) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            Window window = mActivity.getWindow();
-            if (window == null) return;
-            int flags = window.getDecorView().getSystemUiVisibility();
-            if (isSchemeLight) {
-                flags |= View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
-            } else {
-                flags &= ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
-            }
-            window.getDecorView().setSystemUiVisibility(flags);
-        }
+        TermuxActivity.applySystemBarColors(mActivity.getWindow(),
+            mActivity.getColorSchemeManager().getSchemeBackground(), isSchemeLight);
     }
 
     public void updateBackgroundColor() {
@@ -1158,10 +1184,7 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
             // applyTerminalColorScheme() (invoked from checkForFontAndColors(), which runs again in
             // onServiceConnected() once the session is attached after a recreate()).
             int bg = session.getEmulator().mColors.mCurrentColors[TextStyle.COLOR_INDEX_BACKGROUND];
-            mActivity.getWindow().getDecorView().setBackgroundColor(bg);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                mActivity.getWindow().setStatusBarColor(bg);
-            }
+            TermuxActivity.applySystemBarColors(mActivity.getWindow(), bg, mActivity.isCachedSchemeLight());
         }
     }
 

@@ -12,6 +12,7 @@ import com.termux.R;
 import java.util.function.Consumer;
 import com.termux.app.TermuxActivity;
 import com.termux.app.TermuxService;
+
 import com.termux.shared.termux.shell.command.runner.terminal.TermuxSession;
 import com.termux.terminal.TerminalSession;
 import com.termux.view.TerminalView;

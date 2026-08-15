@@ -388,6 +388,11 @@ public final class TermuxPropertyConstants {
     /** Default polling interval: 800 ms. */
     public static final long DEFAULT_IVALUE_EXTRA_KEYS_CONTEXT_POLL_INTERVAL = 800L;
 
+    /** Defines the key for session-name based extra-keys layout switching. */
+    public static final String KEY_EXTRA_KEYS_SESSION = "extra-keys-session"; // Default: "extra-keys-session"
+    /** Default empty value (session switching disabled). */
+    public static final String DEFAULT_IVALUE_EXTRA_KEYS_SESSION = "";
+
 
     /** Defines the key for {@link NightMode}. */
     public static final String KEY_NIGHT_MODE = "night-mode"; // Default: "night-mode"
@@ -493,6 +498,7 @@ public final class TermuxPropertyConstants {
         KEY_EXTRA_KEYS_SPECIAL_BUTTON_MODE,
         KEY_EXTRA_KEYS_CONTEXT,
         KEY_EXTRA_KEYS_CONTEXT_POLL_INTERVAL,
+        KEY_EXTRA_KEYS_SESSION,
         KEY_NIGHT_MODE,
         KEY_SOFT_KEYBOARD_TOGGLE_BEHAVIOUR,
         KEY_VOLUME_KEYS_BEHAVIOUR
@@ -583,6 +589,7 @@ public final class TermuxPropertyConstants {
         KEY_EXTRA_KEYS_SPECIAL_BUTTON_MODE,
         KEY_EXTRA_KEYS_CONTEXT,
         KEY_EXTRA_KEYS_CONTEXT_POLL_INTERVAL,
+        KEY_EXTRA_KEYS_SESSION,
         KEY_NIGHT_MODE,
         KEY_SOFT_KEYBOARD_TOGGLE_BEHAVIOUR,
         KEY_VOLUME_KEYS_BEHAVIOUR

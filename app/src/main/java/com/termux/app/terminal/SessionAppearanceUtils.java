@@ -9,9 +9,9 @@ public final class SessionAppearanceUtils {
     private SessionAppearanceUtils() {}
 
     /**
-     * Применяет стиль завершённой/упавшей сессии: красный цвет при
-     * {@code !running && exitStatus != 0}, иначе defaultColor, а также
-     * strike-through при {@code !running}.
+     * Applies the styling of a finished/failed session: red color when
+     * {@code !running && exitStatus != 0}, otherwise defaultColor, and
+     * strike-through when {@code !running}.
      */
     public static void applyFinishedSessionStyling(@NonNull TextView textView,
             boolean running, int exitStatus, int errorColor, int defaultColor) {

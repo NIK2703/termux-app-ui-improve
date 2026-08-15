@@ -44,6 +44,9 @@ import com.termux.shared.activities.ReportActivity;
 import com.termux.shared.activity.ActivityUtils;
 import com.termux.shared.data.IntentUtils;
 import com.termux.shared.android.PermissionUtils;
+import com.termux.shared.data.DataUtils;
+import com.termux.shared.interact.ShareUtils;
+import com.termux.shared.termux.TermuxConstants;
 import com.termux.shared.termux.TermuxConstants.TERMUX_APP.TERMUX_ACTIVITY;
 import com.termux.app.activities.HelpActivity;
 import com.termux.app.activities.SettingsActivity;
@@ -1348,6 +1351,11 @@ if (!TermuxInstaller.isBootstrapInstalled(this)) {
             // ACTION_DOWN, which may trigger an IME-hide and (via WindowInsetsListener)
             // auto-close the panel before ACTION_UP.
             final boolean[] panelOpenAtDown = { false };
+            // Set once the finger has swiped down past the touch slop: a swipe down on
+            // the button pastes the clipboard text into the text input panel at the cursor
+            // (showing the panel first if it is hidden), and must not fall back to a plain
+            // tap on release.
+            final boolean[] swipeDownPending = { false };
 
             toggleTextInputButton.setOnTouchListener((v, event) -> {
                 switch (event.getActionMasked()) {
@@ -1356,6 +1364,7 @@ if (!TermuxInstaller.isBootstrapInstalled(this)) {
                         downXY[0] = event.getRawX();
                         downXY[1] = event.getRawY();
                         panelOpenAtDown[0] = isTextInputVisible();
+                        swipeDownPending[0] = false;
                         gestureActive[0] = true;
                         mButtonTouchInProgress = true;
                         v.setPressed(true);
@@ -1369,6 +1378,15 @@ if (!TermuxInstaller.isBootstrapInstalled(this)) {
                         if (!mPopupCtrl.isHistoryPopupShowing()
                                 && dy < -touchSlop && Math.abs(dy) > Math.abs(dx)) {
                             mPopupCtrl.showMessageHistoryPopup(v);
+                        }
+                        // Swipe down past the touch slop (more vertical than sideways) pastes
+                        // the clipboard text into the text input panel at the cursor, firing
+                        // immediately upon recognition (not on release). Latched so a wiggle
+                        // back up mid-drag does not paste again or fall back to a toggle.
+                        if (!mPopupCtrl.isHistoryPopupShowing() && !swipeDownPending[0]
+                                && dy > touchSlop && Math.abs(dy) > Math.abs(dx)) {
+                            swipeDownPending[0] = true;
+                            pasteClipboardIntoTextInput();
                         }
                         if (mPopupCtrl.isHistoryPopupShowing()) {
                             // Keep the button visually active (filled with the stroke colour)
@@ -1397,6 +1415,9 @@ if (!TermuxInstaller.isBootstrapInstalled(this)) {
                                     onHistoryMessagePicked(mMessageHistoryCtrl.getHistoryList().get(selected));
                                 }
                             }
+                        } else if (swipeDownPending[0]) {
+                            // The swipe-down paste already fired on recognition in ACTION_MOVE;
+                            // on release (or cancel) it must never fall back to a toggle.
                         } else if (gestureActive[0]
                                 && event.getActionMasked() == MotionEvent.ACTION_UP) {
                             // No popup was opened: treat as a plain tap -> toggle panel.
@@ -1405,6 +1426,7 @@ if (!TermuxInstaller.isBootstrapInstalled(this)) {
                             updateToggleTextInputButtonIcon();
                         }
                         gestureActive[0] = false;
+                        swipeDownPending[0] = false;
                         mButtonTouchInProgress = false;
                         return true;
                     }
@@ -1430,6 +1452,47 @@ if (!TermuxInstaller.isBootstrapInstalled(this)) {
             // Apply the configured tab height mode (single-line / two-line).
             applyTabHeightMode();
         }
+    }
+
+    /**
+     * Paste clipboard text into the text input field at the cursor position, replacing any
+     * active selection. If the text input panel is currently hidden, it is shown first.
+     * Called from a swipe-down gesture on the toggle button. A clipboard that is unset or
+     * contains no text is a silent no-op (mirrors terminal paste behaviour).
+     */
+    private void pasteClipboardIntoTextInput() {
+        String text = ShareUtils.getTextStringFromClipboardIfSet(this, true);
+        if (text == null) return;
+
+        final EditText editText = findViewById(R.id.terminal_toolbar_text_input);
+        if (editText == null) return;
+
+        if (!isTextInputVisible()) {
+            setTextInputVisible(true);
+            updateToggleTextInputButtonIcon();
+        }
+
+        Editable editable = editText.getText();
+        int selStart = editText.getSelectionStart();
+        int selEnd   = editText.getSelectionEnd();
+        if (editable != null) {
+            if (selStart < 0) selStart = editable.length();
+            if (selEnd   < 0) selEnd   = selStart;
+            if (selStart > selEnd) {
+                int tmp = selStart;
+                selStart = selEnd;
+                selEnd = tmp;
+            }
+            editable.replace(selStart, selEnd, text);
+            editText.setSelection(selStart + text.length());
+        } else {
+            editText.setText(text);
+            editText.setSelection(text.length());
+        }
+
+        setFocusOnInputForCurrentSession(true);
+        saveTextInputForCurrentSession();
+        editText.requestFocus();
     }
 
     public void updateToggleTextInputButtonIcon() {
@@ -1839,23 +1902,73 @@ if (!TermuxInstaller.isBootstrapInstalled(this)) {
         int schemeBg = csm.getSchemeBackground();
         boolean isLight = csm.isSchemeLight();
 
-        // Window background follows the scheme; status-bar background and icons follow the scheme.
+        // Window surface follows the scheme; the status and navigation bars are transparent so the
+        // scheme background shows through, with matching icon/text appearance (dark on a light
+        // scheme, light on a dark one) — the bars never stand out from or darken the terminal.
         Window window = getWindow();
         if (window != null) {
-            window.getDecorView().setBackgroundColor(schemeBg);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                window.setStatusBarColor(schemeBg);
-            }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                int flags = window.getDecorView().getSystemUiVisibility();
-                if (isLight) {
-                    flags |= View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
-                } else {
-                    flags &= ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
-                }
-                window.getDecorView().setSystemUiVisibility(flags);
+            applySystemBarColors(window, schemeBg, isLight);
+        }
+    }
+
+    /**
+     * Make the status and navigation bars fully transparent so the content (or the window
+     * surface painted below with {@code surfaceBackground}) shows through unchanged, and set
+     * their icon/text appearance: dark icons when {@code isLight} is true, light icons otherwise.
+     * <p>
+     * The activity theme sets {@code windowTranslucentStatus} / {@code windowTranslucentNavigation}
+     * (for edge-to-edge drawing), which on API 21-28 draws a dark translucent scrim over both bars
+     * and makes {@code setStatusBarColor()} / {@code setNavigationBarColor()} no-ops. Clearing those
+     * flags and painting the window surface ourselves with the scheme colour kills the scrim while
+     * the {@code LAYOUT_*} flags keep the content laid out edge-to-edge exactly as before, so the
+     * terminal size does not change. On Android 10+ the system would additionally draw a contrast
+     * scrim over the bars with gesture navigation, so that is disabled too — the transparent bars
+     * then always show exactly what is behind them: the terminal background.
+     */
+    public static void applySystemBarColors(Window window, int surfaceBackground, boolean isLight) {
+        if (window == null) return;
+        View decorView = window.getDecorView();
+
+        // Colour the window surface (visible through the transparent bars) with the scheme
+        // background, so the bar areas always match the terminal colours exactly.
+        decorView.setBackgroundColor(surfaceBackground);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS
+                | WindowManager.LayoutParams.FLAG_TRANSLUCENT_NAVIGATION);
+            window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
+            window.setStatusBarColor(Color.TRANSPARENT);
+            window.setNavigationBarColor(Color.TRANSPARENT);
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            window.setNavigationBarDividerColor(Color.TRANSPARENT);
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            // Android 10+ draws a translucent contrast scrim over the bars with gesture
+            // navigation, darkening them even when transparent/coloured. Disable it.
+            window.setStatusBarContrastEnforced(false);
+            window.setNavigationBarContrastEnforced(false);
+        }
+
+        int flags = decorView.getSystemUiVisibility();
+        flags |= View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (isLight) {
+                flags |= View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+            } else {
+                flags &= ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
             }
         }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (isLight) {
+                flags |= View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+            } else {
+                flags &= ~View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+            }
+        }
+        decorView.setSystemUiVisibility(flags);
     }
 
 

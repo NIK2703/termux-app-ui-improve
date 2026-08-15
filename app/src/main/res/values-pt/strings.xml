@@ -358,10 +358,32 @@
     <string name="extra_keys_editor_open_editor_summary">Configurar layout, escala e atalhos das teclas</string>
     <string name="extra_keys_edge_indicators_title">Indicadores de direção do deslize</string>
     <string name="extra_keys_edge_indicators_summary">Mostrar indicadores de direção do deslize com ações atribuídas às teclas extras</string>
-    <string name="extra_keys_editor_hint">Toque para atribuir a ação principal · Deslize ↑ ↓ ← → para atribuir ações de gesto</string>
+    <string name="extra_keys_editor_hint">Toque para atribuir a ação principal · Deslize ↑ ↓ ← → para atribuir ações de gesto · Prima e mantenha uma tecla para definir o seu rótulo</string>
     <string name="extra_keys_editor_mode_assign">Atribuir</string>
     <string name="extra_keys_editor_mode_move">Mover</string>
     <string name="extra_keys_editor_hint_move">Arraste uma tecla para outra célula para mover/trocar todas as suas ações</string>
+
+    <!-- Extra Keys Editor: session profiles -->
+    <string name="extra_keys_editor_label_dialog_title">Rótulo</string>
+    <string name="extra_keys_editor_profile_default">Padrão</string>
+    <string name="extra_keys_editor_profile_add">Adicionar perfil</string>
+    <string name="extra_keys_editor_profile_delete">Eliminar perfil</string>
+    <string name="extra_keys_editor_profile_add_title">Novo perfil de teclas extras</string>
+    <string name="extra_keys_editor_profile_name_hint">Nome do perfil</string>
+    <string name="extra_keys_editor_profile_exists">Já existe um perfil com este nome</string>
+    <string name="extra_keys_editor_profile_delete_title">Eliminar perfil</string>
+    <string name="extra_keys_editor_profile_delete_confirm">Eliminar o perfil “%1$s”? Os seus prefixos de sessão deixarão de ativar este layout.</string>
+    <string name="extra_keys_editor_profile_prefix_title">Prefixos de sessão</string>
+    <string name="extra_keys_editor_profile_prefix_hint">por exemplo nano, vim, htop</string>
+    <string name="extra_keys_editor_profile_export">Exportar perfil</string>
+    <string name="extra_keys_editor_profile_import">Importar perfil</string>
+    <string name="extra_keys_editor_profile_export_progress">A exportar o perfil…</string>
+    <string name="extra_keys_editor_profile_import_progress">A importar o perfil…</string>
+    <string name="extra_keys_editor_profile_export_success">Perfil exportado com sucesso</string>
+    <string name="extra_keys_editor_profile_import_success">Perfil “%1$s” importado com sucesso</string>
+    <string name="extra_keys_editor_profile_export_failed">Falha na exportação</string>
+    <string name="extra_keys_editor_profile_import_failed">Falha na importação</string>
+    <string name="extra_keys_editor_profile_import_default_name">Importado</string>
 
     
     <string name="extra_keys_haptic_title">Feedback tátil</string>
