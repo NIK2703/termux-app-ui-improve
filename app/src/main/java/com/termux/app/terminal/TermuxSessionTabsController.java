@@ -291,7 +291,10 @@ public class TermuxSessionTabsController {
         // but clicking it tried to switch to a dead session (stale listener).
         tabView.setOnClickListener(v -> {
             if (terminalSession != null)
-                mActivity.getTermuxTerminalSessionClient().setCurrentSession(terminalSession, false);
+                // Instant switch (animate=false): the pager jumps straight to the target page with
+                // no smooth scroll, so no intermediate onPageScrolled events scroll the tab strip
+                // through or highlight the in-between tabs. The clicked tab activates immediately.
+                mActivity.getTermuxTerminalSessionClient().setCurrentSession(terminalSession, false, false);
         });
         tabView.setOnLongClickListener(v -> {
             if (terminalSession != null)

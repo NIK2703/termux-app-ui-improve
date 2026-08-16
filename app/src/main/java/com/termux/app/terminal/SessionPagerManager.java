@@ -98,12 +98,16 @@ public final class SessionPagerManager {
 
     /**
      * True while the pager is being dragged by the user (a real swipe gesture), as opposed to a
-     * programmatic {@code setCurrentItem()} triggered by the "+" button, a tab click or a keyboard
-     * shortcut. The trailing placeholder page is only meant to be committed into a real session when
-     * the user SWIPES onto it — never when a programmatic scroll happens to land on its index (which
-     * is exactly what {@code addNewSession} does after appending a session at the end, whose index
-     * coincides with the placeholder index). Guarded by this flag so a programmatic scroll onto the
-     * placeholder slot does not spawn a phantom duplicate session.
+     * programmatic {@code setCurrentItem()} triggered by the "+" button, an (instant) tab click or a
+     * keyboard shortcut. Neither a programmatic smooth scroll nor an instant tab-click jump ever
+     * passes through DRAGGING; for the instant jump the IME-suppression guard
+     * {@code mTerminalPageSwitchInProgress} is still raised in {@code setCurrentSession()} before
+     * the switch and lowered in {@code onTerminalPageSelected()}. The trailing placeholder page is
+     * only meant to be committed into a real session when the user SWIPES onto it — never when a
+     * programmatic scroll happens to land on its index (which is exactly what {@code addNewSession}
+     * does after appending a session at the end, whose index coincides with the placeholder index).
+     * Guarded by this flag so a programmatic scroll onto the placeholder slot does not spawn a
+     * phantom duplicate session.
      */
     private boolean mUserScrollInProgress = false;
 

@@ -1,23 +1,28 @@
-<?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:height="108dp"
     android:width="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
 
+    <!-- Keep in sync with non-adaptive ic_launcher.xml -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M34.00,38.69L39.80,38.69L51.28,54.00L39.80,69.31L34.00,69.31L45.48,54.00Z"
+        android:pathData="M34,38
+                          h6
+                          l12,16
+                          l-12,16
+                          h-6
+                          l12,-16
+                          "
         />
 
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M41.12,38.69L43.05,38.69L54.53,54.00L43.05,69.31L41.12,69.31L52.60,54.00Z"
-        />
-
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M56.87,65.53L74.00,65.53L74.00,69.31L56.87,69.31Z"
+        android:pathData="M56,66
+                          h18
+                          v4
+                          h-18
+                          "
         />
 
 </vector>

@@ -366,12 +366,26 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
     }
 
     /**
+     * Try switching to session, smoothly scrolling the pager to the target page. Used by the
+     * keyboard shortcuts, the sessions list and service-driven switches.
+     */
+    public void setCurrentSession(TerminalSession session, boolean showToast) {
+        setCurrentSession(session, showToast, true);
+    }
+
+    /**
      * Switch to the given session. In the horizontal-pager model each session has its own
      * TerminalView (bound by {@link TerminalPagerAdapter}), so switching means scrolling the
      * pager to that page. The {@code onPageSelected} callback then re-points the activity's active
      * {@code mTerminalView} and runs the per-session bookkeeping via {@link #onSessionPageSelected}.
+     *
+     * @param animate if true the pager smoothly scrolls through the intermediate pages (keyboard
+     *                shortcuts, sessions list); if false it jumps straight to the target page with
+     *                no animation and no intermediate {@code onPageScrolled} events (tab click), so
+     *                no in-between tab gets highlighted; the tab strip then scrolls on its own to
+     *                centre the selected tab from its current scroll position.
      */
-    public void setCurrentSession(TerminalSession session, boolean showToast) {
+    public void setCurrentSession(TerminalSession session, boolean showToast, boolean animate) {
         if (session == null) return;
 
         // Switching sessions invalidates any in-flight shell-completion context
@@ -408,15 +422,31 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
         }
 
         if (pager != null) {
-            // Mark a page switch in progress BEFORE the smooth scroll so the per-page focus
-            // listener does not pop the IME while the old page loses focus mid-animation
-            // (scenario #InputPanel6: tab click -> setCurrentItem(true)). onTerminalPageSelected()
+            // Mark a page switch in progress BEFORE the switch so the per-page focus
+            // listener does not pop the IME while the old page loses focus mid-switch
+            // (scenario #InputPanel6: tab click -> setCurrentItem). onTerminalPageSelected()
             // clears this flag and becomes the single authority that re-asserts the keyboard.
             mActivity.setTerminalPageSwitchInProgress(true);
-            // Smoothly scroll the pager to the target page. onPageSelected() will fire and run
-            // onSessionPageSelected(), which performs the text-input restore, tab highlight,
-            // background colour and directory-history update for the newly-visible session.
-            pager.setCurrentItem(index, true);
+            // Move the pager to the target page. When animate is true (keyboard shortcut / sessions
+            // list) the pager smoothly scrolls through the intermediate pages; when animate is false
+            // (tab click) it jumps instantly, so NO intermediate onPageScrolled events are emitted
+            // and no in-between tab gets highlighted along the way. In both cases onPageSelected()
+            // fires and runs onSessionPageSelected(), which performs the text-input restore, tab
+            // highlight, background colour and directory-history update for the newly-visible session.
+            pager.setCurrentItem(index, animate);
+            // Tab click (animate == false): the pager emits no intermediate onPageScrolled events,
+            // so the tab strip would otherwise stay put. Scroll the strip to CENTRE the selected tab
+            // starting from its CURRENT scroll position (scrollToTabIndex -> requestScroll(CENTRE) ->
+            // runCentreScroll animates from getScrollX() to the centred target). The scroll only
+            // moves scrollX — it never touches the selection state, so the in-between tabs are
+            // neither scrolled-through-highlighted nor activated; the single highlight is applied
+            // once by onTerminalPageSelected() -> TermuxSessionTabsController.setCurrentSession().
+            // The request is dropped while an end-scroll (freshly added tab) owns the strip, and is
+            // a no-op when the target is already centred.
+            if (!animate) {
+                TermuxSessionTabsController tabs = mActivity.getTermuxSessionTabsController();
+                if (tabs != null) tabs.scrollToTabIndex(index);
+            }
         }
 
         if (showToast) {
