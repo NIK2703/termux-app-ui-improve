@@ -382,7 +382,8 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
      * @param animate if true the pager smoothly scrolls through the intermediate pages (keyboard
      *                shortcuts, sessions list); if false it jumps straight to the target page with
      *                no animation and no intermediate {@code onPageScrolled} events (tab click), so
-     *                the tab strip neither scrolls through nor highlights the in-between tabs.
+     *                no in-between tab gets highlighted; the tab strip then scrolls on its own to
+     *                centre the selected tab from its current scroll position.
      */
     public void setCurrentSession(TerminalSession session, boolean showToast, boolean animate) {
         if (session == null) return;
@@ -429,11 +430,23 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
             // Move the pager to the target page. When animate is true (keyboard shortcut / sessions
             // list) the pager smoothly scrolls through the intermediate pages; when animate is false
             // (tab click) it jumps instantly, so NO intermediate onPageScrolled events are emitted
-            // and the tab strip neither scrolls through nor highlights the in-between tabs. In both
-            // cases onPageSelected() fires and runs onSessionPageSelected(), which performs the
-            // text-input restore, tab highlight, background colour and directory-history update for
-            // the newly-visible session.
+            // and no in-between tab gets highlighted along the way. In both cases onPageSelected()
+            // fires and runs onSessionPageSelected(), which performs the text-input restore, tab
+            // highlight, background colour and directory-history update for the newly-visible session.
             pager.setCurrentItem(index, animate);
+            // Tab click (animate == false): the pager emits no intermediate onPageScrolled events,
+            // so the tab strip would otherwise stay put. Scroll the strip to CENTRE the selected tab
+            // starting from its CURRENT scroll position (scrollToTabIndex -> requestScroll(CENTRE) ->
+            // runCentreScroll animates from getScrollX() to the centred target). The scroll only
+            // moves scrollX — it never touches the selection state, so the in-between tabs are
+            // neither scrolled-through-highlighted nor activated; the single highlight is applied
+            // once by onTerminalPageSelected() -> TermuxSessionTabsController.setCurrentSession().
+            // The request is dropped while an end-scroll (freshly added tab) owns the strip, and is
+            // a no-op when the target is already centred.
+            if (!animate) {
+                TermuxSessionTabsController tabs = mActivity.getTermuxSessionTabsController();
+                if (tabs != null) tabs.scrollToTabIndex(index);
+            }
         }
 
         if (showToast) {
