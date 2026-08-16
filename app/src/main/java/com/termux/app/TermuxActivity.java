@@ -285,8 +285,8 @@ public final class TermuxActivity extends AppCompatActivity implements TextInput
     private boolean mJustResumed = false;
 
     /**
-     * True while a pager page switch is in progress (tab click -> setCurrentItem, or the smooth
-     * settle of a swipe). While set, the per-page focus listener
+     * True while a pager page switch is in progress (an instant tab click -> setCurrentItem, or the
+     * smooth settle of a swipe / programmatic animated switch). While set, the per-page focus listener
      * ({@code TermuxTerminalViewClient.registerTerminalViewFocusListener}) suppresses ALL IME
      * show/hide churn so the old page losing focus mid-switch cannot pop the keyboard.
      * {@link #onTerminalPageSelected(int)} is the single authority that re-asserts the keyboard
