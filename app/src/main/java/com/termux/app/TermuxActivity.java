@@ -788,6 +788,11 @@ if (!TermuxInstaller.isBootstrapInstalled(this)) {
         TermuxActivityUtils.applyScreenOrientation(activity);
     }
 
+    /** Convert dp to pixels using the current display density. */
+    private int dpToPx(int dp) {
+        return Math.round(dp * getResources().getDisplayMetrics().density);
+    }
+
     private void setMargins() {
         // The margins are applied to each terminal page INSIDE the pager (via
         // SessionPagerManager -> TerminalPagerAdapter), NOT to the pager container:
@@ -1226,14 +1231,22 @@ if (!TermuxInstaller.isBootstrapInstalled(this)) {
         pagerLp.removeRule(RelativeLayout.BELOW);
 
         if ("bottom".equals(position)) {
-            // Tabs right above the toolbar; ViewPager fills above the tabs
+            // Tabs right above the toolbar; ViewPager fills above the tabs.
+            // Keep the gap below the strip (screen edge), drop the one above it
+            // so the terminal touches the tabs.
             tabsLp.addRule(RelativeLayout.ABOVE, R.id.terminal_toolbar_container);
             pagerLp.addRule(RelativeLayout.ABOVE, R.id.session_tabs_container);
+            tabsContainer.setPadding(tabsContainer.getPaddingLeft(), 0,
+                    tabsContainer.getPaddingRight(), dpToPx(2));
         } else {
-            // Tabs at top; ViewPager fills between tabs and toolbar
+            // Tabs at top; ViewPager fills between tabs and toolbar.
+            // Keep the gap above the strip (status bar), drop the one below it
+            // so the terminal touches the tabs.
             tabsLp.addRule(RelativeLayout.ALIGN_PARENT_TOP);
             pagerLp.addRule(RelativeLayout.BELOW, R.id.session_tabs_container);
             pagerLp.addRule(RelativeLayout.ABOVE, R.id.terminal_toolbar_container);
+            tabsContainer.setPadding(tabsContainer.getPaddingLeft(), dpToPx(2),
+                    tabsContainer.getPaddingRight(), 0);
         }
 
         tabsContainer.setLayoutParams(tabsLp);

@@ -102,7 +102,6 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginHorizontal="4dp"
-                    android:layout_marginTop="4dp"
                     android:layout_marginBottom="4dp"
                     android:background="@drawable/text_input_transparent">
 
