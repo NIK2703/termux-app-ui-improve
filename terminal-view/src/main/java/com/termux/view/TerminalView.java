@@ -60,6 +60,19 @@ public final class TerminalView extends View {
 
     public TerminalRenderer mRenderer;
 
+    /**
+     * Horizontal pixel offset of the glyph grid, computed so that the leftover space
+     * (from glyphs that do not fit the view) is split symmetrically left and right.
+     * Applied by {@link TerminalRenderer#render} via canvas translation and mirrored in
+     * the pixel-to-cell coordinate mappers.
+     */
+    float mGridOffsetX = 0f;
+    /**
+     * Vertical pixel offset of the glyph grid, computed so that the leftover space
+     * (from glyphs that do not fit the view) is split symmetrically top and bottom.
+     */
+    float mGridOffsetY = 0f;
+
     public TerminalViewClient mClient;
 
     private TextSelectionCursorController mTextSelectionCursorController;
@@ -664,8 +677,8 @@ public final class TerminalView extends View {
      * @return Array with the column and row.
      */
     public int[] getColumnAndRow(MotionEvent event, boolean relativeToScroll) {
-        int column = (int) (event.getX() / mRenderer.mFontWidth);
-        int row = (int) ((event.getY() - mRenderer.mFontLineSpacingAndAscent) / mRenderer.mFontLineSpacing);
+        int column = (int) ((event.getX() - mGridOffsetX) / mRenderer.mFontWidth);
+        int row = (int) ((event.getY() - mGridOffsetY - mRenderer.mFontLineSpacingAndAscent) / mRenderer.mFontLineSpacing);
         if (relativeToScroll) {
             row += mTopRow;
         }
@@ -1461,6 +1474,33 @@ public final class TerminalView extends View {
         int newColumns = Math.max(4, (int) (viewWidth / mRenderer.mFontWidth));
         int newRows = Math.max(4, (viewHeight - mRenderer.mFontLineSpacingAndAscent) / mRenderer.mFontLineSpacing);
 
+        // Center the glyph grid so the leftover space (from glyphs that do not fit the view)
+        // is split symmetrically. The grid occupies [0, columns*fontWidth) horizontally and
+        // [mFontLineSpacingAndAscent, mFontLineSpacingAndAscent + rows*lineSpacing) vertically,
+        // so the vertical shift is (viewHeight - rows*lineSpacing)/2 - mFontLineSpacingAndAscent,
+        // which keeps the top gap (mFontLineSpacingAndAscent + mGridOffsetY) equal to the bottom
+        // one (viewHeight - mFontLineSpacingAndAscent - rows*lineSpacing - mGridOffsetY). The
+        // shift may be slightly negative (up to -mFontLineSpacingAndAscent) without clipping
+        // glyphs since the top of the grid can never move above y=0. The offsets are snapped
+        // to whole pixels below (symmetry then holds within 1px) so that adjacent rows'
+        // background rects keep integer edges and do not show anti-aliased seams. Recompute
+        // unconditionally: a sub-cell resize leaves columns/rows unchanged but still changes
+        // the leftover space.
+        float gridWidth = newColumns * mRenderer.mFontWidth;
+        float gridHeight = newRows * (float) mRenderer.mFontLineSpacing;
+        float newGridOffsetX = Math.max(0f, (viewWidth - gridWidth) / 2f);
+        float newGridOffsetY = (viewHeight - gridHeight) / 2f - mRenderer.mFontLineSpacingAndAscent;
+        if (newGridOffsetY < -mRenderer.mFontLineSpacingAndAscent)
+            newGridOffsetY = -mRenderer.mFontLineSpacingAndAscent;
+        // Snap to whole pixels: with a fractional offset, adjacent rows' background rects share
+        // fractional edges; anti-aliased SRC_OVER compositing then leaves 25% of the drawColor
+        // background showing through each row seam (visible hairlines on non-default backgrounds).
+        newGridOffsetX = Math.round(newGridOffsetX);
+        newGridOffsetY = Math.round(newGridOffsetY);
+        boolean gridOffsetChanged = (newGridOffsetX != mGridOffsetX) || (newGridOffsetY != mGridOffsetY);
+        mGridOffsetX = newGridOffsetX;
+        mGridOffsetY = newGridOffsetY;
+
         if (mEmulator == null || (newColumns != mEmulator.mColumns || newRows != mEmulator.mRows)) {
             stopFlingAndClear();
             mTermSession.updateSize(newColumns, newRows, (int) mRenderer.getFontWidth(), mRenderer.getFontLineSpacing());
@@ -1473,6 +1513,8 @@ public final class TerminalView extends View {
 
             mTopRow = 0;
             scrollTo(0, 0);
+            invalidate();
+        } else if (gridOffsetChanged) {
             invalidate();
         }
     }
@@ -1492,7 +1534,8 @@ public final class TerminalView extends View {
                 mTextSelectionCursorController.getSelectors(sel);
             }
 
-            mRenderer.render(mEmulator, canvas, mTopRow, sel[0], sel[1], sel[2], sel[3]);
+            mRenderer.render(mEmulator, canvas, mTopRow, sel[0], sel[1], sel[2], sel[3],
+                mGridOffsetX, mGridOffsetY);
 
             // render the text selection handles
             renderTextSelection();
@@ -1570,22 +1613,22 @@ public final class TerminalView extends View {
     }
 
     public int getCursorX(float x) {
-        return (int) (x / mRenderer.mFontWidth);
+        return (int) ((x - mGridOffsetX) / mRenderer.mFontWidth);
     }
 
     public int getCursorY(float y) {
-        return (int) (((y - 40) / mRenderer.mFontLineSpacing) + mTopRow);
+        return (int) (((y - mGridOffsetY - 40) / mRenderer.mFontLineSpacing) + mTopRow);
     }
 
     public int getPointX(int cx) {
         if (cx > mEmulator.mColumns) {
             cx = mEmulator.mColumns;
         }
-        return Math.round(cx * mRenderer.mFontWidth);
+        return Math.round(cx * mRenderer.mFontWidth + mGridOffsetX);
     }
 
     public int getPointY(int cy) {
-        return Math.round((cy - mTopRow) * mRenderer.mFontLineSpacing);
+        return Math.round((cy - mTopRow) * mRenderer.mFontLineSpacing + mGridOffsetY);
     }
 
     public int getTopRow() {
@@ -1594,6 +1637,14 @@ public final class TerminalView extends View {
 
     public void setTopRow(int mTopRow) {
         this.mTopRow = mTopRow;
+    }
+
+    public float getGridOffsetX() {
+        return mGridOffsetX;
+    }
+
+    public float getGridOffsetY() {
+        return mGridOffsetY;
     }
 
 

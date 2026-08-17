@@ -218,10 +218,14 @@ public class TextSelectionCursorController implements CursorController {
 
             @Override
             public void onGetContentRect(ActionMode mode, View view, Rect outRect) {
-                int x1 = Math.round(mSelX1 * terminalView.mRenderer.getFontWidth());
-                int x2 = Math.round(mSelX2 * terminalView.mRenderer.getFontWidth());
-                int y1 = Math.round((mSelY1 - 1 - terminalView.getTopRow()) * terminalView.mRenderer.getFontLineSpacing());
-                int y2 = Math.round((mSelY2 + 1 - terminalView.getTopRow()) * terminalView.mRenderer.getFontLineSpacing());
+                // The glyph grid is centered with mGridOffsetX/mGridOffsetY, so the selection
+                // rectangle must be shifted by the same offsets.
+                float offsetX = terminalView.getGridOffsetX();
+                float offsetY = terminalView.getGridOffsetY();
+                int x1 = Math.round(mSelX1 * terminalView.mRenderer.getFontWidth() + offsetX);
+                int x2 = Math.round(mSelX2 * terminalView.mRenderer.getFontWidth() + offsetX);
+                int y1 = Math.round((mSelY1 - 1 - terminalView.getTopRow()) * terminalView.mRenderer.getFontLineSpacing() + offsetY);
+                int y2 = Math.round((mSelY2 + 1 - terminalView.getTopRow()) * terminalView.mRenderer.getFontLineSpacing() + offsetY);
 
                 if (x1 > x2) {
                     int tmp = x1;
