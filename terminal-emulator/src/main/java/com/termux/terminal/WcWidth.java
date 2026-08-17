@@ -1,5 +1,7 @@
 package com.termux.terminal;
 
+import java.util.Arrays;
+
 /**
  * Implementation of wcwidth(3) for Unicode 15.
  *
@@ -12,6 +14,20 @@ package com.termux.terminal;
  * https://github.com/termux/termux-packages/tree/master/packages/libandroid-support
  */
 public final class WcWidth {
+
+    /**
+     * Lazy-filled cache of {@link #width(int)} for BMP code points (0..0xFFFF).
+     * A value of {@link #CACHE_UNINITIALIZED} means "not yet computed". This avoids the
+     * two binary searches per code point that {@link #width(int)} would otherwise do on every
+     * call (the emulator, TerminalRow and the renderer each call it for the same character).
+     * Memory: 64 KiB. Supplementary code points (rare in practice) are not cached.
+     */
+    private static final byte[] BMP_WIDTH_CACHE = new byte[0x10000];
+    private static final byte CACHE_UNINITIALIZED = -1;
+
+    static {
+        Arrays.fill(BMP_WIDTH_CACHE, CACHE_UNINITIALIZED);
+    }
 
     // From https://github.com/jquast/wcwidth/blob/master/wcwidth/table_zero.py
     // from https://github.com/jquast/wcwidth/pull/64
@@ -512,6 +528,18 @@ public final class WcWidth {
 
     /** Return the terminal display width of a code point: 0, 1 || 2. */
     public static int width(int ucs) {
+        if (ucs >= 0 && ucs < 0x10000) {
+            byte cached = BMP_WIDTH_CACHE[ucs];
+            if (cached != CACHE_UNINITIALIZED) return cached;
+            int w = computeWidth(ucs);
+            BMP_WIDTH_CACHE[ucs] = (byte) w;
+            return w;
+        }
+        return computeWidth(ucs);
+    }
+
+    /** Actual width computation behind {@link #width(int)}; kept separate so the BMP cache stays simple. */
+    private static int computeWidth(int ucs) {
         if (ucs == 0 ||
             ucs == 0x034F ||
             (0x200B <= ucs && ucs <= 0x200F) ||

@@ -2,8 +2,10 @@ package com.termux.view;
 
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.graphics.Path;
 import android.graphics.PorterDuff;
 import android.graphics.Typeface;
+import android.util.SparseArray;
 
 import com.termux.terminal.TerminalBuffer;
 import com.termux.terminal.TerminalEmulator;
@@ -31,7 +33,36 @@ public final class TerminalRenderer {
     /** The {@link #mFontLineSpacing} + {@link #mFontAscent}. */
     final int mFontLineSpacingAndAscent;
 
-    private final float[] asciiMeasures = new float[127];
+    /**
+     * Cache of {@link Paint#measureText} results per code point. {@code bmpMeasures} covers the
+     * BMP (0..0xFFFF) and is lazily filled; {@code supplementaryMeasures} covers the supplementary
+     * planes (rare). This avoids calling the native Skia/FreeType measureText on every non-ASCII
+     * character on every frame — previously the single hottest call in the renderer.
+     * A value of 0.0f in {@code bmpMeasures} means "not yet measured" except for code point 0.
+     */
+    private final float[] bmpMeasures = new float[0x10000];
+    private final SparseArray<Float> supplementaryMeasures = new SparseArray<>();
+
+    /**
+     * Reusable per-frame run list. The renderer splits each row into "runs" of equal style; instead
+     * of drawing every run immediately (which issues a separate background {@link Paint#drawRect}
+     * per run), runs are collected into these arrays once per row and drawn in two passes: all
+     * background rectangles batched per color, then all text. This avoids per-run allocation and
+     * collapses adjacent same-color backgrounds into a single {@link Path} draw.
+     */
+    private int[] mRunStartColumn;
+    private int[] mRunWidthColumns;
+    private int[] mRunStartChar;
+    private int[] mRunCharCount;
+    private float[] mRunMeasuredWidth;
+    private long[] mRunStyle;
+    private int[] mRunCursorColor;
+    private int[] mRunCursorStyle;
+    private boolean[] mRunReverseVideo;
+    private boolean[] mRunFontWidthMismatch;
+    private int mRunCount;
+    private final SparseArray<Path> mBgBatches = new SparseArray<>();
+    private final int[] mColorOut = new int[2];
 
     public TerminalRenderer(int textSize, Typeface typeface) {
         mTextSize = textSize;
@@ -46,11 +77,30 @@ public final class TerminalRenderer {
         mFontLineSpacingAndAscent = mFontLineSpacing + mFontAscent;
         mFontWidth = mTextPaint.measureText("X");
 
+        // Pre-measure ASCII so the first paint does not pay for it; the rest is filled lazily.
         StringBuilder sb = new StringBuilder(" ");
-        for (int i = 0; i < asciiMeasures.length; i++) {
+        for (int i = 0; i < 0x80; i++) {
             sb.setCharAt(0, (char) i);
-            asciiMeasures[i] = mTextPaint.measureText(sb, 0, 1);
+            bmpMeasures[i] = mTextPaint.measureText(sb, 0, 1);
         }
+    }
+
+    /** Measure the on-screen width of a code point, using the per-code-point cache. */
+    private float measureCodePoint(int codePoint, char[] line, int index, int count) {
+        if (codePoint < 0x10000) {
+            float cached = bmpMeasures[codePoint];
+            if (cached == 0f && codePoint != 0) {
+                cached = mTextPaint.measureText(line, index, count);
+                bmpMeasures[codePoint] = cached;
+            }
+            return cached;
+        }
+        Float cached = supplementaryMeasures.get(codePoint);
+        if (cached == null) {
+            cached = mTextPaint.measureText(line, index, count);
+            supplementaryMeasures.put(codePoint, cached);
+        }
+        return cached;
     }
 
     /** Render the terminal to a canvas with at a specified row scroll, and an optional rectangular selection.
@@ -91,6 +141,8 @@ public final class TerminalRenderer {
         canvas.save();
         canvas.translate(xOffset, yOffset);
 
+        ensureRunCapacity(columns);
+
         float heightOffset = mFontLineSpacingAndAscent;
         for (int row = topRow; row < endRow; row++) {
             heightOffset += mFontLineSpacing;
@@ -106,6 +158,7 @@ public final class TerminalRenderer {
             final char[] line = lineObject.mText;
             final int charsUsedInLine = lineObject.getSpaceUsed();
 
+            mRunCount = 0;
             long lastRunStyle = 0;
             boolean lastRunInsideCursor = false;
             boolean lastRunInsideSelection = false;
@@ -129,8 +182,7 @@ public final class TerminalRenderer {
                 // This could happen for some fonts which are not truly monospace, or for more exotic characters such as
                 // smileys which android font renders as wide.
                 // If this is detected, we draw this code point scaled to match what wcwidth() expects.
-                final float measuredCodePointWidth = (codePoint < asciiMeasures.length) ? asciiMeasures[codePoint] : mTextPaint.measureText(line,
-                    currentCharIndex, charsForCodePoint);
+                final float measuredCodePointWidth = measureCodePoint(codePoint, line, currentCharIndex, charsForCodePoint);
                 final boolean fontWidthMismatch = Math.abs(measuredCodePointWidth / mFontWidth - codePointWcWidth) > 0.01;
 
                 // Break the run whenever the font-width-mismatch flag changes, AND additionally
@@ -138,10 +190,8 @@ public final class TerminalRenderer {
                 // rather than averaged with its neighbours. Averaging across a run is what makes
                 // some emoji get clipped (glyph wider than its cell) or squeezed (glyph narrower
                 // than its cell).
-                if (style != lastRunStyle || insideCursor != lastRunInsideCursor || insideSelection != lastRunInsideSelection || fontWidthMismatch || lastRunFontWidthMismatch || (fontWidthMismatch && lastRunFontWidthMismatch)) {
-                    if (column == 0) {
-                        // Skip first column as there is nothing to draw, just record the current style.
-                    } else {
+                if (style != lastRunStyle || insideCursor != lastRunInsideCursor || insideSelection != lastRunInsideSelection || fontWidthMismatch || lastRunFontWidthMismatch) {
+                    if (column != 0) {
                         final int columnWidthSinceLastRun = column - lastRunStartColumn;
                         final int charsSinceLastRun = currentCharIndex - lastRunStartIndex;
                         int cursorColor = lastRunInsideCursor ? mEmulator.mColors.mCurrentColors[TextStyle.COLOR_INDEX_CURSOR] : 0;
@@ -149,9 +199,8 @@ public final class TerminalRenderer {
                         if (lastRunInsideCursor && cursorShape == TerminalEmulator.TERMINAL_CURSOR_STYLE_BLOCK) {
                             invertCursorTextColor = true;
                         }
-                        drawTextRun(canvas, line, palette, heightOffset, lastRunStartColumn, columnWidthSinceLastRun,
-                            lastRunStartIndex, charsSinceLastRun, measuredWidthForRun,
-                            cursorColor, cursorShape, lastRunStyle, reverseVideo || invertCursorTextColor || lastRunInsideSelection);
+                        addRun(lastRunStartColumn, columnWidthSinceLastRun, lastRunStartIndex, charsSinceLastRun, measuredWidthForRun,
+                            lastRunStyle, cursorColor, cursorShape, reverseVideo || invertCursorTextColor || lastRunInsideSelection, lastRunFontWidthMismatch);
                     }
                     measuredWidthForRun = 0.f;
                     lastRunStyle = style;
@@ -178,16 +227,108 @@ public final class TerminalRenderer {
             if (lastRunInsideCursor && cursorShape == TerminalEmulator.TERMINAL_CURSOR_STYLE_BLOCK) {
                 invertCursorTextColor = true;
             }
-            drawTextRun(canvas, line, palette, heightOffset, lastRunStartColumn, columnWidthSinceLastRun, lastRunStartIndex, charsSinceLastRun,
-                measuredWidthForRun, cursorColor, cursorShape, lastRunStyle, reverseVideo || invertCursorTextColor || lastRunInsideSelection);
+            addRun(lastRunStartColumn, columnWidthSinceLastRun, lastRunStartIndex, charsSinceLastRun, measuredWidthForRun,
+                lastRunStyle, cursorColor, cursorShape, reverseVideo || invertCursorTextColor || lastRunInsideSelection, lastRunFontWidthMismatch);
+
+            // Pass A: background rectangles, batched per color into a single Path draw each.
+            // Mismatch runs (scaled glyphs) are skipped here and drawn in pass B with their scale.
+            for (int i = 0; i < mRunCount; i++) {
+                if (mRunFontWidthMismatch[i]) continue;
+                resolveRunColors(mRunStyle[i], mRunReverseVideo[i], palette, mColorOut);
+                final int backColor = mColorOut[1];
+                if (backColor == palette[TextStyle.COLOR_INDEX_BACKGROUND]) continue;
+                final float left = mRunStartColumn[i] * mFontWidth;
+                final float right = left + mRunWidthColumns[i] * mFontWidth;
+                addBgRect(backColor, left, heightOffset - mFontLineSpacingAndAscent + mFontAscent, right, heightOffset);
+            }
+            for (int i = 0; i < mBgBatches.size(); i++) {
+                final Path p = mBgBatches.valueAt(i);
+                mTextPaint.setColor(mBgBatches.keyAt(i));
+                canvas.drawPath(p, mTextPaint);
+                p.rewind();
+            }
+
+            // Pass B: text (and cursor, and any scaled background) drawn on top of the backgrounds.
+            for (int i = 0; i < mRunCount; i++) {
+                drawRunText(canvas, line, palette, heightOffset, mRunStartColumn[i], mRunWidthColumns[i], mRunStartChar[i],
+                    mRunCharCount[i], mRunMeasuredWidth[i], mRunCursorColor[i], mRunCursorStyle[i], mRunStyle[i],
+                    mRunReverseVideo[i], mRunFontWidthMismatch[i]);
+            }
         }
 
         canvas.restore();
     }
 
-    private void drawTextRun(Canvas canvas, char[] text, int[] palette, float y, int startColumn, int runWidthColumns,
+    private void ensureRunCapacity(int columns) {
+        if (mRunStartColumn == null || mRunStartColumn.length < columns) {
+            mRunStartColumn = new int[columns];
+            mRunWidthColumns = new int[columns];
+            mRunStartChar = new int[columns];
+            mRunCharCount = new int[columns];
+            mRunMeasuredWidth = new float[columns];
+            mRunStyle = new long[columns];
+            mRunCursorColor = new int[columns];
+            mRunCursorStyle = new int[columns];
+            mRunReverseVideo = new boolean[columns];
+            mRunFontWidthMismatch = new boolean[columns];
+        }
+    }
+
+    private void addRun(int startColumn, int runWidthColumns, int startCharIndex, int runWidthChars, float measuredWidth,
+                        long style, int cursorColor, int cursorStyle, boolean reverseVideo, boolean fontWidthMismatch) {
+        ensureRunCapacity(mRunCount + 1);
+        mRunStartColumn[mRunCount] = startColumn;
+        mRunWidthColumns[mRunCount] = runWidthColumns;
+        mRunStartChar[mRunCount] = startCharIndex;
+        mRunCharCount[mRunCount] = runWidthChars;
+        mRunMeasuredWidth[mRunCount] = measuredWidth;
+        mRunStyle[mRunCount] = style;
+        mRunCursorColor[mRunCount] = cursorColor;
+        mRunCursorStyle[mRunCount] = cursorStyle;
+        mRunReverseVideo[mRunCount] = reverseVideo;
+        mRunFontWidthMismatch[mRunCount] = fontWidthMismatch;
+        mRunCount++;
+    }
+
+    private void addBgRect(int color, float left, float top, float right, float bottom) {
+        Path p = mBgBatches.get(color);
+        if (p == null) {
+            p = new Path();
+            mBgBatches.put(color, p);
+        }
+        p.addRect(left, top, right, bottom, Path.Direction.CW);
+    }
+
+    /** Resolve a run's style into foreground/background colors (with bold + reverse-video handling). */
+    private void resolveRunColors(long textStyle, boolean reverseVideo, int[] palette, int[] out) {
+        int foreColor = TextStyle.decodeForeColor(textStyle);
+        final int effect = TextStyle.decodeEffect(textStyle);
+        int backColor = TextStyle.decodeBackColor(textStyle);
+        final boolean bold = (effect & (TextStyle.CHARACTER_ATTRIBUTE_BOLD | TextStyle.CHARACTER_ATTRIBUTE_BLINK)) != 0;
+
+        if ((foreColor & 0xff000000) != 0xff000000) {
+            // Let bold have bright colors if applicable (one of the first 8):
+            if (bold && foreColor >= 0 && foreColor < 8) foreColor += 8;
+            foreColor = palette[foreColor];
+        }
+        if ((backColor & 0xff000000) != 0xff000000) {
+            backColor = palette[backColor];
+        }
+
+        // Reverse video here if _one and only one_ of the reverse flags are set:
+        final boolean reverseVideoHere = reverseVideo ^ (effect & (TextStyle.CHARACTER_ATTRIBUTE_INVERSE)) != 0;
+        if (reverseVideoHere) {
+            int tmp = foreColor;
+            foreColor = backColor;
+            backColor = tmp;
+        }
+        out[0] = foreColor;
+        out[1] = backColor;
+    }
+
+    private void drawRunText(Canvas canvas, char[] text, int[] palette, float y, int startColumn, int runWidthColumns,
                              int startCharIndex, int runWidthChars, float mes, int cursor, int cursorStyle,
-                             long textStyle, boolean reverseVideo) {
+                             long textStyle, boolean reverseVideo, boolean fontWidthMismatch) {
         int foreColor = TextStyle.decodeForeColor(textStyle);
         final int effect = TextStyle.decodeEffect(textStyle);
         int backColor = TextStyle.decodeBackColor(textStyle);
@@ -220,7 +361,7 @@ public final class TerminalRenderer {
 
         mes = mes / mFontWidth;
         boolean savedMatrix = false;
-        if (Math.abs(mes - runWidthColumns) > 0.01) {
+        if (fontWidthMismatch && Math.abs(mes - runWidthColumns) > 0.01) {
             canvas.save();
             canvas.scale(runWidthColumns / mes, 1.f);
             left *= mes / runWidthColumns;
@@ -228,8 +369,8 @@ public final class TerminalRenderer {
             savedMatrix = true;
         }
 
-        if (backColor != palette[TextStyle.COLOR_INDEX_BACKGROUND]) {
-            // Only draw non-default background.
+        // Background for mismatch (scaled) runs only; non-mismatch backgrounds are batched in pass A.
+        if (fontWidthMismatch && backColor != palette[TextStyle.COLOR_INDEX_BACKGROUND]) {
             mTextPaint.setColor(backColor);
             canvas.drawRect(left, y - mFontLineSpacingAndAscent + mFontAscent, right, y, mTextPaint);
         }

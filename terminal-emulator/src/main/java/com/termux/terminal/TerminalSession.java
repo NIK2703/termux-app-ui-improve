@@ -3,6 +3,7 @@ package com.termux.terminal;
 import android.annotation.SuppressLint;
 import android.os.Handler;
 import android.os.Message;
+import android.view.Choreographer;
 import android.system.ErrnoException;
 import android.system.Os;
 import android.system.OsConstants;
@@ -225,6 +226,29 @@ public final class TerminalSession extends TerminalOutput {
         mClient.onTextChanged(this);
     }
 
+    /**
+     * Coalesced variant of {@link #notifyScreenUpdate()} used for the high-frequency per-chunk
+     * output path. Multiple chunks read from the process within a single vsync period collapse
+     * into a single {@link #notifyScreenUpdate()}, so the scroll/frame logic in the view runs at
+     * most once per frame instead of once per 4 KiB of output. The emulation itself
+     * ({@link TerminalEmulator#append}) still happens for every chunk.
+     */
+    private boolean mScreenUpdateScheduled = false;
+    private final Choreographer mChoreographer = Choreographer.getInstance();
+    private final Choreographer.FrameCallback mScreenUpdateFrameCallback = new Choreographer.FrameCallback() {
+        @Override
+        public void doFrame(long frameTimeNanos) {
+            mScreenUpdateScheduled = false;
+            notifyScreenUpdate();
+        }
+    };
+
+    private void notifyScreenUpdateCoalesced() {
+        if (mScreenUpdateScheduled) return;
+        mScreenUpdateScheduled = true;
+        mChoreographer.postFrameCallback(mScreenUpdateFrameCallback);
+    }
+
     /** Reset state for terminal emulator state. */
     public void reset() {
         mEmulator.reset();
@@ -343,7 +367,7 @@ public final class TerminalSession extends TerminalOutput {
             int bytesRead = mProcessToTerminalIOQueue.read(mReceiveBuffer, false);
             if (bytesRead > 0) {
                 mEmulator.append(mReceiveBuffer, bytesRead);
-                notifyScreenUpdate();
+                notifyScreenUpdateCoalesced();
             }
 
             if (msg.what == MSG_PROCESS_EXITED) {
