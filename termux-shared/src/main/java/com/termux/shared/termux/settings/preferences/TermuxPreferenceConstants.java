@@ -332,15 +332,25 @@ public final class TermuxPreferenceConstants {
         public static final String KEY_TERMINAL_CURSOR_STYLE = "terminal-cursor-style";
         public static final int DEFAULT_VALUE_TERMINAL_CURSOR_STYLE = TermuxPropertyConstants.DEFAULT_IVALUE_TERMINAL_CURSOR_STYLE;
 
-        public static final String KEY_TERMINAL_MARGIN_HORIZONTAL = "terminal-margin-horizontal";
-        public static final int DEFAULT_VALUE_TERMINAL_MARGIN_HORIZONTAL = TermuxPropertyConstants.DEFAULT_IVALUE_TERMINAL_MARGIN_HORIZONTAL;
-        public static final int MIN_TERMINAL_MARGIN_HORIZONTAL = TermuxPropertyConstants.IVALUE_TERMINAL_MARGIN_HORIZONTAL_MIN;
-        public static final int MAX_TERMINAL_MARGIN_HORIZONTAL = TermuxPropertyConstants.IVALUE_TERMINAL_MARGIN_HORIZONTAL_MAX;
+        public static final String KEY_TERMINAL_MARGIN_LEFT = "terminal-margin-left";
+        public static final int DEFAULT_VALUE_TERMINAL_MARGIN_LEFT = TermuxPropertyConstants.DEFAULT_IVALUE_TERMINAL_MARGIN_LEFT;
+        public static final int MIN_TERMINAL_MARGIN_LEFT = TermuxPropertyConstants.IVALUE_TERMINAL_MARGIN_LEFT_MIN;
+        public static final int MAX_TERMINAL_MARGIN_LEFT = TermuxPropertyConstants.IVALUE_TERMINAL_MARGIN_LEFT_MAX;
 
-        public static final String KEY_TERMINAL_MARGIN_VERTICAL = "terminal-margin-vertical";
-        public static final int DEFAULT_VALUE_TERMINAL_MARGIN_VERTICAL = TermuxPropertyConstants.DEFAULT_IVALUE_TERMINAL_MARGIN_VERTICAL;
-        public static final int MIN_TERMINAL_MARGIN_VERTICAL = TermuxPropertyConstants.IVALUE_TERMINAL_MARGIN_VERTICAL_MIN;
-        public static final int MAX_TERMINAL_MARGIN_VERTICAL = TermuxPropertyConstants.IVALUE_TERMINAL_MARGIN_VERTICAL_MAX;
+        public static final String KEY_TERMINAL_MARGIN_TOP = "terminal-margin-top";
+        public static final int DEFAULT_VALUE_TERMINAL_MARGIN_TOP = TermuxPropertyConstants.DEFAULT_IVALUE_TERMINAL_MARGIN_TOP;
+        public static final int MIN_TERMINAL_MARGIN_TOP = TermuxPropertyConstants.IVALUE_TERMINAL_MARGIN_TOP_MIN;
+        public static final int MAX_TERMINAL_MARGIN_TOP = TermuxPropertyConstants.IVALUE_TERMINAL_MARGIN_TOP_MAX;
+
+        public static final String KEY_TERMINAL_MARGIN_RIGHT = "terminal-margin-right";
+        public static final int DEFAULT_VALUE_TERMINAL_MARGIN_RIGHT = TermuxPropertyConstants.DEFAULT_IVALUE_TERMINAL_MARGIN_RIGHT;
+        public static final int MIN_TERMINAL_MARGIN_RIGHT = TermuxPropertyConstants.IVALUE_TERMINAL_MARGIN_RIGHT_MIN;
+        public static final int MAX_TERMINAL_MARGIN_RIGHT = TermuxPropertyConstants.IVALUE_TERMINAL_MARGIN_RIGHT_MAX;
+
+        public static final String KEY_TERMINAL_MARGIN_BOTTOM = "terminal-margin-bottom";
+        public static final int DEFAULT_VALUE_TERMINAL_MARGIN_BOTTOM = TermuxPropertyConstants.DEFAULT_IVALUE_TERMINAL_MARGIN_BOTTOM;
+        public static final int MIN_TERMINAL_MARGIN_BOTTOM = TermuxPropertyConstants.IVALUE_TERMINAL_MARGIN_BOTTOM_MIN;
+        public static final int MAX_TERMINAL_MARGIN_BOTTOM = TermuxPropertyConstants.IVALUE_TERMINAL_MARGIN_BOTTOM_MAX;
 
         public static final String KEY_TERMINAL_TRANSCRIPT_ROWS = "terminal-transcript-rows";
         public static final int DEFAULT_VALUE_TERMINAL_TRANSCRIPT_ROWS = TermuxPropertyConstants.DEFAULT_IVALUE_TERMINAL_TRANSCRIPT_ROWS;

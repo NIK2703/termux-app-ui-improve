@@ -425,11 +425,10 @@
     <string name="bell_character_title">Verhalten bei Bell</string>
     <string name="bell_character_summary">Was passiert, wenn das Terminal ein Bell-Zeichen (BEL) empfängt.</string>
 
-    <string name="terminal_margin_horizontal_title">Horizontaler Rand</string>
-    <string name="terminal_margin_horizontal_summary">Horizontaler Terminal-Rand in dp.</string>
-
-    <string name="terminal_margin_vertical_title">Vertikaler Rand</string>
-    <string name="terminal_margin_vertical_summary">Vertikaler Terminal-Rand in dp.</string>
+    <string name="terminal_margin_left_title">Linker Rand</string>
+    <string name="terminal_margin_top_title">Oberer Rand</string>
+    <string name="terminal_margin_right_title">Rechter Rand</string>
+    <string name="terminal_margin_bottom_title">Unterer Rand</string>
 
     <string name="terminal_toolbar_height_title">Symbolleisten-Höhenskalierung</string>
     <string name="terminal_toolbar_height_summary">Skalierungsfaktor für die Höhe der Zusatztasten-/Terminal-Symbolleiste.</string>

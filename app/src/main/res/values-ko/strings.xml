@@ -438,10 +438,10 @@ $HOME/bin/termux-url-opener
     <string name="terminal_cursor_style_underline">밑줄</string>
 
     
-    <string name="terminal_margin_horizontal_summary">dp 단위의 가로 터미널 여백입니다.</string>
-    <string name="terminal_margin_horizontal_title">가로 여백</string>
-    <string name="terminal_margin_vertical_summary">dp 단위의 세로 터미널 여백입니다.</string>
-    <string name="terminal_margin_vertical_title">세로 여백</string>
+    <string name="terminal_margin_left_title">왼쪽 여백</string>
+    <string name="terminal_margin_top_title">위쪽 여백</string>
+    <string name="terminal_margin_right_title">오른쪽 여백</string>
+    <string name="terminal_margin_bottom_title">아래쪽 여백</string>
 
     
     <string name="terminal_toolbar_height_summary">추가 키 / 터미널 도구 모음 높이 배율입니다.</string>

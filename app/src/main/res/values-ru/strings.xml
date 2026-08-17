@@ -476,10 +476,10 @@
 
     <string name="terminal_cursor_blink_enabled_title">Мигание курсора</string>
 
-    <string name="terminal_margin_horizontal_title">Горизонтальный отступ</string>
-    <string name="terminal_margin_horizontal_summary">Горизонтальный отступ терминала в dp.</string>
-    <string name="terminal_margin_vertical_title">Вертикальный отступ</string>
-    <string name="terminal_margin_vertical_summary">Вертикальный отступ терминала в dp.</string>
+    <string name="terminal_margin_left_title">Левый отступ</string>
+    <string name="terminal_margin_top_title">Верхний отступ</string>
+    <string name="terminal_margin_right_title">Правый отступ</string>
+    <string name="terminal_margin_bottom_title">Нижний отступ</string>
 
     <string name="terminal_toolbar_height_title">Масштаб панели инструментов</string>
     <string name="terminal_toolbar_height_summary">Коэффициент масштаба панели дополнительных кнопок / терминала.</string>

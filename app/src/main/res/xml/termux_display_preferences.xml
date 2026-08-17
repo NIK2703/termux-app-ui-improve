@@ -125,19 +125,35 @@
             app:iconSpaceReserved="false" />
 
         <SeekBarPreference
-            app:key="terminal-margin-horizontal"
-            app:title="@string/terminal_margin_horizontal_title"
-            app:summary="@string/terminal_margin_horizontal_summary"
+            app:key="terminal-margin-left"
+            app:title="@string/terminal_margin_left_title"
             app:min="0"
             android:max="20"
-            app:defaultValue="3"
+            app:defaultValue="2"
             app:showSeekBarValue="true"
             app:iconSpaceReserved="false" />
 
         <SeekBarPreference
-            app:key="terminal-margin-vertical"
-            app:title="@string/terminal_margin_vertical_title"
-            app:summary="@string/terminal_margin_vertical_summary"
+            app:key="terminal-margin-top"
+            app:title="@string/terminal_margin_top_title"
+            app:min="0"
+            android:max="20"
+            app:defaultValue="0"
+            app:showSeekBarValue="true"
+            app:iconSpaceReserved="false" />
+
+        <SeekBarPreference
+            app:key="terminal-margin-right"
+            app:title="@string/terminal_margin_right_title"
+            app:min="0"
+            android:max="20"
+            app:defaultValue="2"
+            app:showSeekBarValue="true"
+            app:iconSpaceReserved="false" />
+
+        <SeekBarPreference
+            app:key="terminal-margin-bottom"
+            app:title="@string/terminal_margin_bottom_title"
             app:min="0"
             android:max="20"
             app:defaultValue="0"

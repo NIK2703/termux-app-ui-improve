@@ -515,10 +515,10 @@
     <string name="terminal_cursor_blink_enabled_title">Clignotement du curseur</string>
 
     
-    <string name="terminal_margin_horizontal_title">Marge horizontale</string>
-    <string name="terminal_margin_horizontal_summary">Marge horizontale du terminal en dp.</string>
-    <string name="terminal_margin_vertical_title">Marge verticale</string>
-    <string name="terminal_margin_vertical_summary">Marge verticale du terminal en dp.</string>
+    <string name="terminal_margin_left_title">Marge gauche</string>
+    <string name="terminal_margin_top_title">Marge supérieure</string>
+    <string name="terminal_margin_right_title">Marge droite</string>
+    <string name="terminal_margin_bottom_title">Marge inférieure</string>
 
     
     <string name="terminal_toolbar_height_title">Échelle de hauteur de la barre d\'outils</string>

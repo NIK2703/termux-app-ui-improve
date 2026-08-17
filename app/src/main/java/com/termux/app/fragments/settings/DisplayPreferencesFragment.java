@@ -186,11 +186,17 @@ public class DisplayPreferencesFragment extends TermuxPreferenceFragmentBase {
         Preference ratePref = findPreference("terminal-cursor-blink-rate");
         if (ratePref != null) ratePref.setEnabled(prefs.getTerminalCursorBlinkEnabled());
 
-        configureSeekBarInt("terminal-margin-horizontal", prefs.getTerminalMarginHorizontal(),
-            value -> prefs.setTerminalMarginHorizontal(value));
+        configureSeekBarInt("terminal-margin-left", prefs.getTerminalMarginLeft(),
+            value -> prefs.setTerminalMarginLeft(value));
 
-        configureSeekBarInt("terminal-margin-vertical", prefs.getTerminalMarginVertical(),
-            value -> prefs.setTerminalMarginVertical(value));
+        configureSeekBarInt("terminal-margin-top", prefs.getTerminalMarginTop(),
+            value -> prefs.setTerminalMarginTop(value));
+
+        configureSeekBarInt("terminal-margin-right", prefs.getTerminalMarginRight(),
+            value -> prefs.setTerminalMarginRight(value));
+
+        configureSeekBarInt("terminal-margin-bottom", prefs.getTerminalMarginBottom(),
+            value -> prefs.setTerminalMarginBottom(value));
 
         configureSwitch("scroll-on-new-output", prefs.isScrollOnNewOutputEnabled(),
             value -> prefs.setScrollOnNewOutputEnabled(value));

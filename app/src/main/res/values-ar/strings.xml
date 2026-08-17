@@ -445,10 +445,10 @@
     <string name="terminal_cursor_blink_enabled_title">وميض المؤشر</string>
     <string name="bell_character_title">سلوك الجرس</string>
     <string name="bell_character_summary">ماذا يحدث عندما تستقبل الطرفية حرف الجرس (BEL).</string>
-    <string name="terminal_margin_horizontal_title">الهامش الأفقي</string>
-    <string name="terminal_margin_horizontal_summary">الهامش الأفقي للطرفية بوحدة dp.</string>
-    <string name="terminal_margin_vertical_title">الهامش الرأسي</string>
-    <string name="terminal_margin_vertical_summary">الهامش الرأسي للطرفية بوحدة dp.</string>
+    <string name="terminal_margin_left_title">الهامش الأيسر</string>
+    <string name="terminal_margin_top_title">الهامش العلوي</string>
+    <string name="terminal_margin_right_title">الهامش الأيمن</string>
+    <string name="terminal_margin_bottom_title">الهامش السفلي</string>
     <string name="terminal_toolbar_height_title">تحجيم ارتفاع شريط الأدوات</string>
     <string name="terminal_toolbar_height_summary">عامل تحجيم ارتفاع شريط أدوات الطرفية/المفاتيح الإضافية.</string>
     <string name="default_working_directory_title">مجلد العمل الافتراضي</string>

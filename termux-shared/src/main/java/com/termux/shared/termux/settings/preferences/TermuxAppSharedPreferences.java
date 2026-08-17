@@ -571,25 +571,62 @@ public class TermuxAppSharedPreferences extends AppSharedPreferences {
     }
 
 
-    public int getTerminalMarginHorizontal() {
-        return SharedPreferenceUtils.getInt(mSharedPreferences, TERMUX_APP.KEY_TERMINAL_MARGIN_HORIZONTAL, TERMUX_APP.DEFAULT_VALUE_TERMINAL_MARGIN_HORIZONTAL);
+    /**
+     * Get the terminal margin for one side. For a left/right side, if the new per-side
+     * key is unset, falls back to the legacy "terminal-margin-horizontal" value; for a
+     * top/bottom side, to the legacy "terminal-margin-vertical" value.
+     */
+    private int getTerminalMarginSide(String key, String legacyKey, int defaultValue) {
+        if (mSharedPreferences.contains(key)) {
+            return SharedPreferenceUtils.getInt(mSharedPreferences, key, defaultValue);
+        }
+        int legacy = SharedPreferenceUtils.getInt(mSharedPreferences, legacyKey, defaultValue);
+        SharedPreferenceUtils.setInt(mSharedPreferences, key, legacy, false);
+        return legacy;
     }
 
-    public void setTerminalMarginHorizontal(int value) {
-        if (value < TERMUX_APP.MIN_TERMINAL_MARGIN_HORIZONTAL) value = TERMUX_APP.MIN_TERMINAL_MARGIN_HORIZONTAL;
-        if (value > TERMUX_APP.MAX_TERMINAL_MARGIN_HORIZONTAL) value = TERMUX_APP.MAX_TERMINAL_MARGIN_HORIZONTAL;
-        SharedPreferenceUtils.setInt(mSharedPreferences, TERMUX_APP.KEY_TERMINAL_MARGIN_HORIZONTAL, value, false);
+    public int getTerminalMarginLeft() {
+        return getTerminalMarginSide(TERMUX_APP.KEY_TERMINAL_MARGIN_LEFT,
+                "terminal-margin-horizontal", TERMUX_APP.DEFAULT_VALUE_TERMINAL_MARGIN_LEFT);
     }
 
-
-    public int getTerminalMarginVertical() {
-        return SharedPreferenceUtils.getInt(mSharedPreferences, TERMUX_APP.KEY_TERMINAL_MARGIN_VERTICAL, TERMUX_APP.DEFAULT_VALUE_TERMINAL_MARGIN_VERTICAL);
+    public void setTerminalMarginLeft(int value) {
+        if (value < TERMUX_APP.MIN_TERMINAL_MARGIN_LEFT) value = TERMUX_APP.MIN_TERMINAL_MARGIN_LEFT;
+        if (value > TERMUX_APP.MAX_TERMINAL_MARGIN_LEFT) value = TERMUX_APP.MAX_TERMINAL_MARGIN_LEFT;
+        SharedPreferenceUtils.setInt(mSharedPreferences, TERMUX_APP.KEY_TERMINAL_MARGIN_LEFT, value, false);
     }
 
-    public void setTerminalMarginVertical(int value) {
-        if (value < TERMUX_APP.MIN_TERMINAL_MARGIN_VERTICAL) value = TERMUX_APP.MIN_TERMINAL_MARGIN_VERTICAL;
-        if (value > TERMUX_APP.MAX_TERMINAL_MARGIN_VERTICAL) value = TERMUX_APP.MAX_TERMINAL_MARGIN_VERTICAL;
-        SharedPreferenceUtils.setInt(mSharedPreferences, TERMUX_APP.KEY_TERMINAL_MARGIN_VERTICAL, value, false);
+    public int getTerminalMarginTop() {
+        return getTerminalMarginSide(TERMUX_APP.KEY_TERMINAL_MARGIN_TOP,
+                "terminal-margin-vertical", TERMUX_APP.DEFAULT_VALUE_TERMINAL_MARGIN_TOP);
+    }
+
+    public void setTerminalMarginTop(int value) {
+        if (value < TERMUX_APP.MIN_TERMINAL_MARGIN_TOP) value = TERMUX_APP.MIN_TERMINAL_MARGIN_TOP;
+        if (value > TERMUX_APP.MAX_TERMINAL_MARGIN_TOP) value = TERMUX_APP.MAX_TERMINAL_MARGIN_TOP;
+        SharedPreferenceUtils.setInt(mSharedPreferences, TERMUX_APP.KEY_TERMINAL_MARGIN_TOP, value, false);
+    }
+
+    public int getTerminalMarginRight() {
+        return getTerminalMarginSide(TERMUX_APP.KEY_TERMINAL_MARGIN_RIGHT,
+                "terminal-margin-horizontal", TERMUX_APP.DEFAULT_VALUE_TERMINAL_MARGIN_RIGHT);
+    }
+
+    public void setTerminalMarginRight(int value) {
+        if (value < TERMUX_APP.MIN_TERMINAL_MARGIN_RIGHT) value = TERMUX_APP.MIN_TERMINAL_MARGIN_RIGHT;
+        if (value > TERMUX_APP.MAX_TERMINAL_MARGIN_RIGHT) value = TERMUX_APP.MAX_TERMINAL_MARGIN_RIGHT;
+        SharedPreferenceUtils.setInt(mSharedPreferences, TERMUX_APP.KEY_TERMINAL_MARGIN_RIGHT, value, false);
+    }
+
+    public int getTerminalMarginBottom() {
+        return getTerminalMarginSide(TERMUX_APP.KEY_TERMINAL_MARGIN_BOTTOM,
+                "terminal-margin-vertical", TERMUX_APP.DEFAULT_VALUE_TERMINAL_MARGIN_BOTTOM);
+    }
+
+    public void setTerminalMarginBottom(int value) {
+        if (value < TERMUX_APP.MIN_TERMINAL_MARGIN_BOTTOM) value = TERMUX_APP.MIN_TERMINAL_MARGIN_BOTTOM;
+        if (value > TERMUX_APP.MAX_TERMINAL_MARGIN_BOTTOM) value = TERMUX_APP.MAX_TERMINAL_MARGIN_BOTTOM;
+        SharedPreferenceUtils.setInt(mSharedPreferences, TERMUX_APP.KEY_TERMINAL_MARGIN_BOTTOM, value, false);
     }
 
 

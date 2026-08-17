@@ -1474,24 +1474,20 @@ public final class TerminalView extends View {
         int newColumns = Math.max(4, (int) (viewWidth / mRenderer.mFontWidth));
         int newRows = Math.max(4, (viewHeight - mRenderer.mFontLineSpacingAndAscent) / mRenderer.mFontLineSpacing);
 
-        // Center the glyph grid so the leftover space (from glyphs that do not fit the view)
-        // is split symmetrically. The grid occupies [0, columns*fontWidth) horizontally and
-        // [mFontLineSpacingAndAscent, mFontLineSpacingAndAscent + rows*lineSpacing) vertically,
-        // so the vertical shift is (viewHeight - rows*lineSpacing)/2 - mFontLineSpacingAndAscent,
-        // which keeps the top gap (mFontLineSpacingAndAscent + mGridOffsetY) equal to the bottom
-        // one (viewHeight - mFontLineSpacingAndAscent - rows*lineSpacing - mGridOffsetY). The
-        // shift may be slightly negative (up to -mFontLineSpacingAndAscent) without clipping
-        // glyphs since the top of the grid can never move above y=0. The offsets are snapped
-        // to whole pixels below (symmetry then holds within 1px) so that adjacent rows'
-        // background rects keep integer edges and do not show anti-aliased seams. Recompute
-        // unconditionally: a sub-cell resize leaves columns/rows unchanged but still changes
-        // the leftover space.
+        // The glyph grid is pinned to the TOP edge of the view: the first row's top sits at
+        // y=0 and all leftover vertical space (from rows that do not fit the view) stays at
+        // the bottom. The grid occupies [0, columns*fontWidth) horizontally and
+        // [mFontLineSpacingAndAscent, mFontLineSpacingAndAscent + rows*lineSpacing) vertically
+        // in translated coordinates, so the vertical shift is exactly
+        // -mFontLineSpacingAndAscent (top gap = mFontLineSpacingAndAscent + mGridOffsetY = 0),
+        // leaving a bottom gap of viewHeight - rows*lineSpacing. Horizontally the leftover
+        // space is still split symmetrically. The offsets are snapped to whole pixels below so
+        // that adjacent rows' background rects keep integer edges and do not show anti-aliased
+        // seams. Recompute unconditionally: a sub-cell resize leaves columns/rows unchanged but
+        // still changes the leftover space.
         float gridWidth = newColumns * mRenderer.mFontWidth;
-        float gridHeight = newRows * (float) mRenderer.mFontLineSpacing;
         float newGridOffsetX = Math.max(0f, (viewWidth - gridWidth) / 2f);
-        float newGridOffsetY = (viewHeight - gridHeight) / 2f - mRenderer.mFontLineSpacingAndAscent;
-        if (newGridOffsetY < -mRenderer.mFontLineSpacingAndAscent)
-            newGridOffsetY = -mRenderer.mFontLineSpacingAndAscent;
+        float newGridOffsetY = -mRenderer.mFontLineSpacingAndAscent;
         // Snap to whole pixels: with a fractional offset, adjacent rows' background rects share
         // fractional edges; anti-aliased SRC_OVER compositing then leaves 25% of the drawColor
         // background showing through each row seam (visible hairlines on non-default backgrounds).

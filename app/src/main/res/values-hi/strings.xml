@@ -421,10 +421,10 @@
     <string name="terminal_cursor_blink_enabled_title">कर्सर ब्लिंकिंग</string>
     <string name="bell_character_title">बेल व्यवहार</string>
     <string name="bell_character_summary">जब टर्मिनल को बेल (BEL) वर्ण प्राप्त होता है तो क्या होता है।</string>
-    <string name="terminal_margin_horizontal_title">क्षैतिज मार्जिन</string>
-    <string name="terminal_margin_horizontal_summary">dp में क्षैतिज टर्मिनल मार्जिन।</string>
-    <string name="terminal_margin_vertical_title">ऊर्ध्वाधर मार्जिन</string>
-    <string name="terminal_margin_vertical_summary">dp में ऊर्ध्वाधर टर्मिनल मार्जिन।</string>
+    <string name="terminal_margin_left_title">बायाँ मार्जिन</string>
+    <string name="terminal_margin_top_title">ऊपरी मार्जिन</string>
+    <string name="terminal_margin_right_title">दायाँ मार्जिन</string>
+    <string name="terminal_margin_bottom_title">निचला मार्जिन</string>
     <string name="terminal_toolbar_height_title">टूलबार ऊँचाई स्केल</string>
     <string name="terminal_toolbar_height_summary">एक्स्ट्रा कीज़ / टर्मिनल टूलबार ऊँचाई स्केल कारक।</string>
     <string name="default_working_directory_title">डिफ़ॉल्ट कार्य निर्देशिका</string>

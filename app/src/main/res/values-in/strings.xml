@@ -424,10 +424,10 @@
     <string name="bell_character_summary">Apa yang terjadi saat terminal menerima karakter bel (BEL).</string>
 
     
-    <string name="terminal_margin_horizontal_title">Margin horizontal</string>
-    <string name="terminal_margin_horizontal_summary">Margin horizontal terminal dalam dp.</string>
-    <string name="terminal_margin_vertical_title">Margin vertikal</string>
-    <string name="terminal_margin_vertical_summary">Margin vertikal terminal dalam dp.</string>
+    <string name="terminal_margin_left_title">Margin kiri</string>
+    <string name="terminal_margin_top_title">Margin atas</string>
+    <string name="terminal_margin_right_title">Margin kanan</string>
+    <string name="terminal_margin_bottom_title">Margin bawah</string>
 
     
     <string name="terminal_toolbar_height_title">Skala tinggi bilah alat</string>

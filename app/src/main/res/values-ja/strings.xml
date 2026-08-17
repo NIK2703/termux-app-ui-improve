@@ -445,10 +445,10 @@
     <string name="bell_character_summary">ターミナルがベル（BEL）文字を受信したときの動作。</string>
 
     
-    <string name="terminal_margin_horizontal_title">水平マージン</string>
-    <string name="terminal_margin_horizontal_summary">ターミナルの水平マージン（dp）。</string>
-    <string name="terminal_margin_vertical_title">垂直マージン</string>
-    <string name="terminal_margin_vertical_summary">ターミナルの垂直マージン（dp）。</string>
+    <string name="terminal_margin_left_title">左余白</string>
+    <string name="terminal_margin_top_title">上余白</string>
+    <string name="terminal_margin_right_title">右余白</string>
+    <string name="terminal_margin_bottom_title">下余白</string>
 
     
     <string name="terminal_toolbar_height_title">ツールバーの高さ倍率</string>

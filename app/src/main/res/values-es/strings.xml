@@ -469,10 +469,10 @@
     <string name="terminal_cursor_style_summary">Cómo se dibuja el cursor del terminal.</string>
     <string name="terminal_cursor_style_title">Estilo del cursor</string>
     <string name="terminal_cursor_style_underline">Subrayado</string>
-    <string name="terminal_margin_horizontal_summary">Margen horizontal del terminal en dp.</string>
-    <string name="terminal_margin_horizontal_title">Margen horizontal</string>
-    <string name="terminal_margin_vertical_summary">Margen vertical del terminal en dp.</string>
-    <string name="terminal_margin_vertical_title">Margen vertical</string>
+    <string name="terminal_margin_left_title">Margen izquierdo</string>
+    <string name="terminal_margin_top_title">Margen superior</string>
+    <string name="terminal_margin_right_title">Margen derecho</string>
+    <string name="terminal_margin_bottom_title">Margen inferior</string>
     <string name="terminal_onclick_url_open_summary">Abrir URLs en la transcripción del terminal al pulsarlas.</string>
     <string name="terminal_onclick_url_open_title">Abrir URL al hacer clic</string>
     <string name="terminal_toolbar_height_summary">Factor de escala de altura de la barra de herramientas / teclas adicionales.</string>

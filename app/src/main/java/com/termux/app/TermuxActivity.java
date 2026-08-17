@@ -802,9 +802,10 @@ if (!TermuxInstaller.isBootstrapInstalled(this)) {
         // yet (first call from onCreate, before setTermuxTerminalViewAndClients()),
         // SessionPagerManager.setup() applies the margins from the properties itself.
         if (mSessionPagerManager == null) return;
-        int marginHorizontal = mProperties.getTerminalMarginHorizontal();
-        int marginVertical = mProperties.getTerminalMarginVertical();
-        mSessionPagerManager.setTerminalMargins(marginHorizontal, marginVertical);
+        mSessionPagerManager.setTerminalMargins(mProperties.getTerminalMarginLeft(),
+                mProperties.getTerminalMarginTop(),
+                mProperties.getTerminalMarginRight(),
+                mProperties.getTerminalMarginBottom());
 
         // The floating toggle-text-input button used to live inside the (margin-inset)
         // container, so it followed the terminal's right margin automatically. Now that
@@ -1568,7 +1569,7 @@ if (!TermuxInstaller.isBootstrapInstalled(this)) {
     }
 
     /**
-     * The terminal's right margin in pixels (from the "terminal-margin-horizontal"
+     * The terminal's right margin in pixels (from the "terminal-margin-right"
      * setting). The floating toggle-text-input button is offset by this amount so it
      * stays clear of the terminal's right edge (and its scrollbar) — previously the
      * button lived inside the margin-inset container and followed the margin
@@ -1577,7 +1578,7 @@ if (!TermuxInstaller.isBootstrapInstalled(this)) {
      */
     public int getTerminalRightInsetPx() {
         if (mProperties == null) return 0;
-        return (int) (mProperties.getTerminalMarginHorizontal()
+        return (int) (mProperties.getTerminalMarginRight()
                 * getResources().getDisplayMetrics().density + 0.5f);
     }
 

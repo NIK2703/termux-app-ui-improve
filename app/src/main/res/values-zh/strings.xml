@@ -457,10 +457,10 @@
     <string name="bell_character_beep">蜂鸣</string>
     <string name="bell_character_ignore">忽略</string>
 
-    <string name="terminal_margin_horizontal_title">水平边距</string>
-    <string name="terminal_margin_horizontal_summary">终端水平边距（dp）。</string>
-    <string name="terminal_margin_vertical_title">垂直边距</string>
-    <string name="terminal_margin_vertical_summary">终端垂直边距（dp）。</string>
+    <string name="terminal_margin_left_title">左边距</string>
+    <string name="terminal_margin_top_title">上边距</string>
+    <string name="terminal_margin_right_title">右边距</string>
+    <string name="terminal_margin_bottom_title">下边距</string>
 
     <string name="terminal_toolbar_height_title">工具栏高度比例</string>
     <string name="terminal_toolbar_height_summary">额外按键/终端工具栏高度比例因子。</string>

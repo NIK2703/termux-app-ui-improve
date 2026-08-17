@@ -72,13 +72,15 @@ public final class TerminalPagerAdapter extends RecyclerView.Adapter<TerminalPag
     private TerminalPageViewHolder mPlaceholderHolder = null;
 
     /**
-     * User-configured terminal margins in dp (settings "terminal-margin-horizontal" /
-     * "terminal-margin-vertical"). Applied to the TerminalView of EVERY page so the pager itself
-     * stays full-bleed (a swipe reveals the neighbouring page edge-to-edge) while each terminal
-     * screen keeps its own inset from the screen edges.
+     * User-configured terminal margins in dp (settings "terminal-margin-left" / "terminal-margin-top" /
+     * "terminal-margin-right" / "terminal-margin-bottom"). Applied to the TerminalView of EVERY page
+     * so the pager itself stays full-bleed (a swipe reveals the neighbouring page edge-to-edge) while
+     * each terminal screen keeps its own inset from the screen edges.
      */
-    private int mMarginHorizontalDp = 0;
-    private int mMarginVerticalDp = 0;
+    private int mMarginLeftDp = 0;
+    private int mMarginTopDp = 0;
+    private int mMarginRightDp = 0;
+    private int mMarginBottomDp = 0;
 
     public TerminalPagerAdapter(@NonNull TermuxActivity activity,
                                  @NonNull TermuxTerminalViewClient viewClient,
@@ -177,17 +179,21 @@ public final class TerminalPagerAdapter extends RecyclerView.Adapter<TerminalPag
     }
 
     /**
-     * Update the per-page terminal margins (settings "terminal-margin-horizontal" /
-     * "terminal-margin-vertical"). Applied to the TerminalView of every attached page so the
-     * pager container itself stays full-bleed and a swipe reveals the neighbouring page
-     * edge-to-edge; each terminal screen keeps its own inset from the screen edges.
+     * Update the per-page terminal margins (settings "terminal-margin-left" / "terminal-margin-top" /
+     * "terminal-margin-right" / "terminal-margin-bottom"). Applied to the TerminalView of every
+     * attached page so the pager container itself stays full-bleed and a swipe reveals the
+     * neighbouring page edge-to-edge; each terminal screen keeps its own inset from the screen edges.
      *
-     * @param horizontalDp horizontal margin in dp (left + right).
-     * @param verticalDp   vertical margin in dp (top + bottom).
+     * @param leftDp   left margin in dp.
+     * @param topDp    top margin in dp.
+     * @param rightDp  right margin in dp.
+     * @param bottomDp bottom margin in dp.
      */
-    public void setTerminalMargins(int horizontalDp, int verticalDp) {
-        mMarginHorizontalDp = horizontalDp;
-        mMarginVerticalDp = verticalDp;
+    public void setTerminalMargins(int leftDp, int topDp, int rightDp, int bottomDp) {
+        mMarginLeftDp = leftDp;
+        mMarginTopDp = topDp;
+        mMarginRightDp = rightDp;
+        mMarginBottomDp = bottomDp;
         for (TerminalView terminalView : mAttachedViews.values()) {
             applyTerminalMargins(terminalView);
         }
@@ -197,7 +203,7 @@ public final class TerminalPagerAdapter extends RecyclerView.Adapter<TerminalPag
     private void applyTerminalMargins(@androidx.annotation.Nullable TerminalView terminalView) {
         if (terminalView == null) return;
         ViewUtils.setLayoutMarginsInDp(terminalView,
-                mMarginHorizontalDp, mMarginVerticalDp, mMarginHorizontalDp, mMarginVerticalDp);
+                mMarginLeftDp, mMarginTopDp, mMarginRightDp, mMarginBottomDp);
     }
 
     // NOTE: the placeholder page uses the SAME view type (and layout) as a normal terminal page.

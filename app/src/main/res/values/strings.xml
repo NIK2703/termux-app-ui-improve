@@ -539,11 +539,13 @@
     <string name="bell_character_title">Bell behaviour</string>
     <string name="bell_character_summary">What happens when the terminal receives a bell (BEL) character.</string>
 
-    <string name="terminal_margin_horizontal_title">Horizontal margin</string>
-    <string name="terminal_margin_horizontal_summary">Horizontal terminal margin in dp.</string>
+    <string name="terminal_margin_left_title">Left margin</string>
 
-    <string name="terminal_margin_vertical_title">Vertical margin</string>
-    <string name="terminal_margin_vertical_summary">Vertical terminal margin in dp.</string>
+    <string name="terminal_margin_top_title">Top margin</string>
+
+    <string name="terminal_margin_right_title">Right margin</string>
+
+    <string name="terminal_margin_bottom_title">Bottom margin</string>
 
     <string name="terminal_toolbar_height_title">Toolbar height scale</string>
     <string name="terminal_toolbar_height_summary">Extra keys / terminal toolbar height scale factor.</string>

@@ -79,8 +79,9 @@ public final class SessionPagerManager {
     }
 
     /**
-     * Apply the user-configured terminal margins (from the "terminal-margin-horizontal" /
-     * "terminal-margin-vertical" settings) to every terminal page inside the pager.
+     * Apply the user-configured terminal margins (from the "terminal-margin-left" /
+     * "terminal-margin-top" / "terminal-margin-right" / "terminal-margin-bottom" settings) to
+     * every terminal page inside the pager.
      * <p/>
      * The margins are applied to the TerminalView of each page — NOT to the pager container.
      * With the margins on the container, the pager itself is inset from the screen edges and
@@ -88,12 +89,14 @@ public final class SessionPagerManager {
      * revealing it edge-to-edge. Applying them per-page keeps the pager full-bleed while each
      * terminal screen keeps its own inset from the screen edges.
      *
-     * @param horizontalDp horizontal margin in dp (applied to left and right).
-     * @param verticalDp   vertical margin in dp (applied to top and bottom).
+     * @param leftDp   left margin in dp.
+     * @param topDp    top margin in dp.
+     * @param rightDp  right margin in dp.
+     * @param bottomDp bottom margin in dp.
      */
-    public void setTerminalMargins(int horizontalDp, int verticalDp) {
+    public void setTerminalMargins(int leftDp, int topDp, int rightDp, int bottomDp) {
         if (mTerminalPagerAdapter != null)
-            mTerminalPagerAdapter.setTerminalMargins(horizontalDp, verticalDp);
+            mTerminalPagerAdapter.setTerminalMargins(leftDp, topDp, rightDp, bottomDp);
     }
 
     /**
@@ -158,8 +161,10 @@ public final class SessionPagerManager {
         // cannot do this on first launch — it runs in onCreate() before this manager exists — so
         // the margins are (re)applied here from the live properties. Later changes arrive via
         // TermuxActivity.setMargins() -> SessionPagerManager.setTerminalMargins().
-        setTerminalMargins(mActivity.getProperties().getTerminalMarginHorizontal(),
-                mActivity.getProperties().getTerminalMarginVertical());
+        setTerminalMargins(mActivity.getProperties().getTerminalMarginLeft(),
+                mActivity.getProperties().getTerminalMarginTop(),
+                mActivity.getProperties().getTerminalMarginRight(),
+                mActivity.getProperties().getTerminalMarginBottom());
 
         mTerminalPager.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {
             @Override

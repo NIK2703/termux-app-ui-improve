@@ -479,10 +479,10 @@
     <string name="terminal_cursor_blink_enabled_title">Piscar cursor</string>
     <string name="bell_character_title">Comportamento do sinal sonoro</string>
     <string name="bell_character_summary">O que acontece quando o terminal recebe um caractere de sinal sonoro (BEL).</string>
-    <string name="terminal_margin_horizontal_title">Margem horizontal</string>
-    <string name="terminal_margin_horizontal_summary">Margem horizontal do terminal em dp.</string>
-    <string name="terminal_margin_vertical_title">Margem vertical</string>
-    <string name="terminal_margin_vertical_summary">Margem vertical do terminal em dp.</string>
+    <string name="terminal_margin_left_title">Margem esquerda</string>
+    <string name="terminal_margin_top_title">Margem superior</string>
+    <string name="terminal_margin_right_title">Margem direita</string>
+    <string name="terminal_margin_bottom_title">Margem inferior</string>
     <string name="terminal_toolbar_height_title">Escala da altura da barra de ferramentas</string>
     <string name="terminal_toolbar_height_summary">Fator de escala da altura da barra de teclas extras / barra de ferramentas do terminal.</string>
     <string name="default_working_directory_title">Diretório de trabalho padrão</string>

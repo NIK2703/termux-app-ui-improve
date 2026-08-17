@@ -254,17 +254,29 @@ public final class TermuxPropertyConstants {
 
 
 
-    /** Defines the key for the terminal margin on left and right in dp units */
-    public static final String KEY_TERMINAL_MARGIN_HORIZONTAL =  "terminal-margin-horizontal"; // Default: "terminal-margin-horizontal"
-    public static final int IVALUE_TERMINAL_MARGIN_HORIZONTAL_MIN = 0;
-    public static final int IVALUE_TERMINAL_MARGIN_HORIZONTAL_MAX = 100;
-    public static final int DEFAULT_IVALUE_TERMINAL_MARGIN_HORIZONTAL = 3;
+    /** Defines the key for the terminal margin on the left in dp units */
+    public static final String KEY_TERMINAL_MARGIN_LEFT =  "terminal-margin-left"; // Default: "terminal-margin-left"
+    public static final int IVALUE_TERMINAL_MARGIN_LEFT_MIN = 0;
+    public static final int IVALUE_TERMINAL_MARGIN_LEFT_MAX = 100;
+    public static final int DEFAULT_IVALUE_TERMINAL_MARGIN_LEFT = 2;
 
-    /** Defines the key for the terminal margin on top and bottom in dp units */
-    public static final String KEY_TERMINAL_MARGIN_VERTICAL =  "terminal-margin-vertical"; // Default: "terminal-margin-vertical"
-    public static final int IVALUE_TERMINAL_MARGIN_VERTICAL_MIN = 0;
-    public static final int IVALUE_TERMINAL_MARGIN_VERTICAL_MAX = 100;
-    public static final int DEFAULT_IVALUE_TERMINAL_MARGIN_VERTICAL = 0;
+    /** Defines the key for the terminal margin on the top in dp units */
+    public static final String KEY_TERMINAL_MARGIN_TOP =  "terminal-margin-top"; // Default: "terminal-margin-top"
+    public static final int IVALUE_TERMINAL_MARGIN_TOP_MIN = 0;
+    public static final int IVALUE_TERMINAL_MARGIN_TOP_MAX = 100;
+    public static final int DEFAULT_IVALUE_TERMINAL_MARGIN_TOP = 2;
+
+    /** Defines the key for the terminal margin on the right in dp units */
+    public static final String KEY_TERMINAL_MARGIN_RIGHT =  "terminal-margin-right"; // Default: "terminal-margin-right"
+    public static final int IVALUE_TERMINAL_MARGIN_RIGHT_MIN = 0;
+    public static final int IVALUE_TERMINAL_MARGIN_RIGHT_MAX = 100;
+    public static final int DEFAULT_IVALUE_TERMINAL_MARGIN_RIGHT = 2;
+
+    /** Defines the key for the terminal margin on the bottom in dp units */
+    public static final String KEY_TERMINAL_MARGIN_BOTTOM =  "terminal-margin-bottom"; // Default: "terminal-margin-bottom"
+    public static final int IVALUE_TERMINAL_MARGIN_BOTTOM_MIN = 0;
+    public static final int IVALUE_TERMINAL_MARGIN_BOTTOM_MAX = 100;
+    public static final int DEFAULT_IVALUE_TERMINAL_MARGIN_BOTTOM = 0;
 
 
 
@@ -475,8 +487,10 @@ public final class TermuxPropertyConstants {
         KEY_DELETE_TMPDIR_FILES_OLDER_THAN_X_DAYS_ON_EXIT,
         KEY_TERMINAL_CURSOR_BLINK_RATE,
         KEY_TERMINAL_CURSOR_STYLE,
-        KEY_TERMINAL_MARGIN_HORIZONTAL,
-        KEY_TERMINAL_MARGIN_VERTICAL,
+        KEY_TERMINAL_MARGIN_LEFT,
+        KEY_TERMINAL_MARGIN_TOP,
+        KEY_TERMINAL_MARGIN_RIGHT,
+        KEY_TERMINAL_MARGIN_BOTTOM,
         KEY_TERMINAL_TRANSCRIPT_ROWS,
 
         /* float */
@@ -564,8 +578,10 @@ public final class TermuxPropertyConstants {
         KEY_DELETE_TMPDIR_FILES_OLDER_THAN_X_DAYS_ON_EXIT,
         KEY_TERMINAL_CURSOR_BLINK_RATE,
         KEY_TERMINAL_CURSOR_STYLE,
-        KEY_TERMINAL_MARGIN_HORIZONTAL,
-        KEY_TERMINAL_MARGIN_VERTICAL,
+        KEY_TERMINAL_MARGIN_LEFT,
+        KEY_TERMINAL_MARGIN_TOP,
+        KEY_TERMINAL_MARGIN_RIGHT,
+        KEY_TERMINAL_MARGIN_BOTTOM,
         KEY_TERMINAL_TRANSCRIPT_ROWS
     ));
 

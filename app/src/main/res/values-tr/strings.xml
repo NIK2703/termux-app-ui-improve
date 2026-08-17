@@ -450,10 +450,10 @@
     <string name="bell_character_ignore">Yoksay</string>
 
     
-    <string name="terminal_margin_horizontal_title">Yatay kenar boşluğu</string>
-    <string name="terminal_margin_horizontal_summary">Yatay terminal kenar boşluğu (dp cinsinden).</string>
-    <string name="terminal_margin_vertical_title">Dikey kenar boşluğu</string>
-    <string name="terminal_margin_vertical_summary">Dikey terminal kenar boşluğu (dp cinsinden).</string>
+    <string name="terminal_margin_left_title">Sol kenar boşluğu</string>
+    <string name="terminal_margin_top_title">Üst kenar boşluğu</string>
+    <string name="terminal_margin_right_title">Sağ kenar boşluğu</string>
+    <string name="terminal_margin_bottom_title">Alt kenar boşluğu</string>
 
     
     <string name="terminal_toolbar_height_title">Araç çubuğu yükseklik ölçeği</string>

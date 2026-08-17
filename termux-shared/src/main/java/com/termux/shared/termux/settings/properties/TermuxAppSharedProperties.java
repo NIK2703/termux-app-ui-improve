@@ -221,12 +221,20 @@ public class TermuxAppSharedProperties {
         return prefs().getTerminalCursorStyle();
     }
 
-    public int getTerminalMarginHorizontal() {
-        return prefs().getTerminalMarginHorizontal();
+    public int getTerminalMarginLeft() {
+        return prefs().getTerminalMarginLeft();
     }
 
-    public int getTerminalMarginVertical() {
-        return prefs().getTerminalMarginVertical();
+    public int getTerminalMarginTop() {
+        return prefs().getTerminalMarginTop();
+    }
+
+    public int getTerminalMarginRight() {
+        return prefs().getTerminalMarginRight();
+    }
+
+    public int getTerminalMarginBottom() {
+        return prefs().getTerminalMarginBottom();
     }
 
     public int getTerminalTranscriptRows() {
@@ -319,10 +327,14 @@ public class TermuxAppSharedProperties {
                 return getTerminalCursorBlinkRate();
             case TermuxPropertyConstants.KEY_TERMINAL_CURSOR_STYLE:
                 return getTerminalCursorStyle();
-            case TermuxPropertyConstants.KEY_TERMINAL_MARGIN_HORIZONTAL:
-                return getTerminalMarginHorizontal();
-            case TermuxPropertyConstants.KEY_TERMINAL_MARGIN_VERTICAL:
-                return getTerminalMarginVertical();
+            case TermuxPropertyConstants.KEY_TERMINAL_MARGIN_LEFT:
+                return getTerminalMarginLeft();
+            case TermuxPropertyConstants.KEY_TERMINAL_MARGIN_TOP:
+                return getTerminalMarginTop();
+            case TermuxPropertyConstants.KEY_TERMINAL_MARGIN_RIGHT:
+                return getTerminalMarginRight();
+            case TermuxPropertyConstants.KEY_TERMINAL_MARGIN_BOTTOM:
+                return getTerminalMarginBottom();
             case TermuxPropertyConstants.KEY_TERMINAL_TRANSCRIPT_ROWS:
                 return getTerminalTranscriptRows();
 
