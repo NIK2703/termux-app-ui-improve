@@ -24,3 +24,6 @@ javac.*.args
 config/
 tmp-prootdbg/
 terminal-view/.cxx/
+
+# Build / artifact downloads
+/downloads/
