@@ -1253,6 +1253,19 @@ if (!TermuxInstaller.isBootstrapInstalled(this)) {
         tabsContainer.setLayoutParams(tabsLp);
         pager.setLayoutParams(pagerLp);
 
+        // When the tab panel sits at the bottom it rests directly above the toolbar,
+        // so restore the text-input panel's previous 4dp top margin for breathing room
+        // (see activity_termux.xml prior to the gap-removal commit). When the tab panel
+        // is at the top the toolbar is flush at the screen bottom with no tabs above it,
+        // so drop the top margin (current behaviour).
+        View textInputContainer = findViewById(R.id.terminal_toolbar_text_input_container);
+        if (textInputContainer != null) {
+            ViewGroup.MarginLayoutParams tipLp =
+                    (ViewGroup.MarginLayoutParams) textInputContainer.getLayoutParams();
+            tipLp.topMargin = "bottom".equals(position) ? dpToPx(4) : 0;
+            textInputContainer.setLayoutParams(tipLp);
+        }
+
         // Keep the directory-history popup's inverted flag in sync with the
         // (possibly changed) tab panel position, so a swipe on the new-tab
         // button behaves correctly after the setting is toggled via broadcast.
