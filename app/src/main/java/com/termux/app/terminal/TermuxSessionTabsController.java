@@ -316,6 +316,27 @@ public class TermuxSessionTabsController {
 
             titleView.setText(displayTitle);
 
+            // When the title is truncated, reclaim the gap in front of the close (x)
+            // button and hand it to the title (raise its max width by the same amount).
+            // The tab's total width is unchanged, but more of the clipped label becomes
+            // visible. When the title fits, restore the default gap and cap.
+            if (closeButton != null) {
+                int gapPx = Math.round(mActivity.getResources()
+                        .getDimension(R.dimen.terminal_tab_close_gap));
+                int baseMaxWidthPx = Math.round(mActivity.getResources()
+                        .getDimension(R.dimen.terminal_tab_title_max_width));
+                ViewGroup.MarginLayoutParams closeLp =
+                        (ViewGroup.MarginLayoutParams) closeButton.getLayoutParams();
+                if (isTitleTruncated(titleView, displayTitle, baseMaxWidthPx)) {
+                    closeLp.setMarginStart(0);
+                    titleView.setMaxWidth(baseMaxWidthPx + gapPx);
+                } else {
+                    closeLp.setMarginStart(gapPx);
+                    titleView.setMaxWidth(baseMaxWidthPx);
+                }
+                closeButton.setLayoutParams(closeLp);
+            }
+
             // Text colour: red for finished-with-error sessions, otherwise scheme foreground.
             boolean sessionRunning = terminalSession.isRunning();
             boolean isErrorTab = !sessionRunning && terminalSession.getExitStatus() != 0;
@@ -350,6 +371,27 @@ public class TermuxSessionTabsController {
         if (closeButton != null) {
             closeButton.setVisibility(isSelected ? View.VISIBLE : View.INVISIBLE);
         }
+    }
+
+    /**
+     * Whether {@code text} would be ellipsized inside {@code tv} given its current max width and
+     * max lines. Measured synchronously with a {@link android.text.StaticLayout} so the result is
+     * available immediately (the tab view is not yet laid out when this is called).
+     */
+    private boolean isTitleTruncated(TextView tv, String text, int maxWidthPx) {
+        if (text == null || text.isEmpty()) return false;
+        if (maxWidthPx <= 0) return false;
+        int maxLines = tv.getMaxLines();
+        if (maxLines <= 0) maxLines = Integer.MAX_VALUE;
+        android.text.StaticLayout layout = new android.text.StaticLayout(
+                text, 0, text.length(), tv.getPaint(), maxWidthPx,
+                android.text.Layout.Alignment.ALIGN_NORMAL,
+                tv.getLineSpacingMultiplier(), tv.getLineSpacingExtra(),
+                tv.getIncludeFontPadding(),
+                android.text.TextUtils.TruncateAt.END, maxWidthPx);
+        if (layout.getLineCount() > maxLines) return true;
+        int lastLine = layout.getLineCount() - 1;
+        return lastLine >= 0 && layout.getEllipsisCount(lastLine) > 0;
     }
 
     /**
