@@ -8,6 +8,7 @@ import android.content.ClipboardManager;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.os.Build;
@@ -40,6 +41,7 @@ import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 
 import com.termux.terminal.KeyHandler;
+import com.termux.terminal.TerminalBuffer;
 import com.termux.terminal.TerminalColors;
 import com.termux.terminal.TerminalEmulator;
 import com.termux.terminal.TerminalSession;
@@ -86,6 +88,13 @@ public final class TerminalView extends View {
 
     /** The top row of text to display. Ranges from -activeTranscriptRows to 0. */
     int mTopRow;
+
+    /** Reusable clip-bounds probe used in {@link #onDraw} to detect the dirty region. */
+    private final Rect mClipBounds = new Rect();
+
+    /** Last rendered cursor position (external row / column) for cursor-move dirty expansion. */
+    private int mLastCursorRow = Integer.MIN_VALUE;
+    private int mLastCursorCol = -1;
     int[] mDefaultSelectors = new int[]{-1,-1,-1,-1};
 
     float mScaleFactor = 1.f;
@@ -421,6 +430,8 @@ public final class TerminalView extends View {
         mTermSession = session;
         mEmulator = null;
         mCombiningAccent = 0;
+        mLastCursorRow = Integer.MIN_VALUE;
+        mLastCursorCol = -1;
 
         updateSize();
 
@@ -586,6 +597,7 @@ public final class TerminalView extends View {
 
     public void onScreenUpdated(boolean skipScrolling) {
         if (mEmulator == null) return;
+        final int oldTopRow = mTopRow;
 
         int rowsInHistory = mEmulator.getScreen().getActiveTranscriptRows();
         if (mTopRow < -rowsInHistory) mTopRow = -rowsInHistory;
@@ -625,10 +637,104 @@ public final class TerminalView extends View {
 
         mEmulator.clearScrollCounter();
 
-        invalidate();
+        repaintAfterUpdate(oldTopRow);
         if (mAccessibilityEnabled) setContentDescription(getText());
 
         if (mOnScreenUpdateListener != null) mOnScreenUpdateListener.onScreenUpdated();
+    }
+
+    /**
+     * Choose between a full and a partial (dirty-rows) repaint after the emulator changed, and
+     * invalidate accordingly. A full repaint is required when the view scrolled, a selection or
+     * scrollbar drag is in progress, or the buffer flagged everything dirty (scroll, resize,
+     * buffer switch, color reset). Otherwise only the rows the buffer marked dirty — plus the
+     * old/new cursor rows if the cursor moved — are invalidated.
+     */
+    private void repaintAfterUpdate(int oldTopRow) {
+        TerminalBuffer screen = mEmulator.getScreen();
+
+        // Cursor external row equals the screen-relative row (screen rows map to external 0..mRows-1).
+        int cursorExtRow = mEmulator.getCursorRow();
+        int cursorCol = mEmulator.getCursorCol();
+        boolean cursorMoved = (cursorExtRow != mLastCursorRow) || (cursorCol != mLastCursorCol);
+        int prevCursorExtRow = mLastCursorRow;
+        mLastCursorRow = cursorExtRow;
+        mLastCursorCol = cursorCol;
+
+        boolean fullRepaint =
+            mTopRow != oldTopRow
+            || isSelectingText()
+            || mScrollbarDragging
+            || screen.isAllDirty();
+
+        if (fullRepaint) {
+            screen.clearDirtyState();
+            invalidate();
+            return;
+        }
+
+        int first = Integer.MAX_VALUE;
+        int last = Integer.MIN_VALUE;
+        if (screen.hasDirtyRows()) {
+            first = screen.getFirstDirtyRow();
+            last = screen.getLastDirtyRow();
+        }
+        screen.clearDirtyState();
+
+        // A cursor move with no cell change (e.g. arrow keys) still needs the old cursor cell
+        // erased and the new one drawn.
+        if (cursorMoved) {
+            if (prevCursorExtRow != Integer.MIN_VALUE) {
+                first = Math.min(first, prevCursorExtRow);
+                last = Math.max(last, prevCursorExtRow);
+            }
+            first = Math.min(first, cursorExtRow);
+            last = Math.max(last, cursorExtRow);
+        }
+
+        if (first > last) return; // nothing needs pixels
+        invalidateRowRange(first, last);
+    }
+
+    /** View-y of the top edge of an external row (must match TerminalRenderer's row layout). */
+    private int rowToPixelTop(int externalRow) {
+        return Math.round(mGridOffsetY + mRenderer.mFontLineSpacingAndAscent
+            + (externalRow - mTopRow) * (float) mRenderer.mFontLineSpacing);
+    }
+
+    /** Invalidate the full-width pixel band covering external rows [first, last], clamped to visible rows. */
+    private void invalidateRowRange(int first, int last) {
+        if (mEmulator == null || mRenderer == null) { invalidate(); return; }
+        int visTop = mTopRow;
+        int visBottom = mTopRow + mEmulator.mRows - 1;
+        if (last < visTop || first > visBottom) return;
+        first = Math.max(first, visTop);
+        last = Math.min(last, visBottom);
+        int top = rowToPixelTop(first);
+        int bottom = rowToPixelTop(last + 1);
+        if (top < 0) top = 0;
+        if (bottom > getHeight()) bottom = getHeight();
+        if (top >= bottom) return;
+        invalidate(0, top, getWidth(), bottom);
+    }
+
+    /** Invalidate only the cell(s) holding the cursor (used by the cursor blinker). */
+    private void invalidateCursorCell() {
+        if (mEmulator == null || mRenderer == null) { invalidate(); return; }
+        if (isSelectingText() || mScrollbarDragging) { invalidate(); return; }
+        int col = mEmulator.getCursorCol();
+        int extRow = mEmulator.getCursorRow();
+        int left = (int) Math.floor(col * mRenderer.mFontWidth + mGridOffsetX);
+        // Cover up to two cells so a block cursor over a wide (wcwidth==2) char is fully included.
+        int right = (int) Math.ceil((col + 2) * mRenderer.mFontWidth + mGridOffsetX);
+        int top = rowToPixelTop(extRow);
+        int bottom = rowToPixelTop(extRow + 1);
+        if (left < 0) left = 0;
+        if (top < 0) top = 0;
+        if (right > getWidth()) right = getWidth();
+        if (bottom > getHeight()) bottom = getHeight();
+        if (left >= right || top >= bottom) return;
+        invalidate(left, top, right, bottom);
     }
 
     /** This must be called by the hosting activity in {@link Activity#onContextMenuClosed(Menu)}
@@ -1530,8 +1636,14 @@ public final class TerminalView extends View {
                 mTextSelectionCursorController.getSelectors(sel);
             }
 
+            // The framework clips the canvas to the invalidated region. If that region covers the
+            // whole view this is a full repaint; otherwise a partial (dirty-rows) repaint. Using the
+            // clip as the source of truth is safe: if the clip is looser than expected we simply
+            // render a few extra rows, never produce artifacts.
+            boolean hasClip = canvas.getClipBounds(mClipBounds);
+            Rect dirtyRect = (!hasClip || isFullRepaint(mClipBounds)) ? null : mClipBounds;
             mRenderer.render(mEmulator, canvas, mTopRow, sel[0], sel[1], sel[2], sel[3],
-                mGridOffsetX, mGridOffsetY);
+                mGridOffsetX, mGridOffsetY, dirtyRect);
 
             // render the text selection handles
             renderTextSelection();
@@ -1539,6 +1651,10 @@ public final class TerminalView extends View {
             // ── Interactive scrollbar ──
             drawScrollbar(canvas);
         }
+    }
+
+    private boolean isFullRepaint(Rect clip) {
+        return clip.left <= 0 && clip.top <= 0 && clip.right >= getWidth() && clip.bottom >= getHeight();
     }
 
     /**
@@ -1916,7 +2032,7 @@ public final class TerminalView extends View {
                     mCursorVisible = !mCursorVisible;
                     //mClient.logVerbose(LOG_TAG, "Toggling cursor blink state to " + mCursorVisible);
                     mEmulator.setCursorBlinkState(mCursorVisible);
-                    invalidate();
+                    invalidateCursorCell();
                 }
             } finally {
                 // Recall the Runnable after mBlinkRate milliseconds to toggle the blink state
