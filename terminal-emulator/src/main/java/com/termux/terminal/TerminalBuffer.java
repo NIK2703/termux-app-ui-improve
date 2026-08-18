@@ -20,6 +20,51 @@ public final class TerminalBuffer {
     /** The index in the circular buffer where the visible screen starts. */
     private int mScreenFirstRow = 0;
 
+    // ── Dirty-row tracking for partial redraws ────────────────────────────────────────────
+    // External-coordinate range [mFirstDirtyRow, mLastDirtyRow] of rows whose contents changed
+    // since the last repaint. mAllDirty forces a complete repaint and is set after scrolls,
+    // resizes, transcript clears, buffer switches and on construction (first paint is full).
+    private int mFirstDirtyRow = Integer.MAX_VALUE;
+    private int mLastDirtyRow = Integer.MIN_VALUE;
+    private boolean mAllDirty = true;
+
+    /** Mark a single external row as needing a repaint. */
+    public void markRowDirty(int externalRow) {
+        if (mAllDirty) return;
+        if (externalRow < mFirstDirtyRow) mFirstDirtyRow = externalRow;
+        if (externalRow > mLastDirtyRow) mLastDirtyRow = externalRow;
+    }
+
+    /** Force a complete repaint of this buffer on the next frame. */
+    public void markAllDirty() {
+        mAllDirty = true;
+        mFirstDirtyRow = Integer.MAX_VALUE;
+        mLastDirtyRow = Integer.MIN_VALUE;
+    }
+
+    public boolean isAllDirty() {
+        return mAllDirty;
+    }
+
+    public boolean hasDirtyRows() {
+        return mAllDirty || mFirstDirtyRow <= mLastDirtyRow;
+    }
+
+    public int getFirstDirtyRow() {
+        return mFirstDirtyRow;
+    }
+
+    public int getLastDirtyRow() {
+        return mLastDirtyRow;
+    }
+
+    /** Reset dirty tracking once the pending repaint has been issued. */
+    public void clearDirtyState() {
+        mAllDirty = false;
+        mFirstDirtyRow = Integer.MAX_VALUE;
+        mLastDirtyRow = Integer.MIN_VALUE;
+    }
+
     /**
      * Create a transcript screen.
      *
@@ -351,6 +396,7 @@ public final class TerminalBuffer {
 
         // Handle cursor scrolling off screen:
         if (cursor[0] < 0 || cursor[1] < 0) cursor[0] = cursor[1] = 0;
+        markAllDirty();
     }
 
     /**
@@ -384,6 +430,7 @@ public final class TerminalBuffer {
     public void scrollDownOneLine(int topMargin, int bottomMargin, long style) {
         if (topMargin > bottomMargin - 1 || topMargin < 0 || bottomMargin > mScreenRows)
             throw new IllegalArgumentException("topMargin=" + topMargin + ", bottomMargin=" + bottomMargin + ", mScreenRows=" + mScreenRows);
+        markAllDirty();
 
         // Copy the fixed topMargin lines one line down so that they remain on screen in same position:
         blockCopyLinesDown(mScreenFirstRow, topMargin);
@@ -421,6 +468,10 @@ public final class TerminalBuffer {
         if (w == 0) return;
         if (sx < 0 || sx + w > mColumns || sy < 0 || sy + h > mScreenRows || dx < 0 || dx + w > mColumns || dy < 0 || dy + h > mScreenRows)
             throw new IllegalArgumentException();
+        for (int y = 0; y < h; y++) {
+            markRowDirty(sy + y);
+            markRowDirty(dy + y);
+        }
         boolean copyingUp = sy > dy;
         for (int y = 0; y < h; y++) {
             int y2 = copyingUp ? y : (h - (y + 1));
@@ -451,6 +502,7 @@ public final class TerminalBuffer {
     public void setChar(int column, int row, int codePoint, long style) {
         if (row  < 0 || row >= mScreenRows || column < 0 || column >= mColumns)
             throw new IllegalArgumentException("TerminalBuffer.setChar(): row=" + row + ", column=" + column + ", mScreenRows=" + mScreenRows + ", mColumns=" + mColumns);
+        markRowDirty(row);
         row = externalToInternalRow(row);
         allocateFullLineIfNecessary(row).setChar(column, codePoint, style);
     }
@@ -463,6 +515,7 @@ public final class TerminalBuffer {
     public void setOrClearEffect(int bits, boolean setOrClear, boolean reverse, boolean rectangular, int leftMargin, int rightMargin, int top, int left,
                                  int bottom, int right) {
         for (int y = top; y < bottom; y++) {
+            markRowDirty(y);
             TerminalRow line = mLines[externalToInternalRow(y)];
             int startOfLine = (rectangular || y == top) ? left : leftMargin;
             int endOfLine = (rectangular || y + 1 == bottom) ? right : rightMargin;
@@ -492,6 +545,7 @@ public final class TerminalBuffer {
             Arrays.fill(mLines, mScreenFirstRow - mActiveTranscriptRows, mScreenFirstRow, null);
         }
         mActiveTranscriptRows = 0;
+        markAllDirty();
     }
 
 }

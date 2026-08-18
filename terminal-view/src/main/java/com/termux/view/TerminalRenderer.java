@@ -2,7 +2,9 @@ package com.termux.view;
 
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.graphics.Path;
 import android.graphics.PorterDuff;
+import android.graphics.Rect;
 import android.graphics.Typeface;
 import android.util.SparseArray;
 
@@ -113,6 +115,21 @@ public final class TerminalRenderer {
     public final void render(TerminalEmulator mEmulator, Canvas canvas, int topRow,
                              int selectionY1, int selectionY2, int selectionX1, int selectionX2,
                              float xOffset, float yOffset) {
+        render(mEmulator, canvas, topRow, selectionY1, selectionY2, selectionX1, selectionX2,
+            xOffset, yOffset, null);
+    }
+
+    /**
+     * Render the terminal to a canvas.
+     *
+     * @param dirtyRect when non-null, only rows intersecting this (view-coordinate) rectangle
+     *                  are re-rendered and only that region is cleared. When null, the whole
+     *                  canvas is cleared and all rows are drawn (full repaint — required after
+     *                  a color-scheme/theme change, a scroll, a resize or a buffer switch).
+     */
+    public final void render(TerminalEmulator mEmulator, Canvas canvas, int topRow,
+                             int selectionY1, int selectionY2, int selectionX1, int selectionX2,
+                             float xOffset, float yOffset, Rect dirtyRect) {
         final boolean reverseVideo = mEmulator.isReverseVideo();
         final int endRow = topRow + mEmulator.mRows;
         final int columns = mEmulator.mColumns;
@@ -123,18 +140,33 @@ public final class TerminalRenderer {
         final int[] palette = mEmulator.mColors.mCurrentColors;
         final int cursorShape = mEmulator.getCursorStyle();
 
-        // Paint the full terminal background on every frame. Without this, only cells whose
-        // background differs from the default get a background rect drawn (see drawTextRun), so the
-        // large default-background area stays transparent and shows whatever is behind the canvas
-        // (the window DecorView, set separately by updateBackgroundColor()). That means a
-        // color-scheme change applied via invalidate()/onScreenUpdated() would recolor the glyphs
-        // but leave the pane background stale until the window background was separately updated.
-        // Clearing the canvas here makes invalidate() a complete repaint, which is exactly what a
-        // Dark<->System (or any) theme swap relies on to update without a full activity relaunch.
-        if (reverseVideo)
-            canvas.drawColor(palette[TextStyle.COLOR_INDEX_FOREGROUND], PorterDuff.Mode.SRC);
-        else
-            canvas.drawColor(palette[TextStyle.COLOR_INDEX_BACKGROUND], PorterDuff.Mode.SRC);
+        // Rows to actually render this frame. For a full repaint it is the whole visible range;
+        // for a partial repaint only the rows whose pixel band intersects dirtyRect.
+        int renderStartRow = topRow;
+        int renderEndRow = endRow; // exclusive
+        if (dirtyRect != null) {
+            final float ls = mFontLineSpacing;
+            // View-y of the top edge of row `topRow` (matches TerminalView.rowToPixelTop).
+            final float base = yOffset + mFontLineSpacingAndAscent;
+            int r0 = topRow + (int) Math.floor((dirtyRect.top - base) / ls);
+            int r1 = topRow + (int) Math.floor((dirtyRect.bottom - 1 - base) / ls);
+            renderStartRow = Math.max(r0, topRow);
+            renderEndRow = Math.min(r1 + 1, endRow);
+        }
+
+        // Background. A full repaint clears the entire canvas — this is what keeps theme /
+        // OSC color-scheme swaps correct (see the original comment). A partial repaint clears
+        // only the dirty region; the framework has already clipped the canvas to it, and we
+        // bound the fill explicitly so clean rows are never erased.
+        final int bgColor = reverseVideo
+            ? palette[TextStyle.COLOR_INDEX_FOREGROUND]
+            : palette[TextStyle.COLOR_INDEX_BACKGROUND];
+        if (dirtyRect == null) {
+            canvas.drawColor(bgColor, PorterDuff.Mode.SRC);
+        } else {
+            mTextPaint.setColor(bgColor);
+            canvas.drawRect(dirtyRect.left, dirtyRect.top, dirtyRect.right, dirtyRect.bottom, mTextPaint);
+        }
 
         // Translate the whole grid so the leftover space (from glyphs that do not fit the
         // view) is split symmetrically around it. The drawTextRun() scale compensation block
@@ -148,6 +180,9 @@ public final class TerminalRenderer {
         float heightOffset = mFontLineSpacingAndAscent;
         for (int row = topRow; row < endRow; row++) {
             heightOffset += mFontLineSpacing;
+            // Partial repaint: skip rows that do not intersect the dirty region. heightOffset is
+            // advanced above for every row, so the y-coordinate stays correct for rendered rows.
+            if (row < renderStartRow || row >= renderEndRow) continue;
 
             final int cursorX = (row == cursorRow && cursorVisible) ? cursorCol : -1;
             int selx1 = -1, selx2 = -1;
