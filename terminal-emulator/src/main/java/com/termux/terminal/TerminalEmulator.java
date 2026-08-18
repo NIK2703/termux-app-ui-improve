@@ -1255,7 +1255,6 @@ public final class TerminalEmulator {
                     boolean resized = !(newScreen.mColumns == mColumns && newScreen.mScreenRows == mRows);
                     if (setting) saveCursor();
                     mScreen = newScreen;
-                    newScreen.markAllDirty();
                     if (!setting) {
                         int col = mSavedStateMain.mSavedCursorCol;
                         int row = mSavedStateMain.mSavedCursorRow;
@@ -2568,7 +2567,6 @@ public final class TerminalEmulator {
 
         mColors.reset();
         mSession.onColorsChanged();
-        mScreen.markAllDirty();
     }
 
     public String getSelectedText(int x1, int y1, int x2, int y2) {

@@ -335,13 +335,8 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
 
     @Override
     public void onColorsChanged(@NonNull TerminalSession changedSession) {
-        if (mActivity.getCurrentSession() == changedSession) {
+        if (mActivity.getCurrentSession() == changedSession)
             updateBackgroundColor();
-            // The palette changed: every cell may resolve to a different color even though no cell
-            // content changed, which dirty-row tracking cannot see. Force a full repaint.
-            TerminalView tv = mActivity.getTerminalView();
-            if (tv != null) tv.invalidate();
-        }
     }
 
     @Override
