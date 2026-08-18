@@ -241,6 +241,13 @@ public final class ExtraKeysView extends GridLayout implements SpecialButtonStat
     /** Current button margin vertical in dp, loaded from preferences. */
     private float mButtonMarginVerticalDp = BUTTON_MARGIN_VERTICAL_DP;
 
+    /**
+     * Whether the first row of buttons should keep its top margin (used when the session tabs
+     * panel sits above the extra keys, so the panel does not touch the tabs). When false the
+     * top margin of the first row is dropped so the buttons touch the container's top border.
+     */
+    private boolean mTopMarginEnabled;
+
     private boolean mEditorEdgeIndicatorsEnabled;
     private int mEditorEdgeColor = 0xFF888888;
     private final Paint mEditorEdgePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -662,6 +669,35 @@ public final class ExtraKeysView extends GridLayout implements SpecialButtonStat
         mButtonMarginVerticalDp = dp;
     }
 
+    /**
+     * Control whether the first row of buttons keeps its configured top margin.
+     * <p>
+     * When enabled and a layout is already loaded the existing buttons have their top
+     * margins re-applied immediately; otherwise the next {@link #reload(ExtraKeysInfo, float)}
+     * picks it up.
+     *
+     * @param enabled {@code true} keeps the first row's top margin (e.g. tabs sit above the
+     *                panel), {@code false} drops it so the panel's top border touches the buttons.
+     */
+    public void setTopMarginEnabled(boolean enabled) {
+        if (mTopMarginEnabled == enabled) return;
+        mTopMarginEnabled = enabled;
+        int cols = getColumnCount();
+        if (cols <= 0) return;
+        int marginVerticalPx = (int) (mButtonMarginVerticalDp * mDensity);
+        for (int i = 0; i < getChildCount(); i++) {
+            View child = getChildAt(i);
+            if (!(child.getLayoutParams() instanceof ViewGroup.MarginLayoutParams)) {
+                continue;
+            }
+            ViewGroup.MarginLayoutParams lp = (ViewGroup.MarginLayoutParams) child.getLayoutParams();
+            int row = i / cols;
+            lp.topMargin = (mTopMarginEnabled && row == 0) ? marginVerticalPx : 0;
+            child.setLayoutParams(lp);
+        }
+        requestLayout();
+    }
+
     public void requestDynamicFontUpdate() {
         post(this::applyDynamicFontAfterLayout);
     }
@@ -1002,7 +1038,9 @@ public final class ExtraKeysView extends GridLayout implements SpecialButtonStat
                 param.height = 0;
                 int marginHorizontalPx = (int) (mButtonMarginHorizontalDp * mDensity);
                 int marginVerticalPx = (int) (mButtonMarginVerticalDp * mDensity);
-                param.setMargins(marginHorizontalPx, marginVerticalPx, marginHorizontalPx, marginVerticalPx);
+                int marginTop = (row == 0 && mTopMarginEnabled) ? marginVerticalPx : 0;
+                int marginBottom = (row == buttons.length - 1) ? 0 : marginVerticalPx;
+                param.setMargins(marginHorizontalPx, marginTop, marginHorizontalPx, marginBottom);
                 param.columnSpec = GridLayout.spec(col, GridLayout.FILL, 1.f);
                 param.rowSpec = GridLayout.spec(row, GridLayout.FILL, 1.f);
                 button.setLayoutParams(param);

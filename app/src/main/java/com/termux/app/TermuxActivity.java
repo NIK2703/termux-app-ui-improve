@@ -1276,6 +1276,14 @@ if (!TermuxInstaller.isBootstrapInstalled(this)) {
         // Update the text-input toggle button anchor so it stays at the bottom
         // even when the toolbar is GONE (show_extra_keys = never).
         updateTextInputToggleButtonAnchor();
+
+        // When the tab panel sits at the bottom it rests directly above the toolbar,
+        // so the extra keys panel must keep its top margin to not touch the tabs.
+        // When the tab panel is at the top the panel is flush at the screen bottom.
+        ExtraKeysView extraKeysView = getExtraKeysView();
+        if (extraKeysView != null) {
+            extraKeysView.setTopMarginEnabled("bottom".equals(position));
+        }
     }
 
     /**
