@@ -61,6 +61,9 @@ public final class TerminalRenderer {
     private int[] mRunCursorStyle;
     private boolean[] mRunReverseVideo;
     private boolean[] mRunFontWidthMismatch;
+    /** Resolved ARGB foreground/background color of each run, computed once per row (see render). */
+    private int[] mRunForeColor;
+    private int[] mRunBackColor;
     private int mRunCount;
     /** Paint for the background rectangles - never carries text attributes. */
     private final Paint mBgPaint = new Paint();
@@ -164,8 +167,8 @@ public final class TerminalRenderer {
         if (dirtyRect == null) {
             canvas.drawColor(bgColor, PorterDuff.Mode.SRC);
         } else {
-            mTextPaint.setColor(bgColor);
-            canvas.drawRect(dirtyRect.left, dirtyRect.top, dirtyRect.right, dirtyRect.bottom, mTextPaint);
+            mBgPaint.setColor(bgColor);
+            canvas.drawRect(dirtyRect.left, dirtyRect.top, dirtyRect.right, dirtyRect.bottom, mBgPaint);
         }
 
         // Translate the whole grid so the leftover space (from glyphs that do not fit the
@@ -191,7 +194,7 @@ public final class TerminalRenderer {
                 selx2 = (row == selectionY2) ? selectionX2 : mEmulator.mColumns;
             }
 
-            TerminalRow lineObject = screen.allocateFullLineIfNecessary(screen.externalToInternalRow(row));
+            TerminalRow lineObject = screen.getLineOrBlank(row);
             final char[] line = lineObject.mText;
             final int charsUsedInLine = lineObject.getSpaceUsed();
 
@@ -267,6 +270,14 @@ public final class TerminalRenderer {
             addRun(lastRunStartColumn, columnWidthSinceLastRun, lastRunStartIndex, charsSinceLastRun, measuredWidthForRun,
                 lastRunStyle, cursorColor, cursorShape, reverseVideo || invertCursorTextColor || lastRunInsideSelection, lastRunFontWidthMismatch);
 
+            // Resolve each run's colors once here so that pass A (backgrounds) and pass B (text)
+            // below do not each re-run the palette lookup + reverse-video swap per run per frame.
+            for (int i = 0; i < mRunCount; i++) {
+                resolveRunColors(mRunStyle[i], mRunReverseVideo[i], palette, mColorOut);
+                mRunForeColor[i] = mColorOut[0];
+                mRunBackColor[i] = mColorOut[1];
+            }
+
             // Pass A: background rectangles, grouped per consecutive same-color runs and drawn
             // immediately with drawRect(). Mismatch runs (scaled glyphs) are skipped here and
             // drawn in pass B with their scale. Note: no Path batching - drawPath() records the
@@ -275,15 +286,13 @@ public final class TerminalRenderer {
             // GPU drivers), so plain drawRect() calls are used instead.
             for (int i = 0; i < mRunCount; i++) {
                 if (mRunFontWidthMismatch[i]) continue;
-                resolveRunColors(mRunStyle[i], mRunReverseVideo[i], palette, mColorOut);
-                final int backColor = mColorOut[1];
+                final int backColor = mRunBackColor[i];
                 if (backColor == palette[TextStyle.COLOR_INDEX_BACKGROUND]) continue;
 
                 // Extend the group to the right while the background color stays the same.
                 int endRun = i + 1;
                 while (endRun < mRunCount && !mRunFontWidthMismatch[endRun]) {
-                    resolveRunColors(mRunStyle[endRun], mRunReverseVideo[endRun], palette, mColorOut);
-                    if (mColorOut[1] != backColor) break;
+                    if (mRunBackColor[endRun] != backColor) break;
                     endRun++;
                 }
 
@@ -299,7 +308,7 @@ public final class TerminalRenderer {
             for (int i = 0; i < mRunCount; i++) {
                 drawRunText(canvas, line, palette, heightOffset, mRunStartColumn[i], mRunWidthColumns[i], mRunStartChar[i],
                     mRunCharCount[i], mRunMeasuredWidth[i], mRunCursorColor[i], mRunCursorStyle[i], mRunStyle[i],
-                    mRunReverseVideo[i], mRunFontWidthMismatch[i]);
+                    mRunForeColor[i], mRunBackColor[i], mRunFontWidthMismatch[i]);
             }
         }
 
@@ -318,6 +327,8 @@ public final class TerminalRenderer {
             mRunCursorStyle = new int[columns];
             mRunReverseVideo = new boolean[columns];
             mRunFontWidthMismatch = new boolean[columns];
+            mRunForeColor = new int[columns];
+            mRunBackColor = new int[columns];
         }
     }
 
@@ -366,33 +377,15 @@ public final class TerminalRenderer {
 
     private void drawRunText(Canvas canvas, char[] text, int[] palette, float y, int startColumn, int runWidthColumns,
                              int startCharIndex, int runWidthChars, float mes, int cursor, int cursorStyle,
-                             long textStyle, boolean reverseVideo, boolean fontWidthMismatch) {
-        int foreColor = TextStyle.decodeForeColor(textStyle);
+                             long textStyle, int foreColor, int backColor, boolean fontWidthMismatch) {
+        // foreColor/backColor are pre-resolved ARGB colors (palette lookup + reverse-video swap done
+        // once per run in render()); only the effect bits and the dim adjustment are handled here.
         final int effect = TextStyle.decodeEffect(textStyle);
-        int backColor = TextStyle.decodeBackColor(textStyle);
         final boolean bold = (effect & (TextStyle.CHARACTER_ATTRIBUTE_BOLD | TextStyle.CHARACTER_ATTRIBUTE_BLINK)) != 0;
         final boolean underline = (effect & TextStyle.CHARACTER_ATTRIBUTE_UNDERLINE) != 0;
         final boolean italic = (effect & TextStyle.CHARACTER_ATTRIBUTE_ITALIC) != 0;
         final boolean strikeThrough = (effect & TextStyle.CHARACTER_ATTRIBUTE_STRIKETHROUGH) != 0;
         final boolean dim = (effect & TextStyle.CHARACTER_ATTRIBUTE_DIM) != 0;
-
-        if ((foreColor & 0xff000000) != 0xff000000) {
-            // Let bold have bright colors if applicable (one of the first 8):
-            if (bold && foreColor >= 0 && foreColor < 8) foreColor += 8;
-            foreColor = palette[foreColor];
-        }
-
-        if ((backColor & 0xff000000) != 0xff000000) {
-            backColor = palette[backColor];
-        }
-
-        // Reverse video here if _one and only one_ of the reverse flags are set:
-        final boolean reverseVideoHere = reverseVideo ^ (effect & (TextStyle.CHARACTER_ATTRIBUTE_INVERSE)) != 0;
-        if (reverseVideoHere) {
-            int tmp = foreColor;
-            foreColor = backColor;
-            backColor = tmp;
-        }
 
         float left = startColumn * mFontWidth;
         float right = left + runWidthColumns * mFontWidth;

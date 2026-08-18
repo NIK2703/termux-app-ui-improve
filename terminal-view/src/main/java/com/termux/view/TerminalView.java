@@ -653,6 +653,19 @@ public final class TerminalView extends View {
     private void repaintAfterUpdate(int oldTopRow) {
         TerminalBuffer screen = mEmulator.getScreen();
 
+        // Thread-safety note: the dirty-state writer (mEmulator.append(), invoked only from
+        // TerminalSession.MainThreadHandler.handleMessage()) and the reader (this method, invoked
+        // from onScreenUpdated() on the main thread) execute on the same (main) thread: TerminalSession
+        // is always constructed on the main thread, so its mMainThreadHandler binds to the main
+        // Looper, and no other code path calls append(). first/last therefore can never be read torn
+        // (first > last) and no synchronization is needed. The only off-main dirty write is the
+        // one-shot cold-start emulator init (initSessionEmulatorOnBackgroundThread → updateSize →
+        // initializeEmulator → TerminalEmulator.<init> → reset → markAllDirty; at that point
+        // mEmulator == null so the resize() branch is unreachable off-main), which happens-before any
+        // rendering via the runOnUiThread pager sync. If append() ever moves off the main thread, the
+        // dirty range must be read atomically (or fall back to a full invalidate on inconsistency)
+        // before the optimistic clearDirtyState() below can drop a pending repaint.
+
         // Cursor external row equals the screen-relative row (screen rows map to external 0..mRows-1).
         int cursorExtRow = mEmulator.getCursorRow();
         int cursorCol = mEmulator.getCursorCol();
@@ -696,7 +709,17 @@ public final class TerminalView extends View {
         invalidateRowRange(first, last);
     }
 
-    /** View-y of the top edge of an external row (must match TerminalRenderer's row layout). */
+    /**
+     * View-y of the top edge of an external row (must match TerminalRenderer's row layout).
+     *
+     * This relies on the invariant that the glyph grid is pinned to the top of the view, i.e.
+     * {@code mGridOffsetY == -mRenderer.mFontLineSpacingAndAscent} exactly (set in
+     * {@link #updateSize()}, where both values are whole pixels). Substituting that identity makes
+     * {@code rowToPixelTop(r) == (r - mTopRow) * mFontLineSpacing}, the same integer band the
+     * renderer draws each row into after its {@code canvas.translate(xOffset, yOffset)}. If the
+     * grid is ever re-pinned (e.g. vertically centered) or the offsets stop being snapped to whole
+     * pixels, the 1px rounding mismatch between this method and the renderer will produce seams.
+     */
     private int rowToPixelTop(int externalRow) {
         return Math.round(mGridOffsetY + mRenderer.mFontLineSpacingAndAscent
             + (externalRow - mTopRow) * (float) mRenderer.mFontLineSpacing);
@@ -1599,6 +1622,12 @@ public final class TerminalView extends View {
         // background showing through each row seam (visible hairlines on non-default backgrounds).
         newGridOffsetX = Math.round(newGridOffsetX);
         newGridOffsetY = Math.round(newGridOffsetY);
+        // rowToPixelTop()/invalidateRowRange() and TerminalRenderer's row layout are consistent only
+        // while the grid stays pinned to the top of the view, i.e. mGridOffsetY is exactly
+        // -mFontLineSpacingAndAscent (both are whole pixels here, so round() is a no-op). Assert the
+        // invariant so any future re-pin (vertical centering etc.) fails loudly instead of producing
+        // 1px-seam artifacts.
+        assert newGridOffsetY == -mRenderer.mFontLineSpacingAndAscent : "grid must stay top-pinned";
         boolean gridOffsetChanged = (newGridOffsetX != mGridOffsetX) || (newGridOffsetY != mGridOffsetY);
         mGridOffsetX = newGridOffsetX;
         mGridOffsetY = newGridOffsetY;
@@ -1645,10 +1674,19 @@ public final class TerminalView extends View {
             mRenderer.render(mEmulator, canvas, mTopRow, sel[0], sel[1], sel[2], sel[3],
                 mGridOffsetX, mGridOffsetY, dirtyRect);
 
-            // render the text selection handles
-            renderTextSelection();
+            // Text selection handles are only meaningful on a full repaint: while selecting,
+            // repaintAfterUpdate() forces full repaints (and invalidateCursorCell() falls back to a
+            // full invalidate), so renderTextSelection() would never have a partial clip anyway.
+            if (dirtyRect == null) {
+                // render the text selection handles
+                renderTextSelection();
+            }
 
-            // ── Interactive scrollbar ──
+            // The scrollbar track sits on the full-width right edge, and invalidateRowRange() uses
+            // invalidate(0, top, getWidth(), bottom) — a full-width band. That band always covers the
+            // scrollbar zone, and render() fills it with the background color, wiping any scrollbar
+            // pixels in it. So drawScrollbar() must run on every frame (even partial ones) to restore
+            // the thumb; gating it to full repaints would gouge the thumb out on each partial repaint.
             drawScrollbar(canvas);
         }
     }
@@ -1971,6 +2009,11 @@ public final class TerminalView extends View {
         if (mEmulator == null) return;
 
         mEmulator.setCursorBlinkingEnabled(false);
+
+        // The cursor visibility/shape may have just changed (DECSET 25 hide/show, DECSCUSR) with no
+        // cell content change, so dirty-row tracking would not repaint it. Redraw the cursor cell so
+        // a hidden cursor is erased and a shown one appears even when blinking is disabled.
+        invalidateCursorCell();
 
         if (start) {
             // If cursor blinker is not enabled or is not valid

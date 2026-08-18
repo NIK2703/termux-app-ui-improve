@@ -886,6 +886,9 @@ public final class TerminalEmulator {
                                         mCursorStyle = TERMINAL_CURSOR_STYLE_BAR;
                                         break;
                                 }
+                                // The cursor shape changed but no cell did, so dirty-row tracking
+                                // would skip the repaint; mark the cursor row so the new shape is drawn.
+                                mScreen.markRowDirty(getCursorRow());
                                 break;
                             case 't':
                             case 'u':
@@ -1206,7 +1209,11 @@ public final class TerminalEmulator {
                 break;
             case 4: // DECSCLM-Scrolling Mode. Ignore.
                 break;
-            case 5: // Reverse video. No action.
+            case 5: // Reverse video.
+                // Reverse video inverts the colors of every cell, so the whole screen must be
+                // repainted even though no cell content changed. Without this, dirty-row tracking
+                // sees nothing to redraw and the inversion never appears until some other change.
+                mScreen.markAllDirty();
                 break;
             case 6: // Set: Origin Mode. Reset: Normal Cursor Mode. Ansi name: DECOM.
                 if (setting) setCursorPosition(0, 0);

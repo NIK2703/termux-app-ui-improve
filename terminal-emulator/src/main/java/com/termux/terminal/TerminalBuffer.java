@@ -28,6 +28,10 @@ public final class TerminalBuffer {
     private int mLastDirtyRow = Integer.MIN_VALUE;
     private boolean mAllDirty = true;
 
+    /** Shared read-only blank row returned by {@link #getLineOrBlank(int)} for never-written lines. */
+    private TerminalRow mBlankRow;
+    private int mBlankRowColumns = -1;
+
     /** Mark a single external row as needing a repaint. */
     public void markRowDirty(int externalRow) {
         if (mAllDirty) return;
@@ -225,6 +229,13 @@ public final class TerminalBuffer {
         return (internalRow < 0) ? (mTotalRows + internalRow) : (internalRow % mTotalRows);
     }
 
+    /**
+     * Note: {@link #setLineWrap(int)} / {@link #clearLineWrap(int)} intentionally do NOT mark the
+     * row dirty. {@code mLineWrap} only affects text extraction ({@link #getSelectedText(int, int, int, int)}),
+     * never the rendered pixels, and the row's cells are always (re)written via {@link #setChar(int, int, int, long)}
+     * at the same time, which does mark it. If the renderer ever starts drawing based on wrap state,
+     * these methods must start calling {@link #markRowDirty(int)}.
+     */
     public void setLineWrap(int row) {
         mLines[externalToInternalRow(row)].mLineWrap = true;
     }
@@ -497,6 +508,22 @@ public final class TerminalBuffer {
 
     public TerminalRow allocateFullLineIfNecessary(int row) {
         return (mLines[row] == null) ? (mLines[row] = new TerminalRow(mColumns, 0)) : mLines[row];
+    }
+
+    /**
+     * Read-only access to the line at an external row, falling back to a shared blank row when the
+     * line has never been written to. Unlike {@link #allocateFullLineIfNecessary(int)} this never
+     * mutates the buffer, so it is safe to call from the renderer during {@code onDraw} without
+     * allocating rows (and without racing a background writer). The returned blank row must only be
+     * read, never modified.
+     */
+    public TerminalRow getLineOrBlank(int externalRow) {
+        if (mBlankRow == null || mBlankRowColumns != mColumns) {
+            mBlankRow = new TerminalRow(mColumns, 0);
+            mBlankRowColumns = mColumns;
+        }
+        TerminalRow line = mLines[externalToInternalRow(externalRow)];
+        return line != null ? line : mBlankRow;
     }
 
     public void setChar(int column, int row, int codePoint, long style) {
