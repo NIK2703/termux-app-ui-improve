@@ -7,4 +7,7 @@
     <item name="session_tab_closing_tag" type="id" />
     <!-- Tag marking a tab view whose session finished with a non-zero exit status (error). -->
     <item name="session_tab_error_tag" type="id" />
+    <!-- Cached per-tab render state (TabRenderState): makes a title-only refresh a pure
+         diff — no attribute is re-applied unless it actually changed. -->
+    <item name="session_tab_render_state_tag" type="id" />
 </resources>

@@ -54,6 +54,42 @@ public class TermuxSessionTabsController {
     /** Animator that smoothly follows the active tab as its label changes. */
     private android.animation.ValueAnimator mFollowAnim = null;
 
+    /**
+     * Cached per-tab render state (stored as the {@link R.id#session_tab_render_state_tag}
+     * tag). Makes a title-only refresh a pure diff: every visual attribute is re-applied
+     * only when it actually changed. This is what turns a 10-30 Hz OSC title animation from
+     * a full measure/layout/StaticLayout/drawable-allocation storm per frame into a handful
+     * of tag reads for the unchanged tabs and one setText for the animated one.
+     */
+    private static final class TabRenderState {
+        TerminalSession session;   // session the click listeners are currently bound to
+        CharSequence title;        // last title applied to the TextView
+        int maxLines = -1;
+        int padStart = -1;
+        boolean truncated;         // last StaticLayout truncation decision
+        int maxWidthApplied = -1;  // last title maxWidth applied
+        int closeMarginApplied = -1; // last close-button marginStart applied
+        int bgColor;               // last background colour applied
+        boolean bgValid = false;
+        boolean selected;
+        boolean running = true;
+        int exitStatus;
+        boolean errorColor;
+    }
+
+    /**
+     * Drop all cached per-tab render state so the next populateTabView pass re-applies every
+     * attribute unconditionally. Called after changes applied OUTSIDE the diff
+     * ({@link #applySchemeColorsToTabs} / {@link #applyTabHeightMode}), keeping the cache
+     * honest without teaching those two paths about the diff internals.
+     */
+    private void invalidateRenderStateCache() {
+        if (mTabsContainer == null) return;
+        for (int i = 0; i < mTabsContainer.getChildCount(); i++) {
+            mTabsContainer.getChildAt(i).setTag(R.id.session_tab_render_state_tag, null);
+        }
+    }
+
     public TermuxSessionTabsController(TermuxActivity activity) {
         this.mActivity = activity;
         this.mTabsContainer = activity.findViewById(R.id.session_tabs);
@@ -127,6 +163,9 @@ public class TermuxSessionTabsController {
                 title.setMaxLines(singleLine ? 1 : 2);
             }
         }
+        // The populateTabView diff cache holds values applied under the previous height/mode;
+        // drop it so the next refresh re-applies every attribute with the new settings.
+        invalidateRenderStateCache();
     }
 
     public void updateTabs(List<TermuxSession> sessions) {
@@ -169,6 +208,8 @@ public class TermuxSessionTabsController {
         for (int i = 0; i < mTabsContainer.getChildCount() - 1 && i < newCount; i++) {
             TermuxSession termuxSession = sessions.get(i);
             View tabView = mTabsContainer.getChildAt(i);
+            // Never disturb a tab playing its close animation.
+            if (Boolean.TRUE.equals(tabView.getTag(R.id.session_tab_closing_tag))) continue;
             populateTabView(tabView, termuxSession, i, i == currentSessionIndex);
         }
 
@@ -194,16 +235,84 @@ public class TermuxSessionTabsController {
             // (see runEndScroll), so it always reaches the true right edge — no under-scroll.
             scrollStripToEnd();
         } else if (currentSessionIndex >= 0) {
-            // No size change (e.g. a title-only refresh after the shell sets its window title via
-            // OSC). If we are still in the sticky end-scroll from a just-added tab, do NOT recentre
-            // — that would yank the strip back from the right end. A real tab switch goes through
-            // setCurrentSession(), which clears mEndScrollActive first.
-            if (!mEndScrollActive) requestScroll(SCROLL_CENTRE, currentSessionIndex);
+            // Equal-count (structural) update — e.g. a rename or the onStart resync. No
+            // auto-centre: with high-frequency title traffic this branch used to post a
+            // 220 ms centre animator on EVERY frame (and overlapping animators fought over
+            // scrollX). Explicit navigation still centres via scrollToTabIndex()/the cold
+            // start path above; a jump-free clamp is enough to keep the active tab visible
+            // when its width changed. If we are still in the sticky end-scroll from a
+            // just-added tab, do NOT move at all — that would yank the strip back from the
+            // right end. A real tab switch goes through setCurrentSession(), which clears
+            // mEndScrollActive first.
+            if (!mEndScrollActive) clampActiveTabVisible();
         }
 
         // Hide the (+) add-tab button once the terminal session limit is reached,
         // and restore it whenever a slot frees up (a tab is closed).
         updateAddButtonVisibility(sessions.size());
+    }
+
+    /**
+     * Cosmetic-only refresh for high-frequency title updates (OSC spinners/progress).
+     * Refreshes labels/colours of the EXISTING tab views via the populateTabView diff.
+     *
+     * <p>Never performs structural work: if the session count and the view count disagree
+     * (a concurrent add/remove, e.g. the 100 ms close animation window), it simply returns
+     * and lets the structural event's own {@link #updateTabs} call reconcile the strip.
+     * Doing structure here would re-add a view for a session whose tab is mid-collapse.
+     *
+     * <p>Does NOT scroll the strip — only a jump-free {@link #clampActiveTabVisible()} keeps
+     * the active tab revealed — and does not touch the pager or the session snapshot.
+     */
+    public void refreshTabAppearance(List<TermuxSession> sessions) {
+        if (mTabsContainer == null) return;
+        if (sessions.size() != getTabCount()) return;
+        TerminalSession currentSession = mActivity.getCurrentSession();
+        int currentSessionIndex = -1;
+        for (int i = 0; i < sessions.size(); i++) {
+            TermuxSession s = sessions.get(i);
+            if (s != null && s.getTerminalSession() == currentSession) {
+                currentSessionIndex = i;
+                break;
+            }
+        }
+        if (currentSessionIndex >= 0) mCurrentSessionIndex = currentSessionIndex;
+        for (int i = 0; i < getTabCount() && i < sessions.size(); i++) {
+            View tabView = getTabAt(i);
+            if (tabView == null) continue;
+            // Never disturb a tab playing its close animation.
+            if (Boolean.TRUE.equals(tabView.getTag(R.id.session_tab_closing_tag))) continue;
+            populateTabView(tabView, sessions.get(i), i, i == currentSessionIndex);
+        }
+        clampActiveTabVisible();
+    }
+
+    /**
+     * Cheap, animation-free clamp: if a title width change pushed the active tab partially
+     * outside the visible strip, scroll the MINIMAL distance to reveal it. Never recentres
+     * (no jump), and never fights the end-scroll reservation (freshly added tab) or an
+     * in-flight pager swipe.
+     */
+    private void clampActiveTabVisible() {
+        if (mTabsContainer == null || mTabsScroll == null) return;
+        if (mEndScrollActive) return;
+        if (mActivity.isTerminalPageSwitchInProgress()) return;
+        final int idx = mCurrentSessionIndex;
+        if (idx < 0 || idx >= mTabsContainer.getChildCount() - 1) return;
+        final View tabView = mTabsContainer.getChildAt(idx);
+        if (tabView == null) return;
+        final int viewport = mTabsScroll.getWidth();
+        if (viewport <= 0) return;
+        final int scrollX = mTabsScroll.getScrollX();
+        final int maxScroll = Math.max(0, mTabsContainer.getMeasuredWidth() - viewport);
+        int target = scrollX;
+        if (tabView.getLeft() < scrollX) {
+            target = tabView.getLeft();                          // clipped on the left
+        } else if (tabView.getRight() > scrollX + viewport) {
+            target = tabView.getRight() - viewport;              // clipped on the right
+        }
+        target = Math.max(0, Math.min(target, maxScroll));
+        if (target != scrollX) mTabsScroll.scrollTo(target, 0);
     }
 
     /**
@@ -249,63 +358,79 @@ public class TermuxSessionTabsController {
      * Populate or refresh an existing tab view's content (title, colours, selection state,
      * close button visibility) and rebind click listeners to the current session.
      *
-     * <p>Click listeners are <b>always</b> re-attached here because updateTabs() reuses
-     * tab views by position: when a middle session is closed the views shift down, and
-     * without rebinding the old listener's closure would still reference the (dead)
-     * session that was at this position when the view was <em>created</em>.</p>
+     * <p>Every attribute is applied through the per-tab {@link TabRenderState} cache, so a
+     * repeat call with unchanged values is a pure no-op (no setText, no padding, no
+     * StaticLayout, no listener churn). This is what keeps high-frequency OSC title
+     * animations (10-30 Hz) off the measure/layout path of the strip.
+     *
+     * <p>Click listeners are re-attached only when the session mapped to this view changed:
+     * updateTabs() reuses tab views by position, and when a middle session is closed the
+     * views shift down — without rebinding, the old listener's closure would still reference
+     * the (dead) session that was at this position when the view was <em>created</em>.</p>
      */
     private void populateTabView(View tabView, TermuxSession termuxSession, int position, boolean isSelected) {
         TextView titleView = tabView.findViewById(R.id.session_tab_title);
         ImageButton closeButton = tabView.findViewById(R.id.session_tab_close);
         if (titleView == null) return;
 
-        // Apply the configured max lines (single-line or two-line mode).
-        titleView.setMaxLines(isSingleLineMode() ? 1 : 2);
-
-        // Tighter start padding for single-line (compact) tabs; keep the XML default
-        // (12dp) for double-line tabs so the title has room for two lines.
-        if (isSingleLineMode()) {
-            int padStart = Math.round(mActivity.getResources()
-                    .getDimension(R.dimen.terminal_tab_padding_start_single));
-            tabView.setPadding(padStart, tabView.getPaddingTop(),
-                    tabView.getPaddingRight(), tabView.getPaddingBottom());
-        } else {
-            int padStart = Math.round(mActivity.getResources()
-                    .getDimension(R.dimen.terminal_tab_padding_start_double));
-            tabView.setPadding(padStart, tabView.getPaddingTop(),
-                    tabView.getPaddingRight(), tabView.getPaddingBottom());
+        TabRenderState state = (TabRenderState) tabView.getTag(R.id.session_tab_render_state_tag);
+        final boolean freshState = (state == null);
+        if (freshState) {
+            state = new TabRenderState();
+            tabView.setTag(R.id.session_tab_render_state_tag, state);
         }
 
         TerminalSession terminalSession = termuxSession.getTerminalSession();
 
-        // Bind the session reference onto the view so closeSession() can locate
-        // the exact tab to animate without relying on positional index (which
-        // shifts as other tabs open/close).
-        tabView.setTag(R.id.session_tab_session_tag, terminalSession);
-
-        // Re-bind the click listener to the current (correct) session reference.
-        // updateTabs() reuses existing tab views by position — without this the
-        // closure would still point at the session that was at this position
-        // when the view was *created*, not the one that sits here NOW.  That is
-        // why closing a non-last tab made the tab strip show the right title
-        // but clicking it tried to switch to a dead session (stale listener).
-        tabView.setOnClickListener(v -> {
-            if (terminalSession != null)
-                // Instant switch (animate=false): the pager jumps straight to the target page with
-                // no smooth scroll, so no intermediate onPageScrolled events scroll the tab strip
-                // through or highlight the in-between tabs. The clicked tab activates immediately.
-                mActivity.getTermuxTerminalSessionClient().setCurrentSession(terminalSession, false, false);
-        });
-        tabView.setOnLongClickListener(v -> {
-            if (terminalSession != null)
-                mActivity.getTermuxTerminalSessionClient().renameSession(terminalSession);
-            return true;
-        });
-        if (closeButton != null) {
-            closeButton.setOnClickListener(v -> {
+        // (Re)bind the session reference and the click listeners only when the session mapped
+        // to this view changed (structural reuse after a middle tab closed). Keeps the
+        // stale-closure fix without allocating three lambdas per tab per animation frame.
+        if (freshState || state.session != terminalSession) {
+            state.session = terminalSession;
+            // Bind the session reference onto the view so closeSession() can locate the exact
+            // tab to animate without relying on positional index (which shifts as other tabs
+            // open/close).
+            tabView.setTag(R.id.session_tab_session_tag, terminalSession);
+            // Instant switch (animate=false): the pager jumps straight to the target page with
+            // no smooth scroll, so no intermediate onPageScrolled events scroll the tab strip
+            // through or highlight the in-between tabs. The clicked tab activates immediately.
+            tabView.setOnClickListener(v -> {
                 if (terminalSession != null)
-                    closeSession(terminalSession);
+                    mActivity.getTermuxTerminalSessionClient().setCurrentSession(terminalSession, false, false);
             });
+            tabView.setOnLongClickListener(v -> {
+                if (terminalSession != null)
+                    mActivity.getTermuxTerminalSessionClient().renameSession(terminalSession);
+                return true;
+            });
+            if (closeButton != null) {
+                closeButton.setOnClickListener(v -> {
+                    if (terminalSession != null)
+                        closeSession(terminalSession);
+                });
+            }
+        }
+
+        // Max lines (single-line or two-line mode): apply only on change — setMaxLines()
+        // requests a relayout unconditionally.
+        boolean linesChanged = false;
+        int desiredMaxLines = isSingleLineMode() ? 1 : 2;
+        if (state.maxLines != desiredMaxLines) {
+            state.maxLines = desiredMaxLines;
+            titleView.setMaxLines(desiredMaxLines);
+            linesChanged = true;
+        }
+
+        // Start padding: apply only on change — View.setPadding() requests a relayout
+        // unconditionally. Tighter for single-line (compact) tabs; the XML default (12dp)
+        // applies to double-line tabs so the title has room for two lines.
+        int desiredPadStart = Math.round(mActivity.getResources().getDimension(isSingleLineMode()
+                ? R.dimen.terminal_tab_padding_start_single
+                : R.dimen.terminal_tab_padding_start_double));
+        if (state.padStart != desiredPadStart) {
+            state.padStart = desiredPadStart;
+            tabView.setPadding(desiredPadStart, tabView.getPaddingTop(),
+                    tabView.getPaddingRight(), tabView.getPaddingBottom());
         }
 
         if (terminalSession != null) {
@@ -314,62 +439,96 @@ public class TermuxSessionTabsController {
 
             String displayTitle = SessionTitleUtils.resolveDisplayName(mActivity, name, title);
 
-            titleView.setText(displayTitle);
+            // Title text: the only attribute expected to change on every animation frame.
+            boolean titleChanged = !android.text.TextUtils.equals(state.title, displayTitle);
+            if (titleChanged) {
+                state.title = displayTitle;
+                titleView.setText(displayTitle);
+            }
 
-            // When the title is truncated, reclaim the gap in front of the close (x)
-            // button and hand it to the title (raise its max width by the same amount).
-            // The tab's total width is unchanged, but more of the clipped label becomes
-            // visible. When the title fits, restore the default gap and cap.
+            // When the title is truncated, reclaim the gap in front of the close (x) button and
+            // hand it to the title (raise its max width by the same amount). The tab's total
+            // width is unchanged, but more of the clipped label becomes visible. When the title
+            // fits, restore the default gap and cap. The expensive StaticLayout measurement runs
+            // only when the text (or the line mode) changed; maxWidth/margin are applied only
+            // when the truncation DECISION flips.
             if (closeButton != null) {
                 int gapPx = Math.round(mActivity.getResources()
                         .getDimension(R.dimen.terminal_tab_close_gap));
                 int baseMaxWidthPx = Math.round(mActivity.getResources()
                         .getDimension(R.dimen.terminal_tab_title_max_width));
-                ViewGroup.MarginLayoutParams closeLp =
-                        (ViewGroup.MarginLayoutParams) closeButton.getLayoutParams();
-                if (isTitleTruncated(titleView, displayTitle, baseMaxWidthPx)) {
-                    closeLp.setMarginStart(0);
-                    titleView.setMaxWidth(baseMaxWidthPx + gapPx);
-                } else {
-                    closeLp.setMarginStart(gapPx);
-                    titleView.setMaxWidth(baseMaxWidthPx);
+                if (titleChanged || linesChanged || state.maxWidthApplied < 0) {
+                    state.truncated = isTitleTruncated(titleView, displayTitle, baseMaxWidthPx);
                 }
-                closeButton.setLayoutParams(closeLp);
+                int desiredMaxWidth = state.truncated ? baseMaxWidthPx + gapPx : baseMaxWidthPx;
+                int desiredCloseMargin = state.truncated ? 0 : gapPx;
+                if (state.maxWidthApplied != desiredMaxWidth) {
+                    state.maxWidthApplied = desiredMaxWidth;
+                    titleView.setMaxWidth(desiredMaxWidth);
+                }
+                if (state.closeMarginApplied != desiredCloseMargin) {
+                    state.closeMarginApplied = desiredCloseMargin;
+                    ViewGroup.MarginLayoutParams closeLp =
+                            (ViewGroup.MarginLayoutParams) closeButton.getLayoutParams();
+                    closeLp.setMarginStart(desiredCloseMargin);
+                    closeButton.setLayoutParams(closeLp);
+                }
             }
 
-            // Text colour: red for finished-with-error sessions, otherwise scheme foreground.
+            // Text colour, close tint and strike-through derive solely from (running, exit).
             boolean sessionRunning = terminalSession.isRunning();
-            boolean isErrorTab = !sessionRunning && terminalSession.getExitStatus() != 0;
+            int exitStatus = terminalSession.getExitStatus();
+            boolean isErrorTab = !sessionRunning && exitStatus != 0;
             tabView.setTag(R.id.session_tab_error_tag, isErrorTab);
-            if (isErrorTab) {
-                int errorColor = androidx.core.content.ContextCompat.getColor(
-                    mActivity, com.termux.shared.R.color.terminal_tab_text_error);
-                titleView.setTextColor(errorColor);
-            } else if (mSchemeApplied) {
-                titleView.setTextColor(mSchemeTextColor);
+            if (freshState || state.running != sessionRunning
+                    || state.exitStatus != exitStatus || state.errorColor != isErrorTab) {
+                state.running = sessionRunning;
+                state.exitStatus = exitStatus;
+                state.errorColor = isErrorTab;
+                // Red for finished-with-error sessions, otherwise scheme foreground.
+                if (isErrorTab) {
+                    int errorColor = androidx.core.content.ContextCompat.getColor(
+                        mActivity, com.termux.shared.R.color.terminal_tab_text_error);
+                    titleView.setTextColor(errorColor);
+                } else if (mSchemeApplied) {
+                    titleView.setTextColor(mSchemeTextColor);
+                }
+                // Close-icon colour from the scheme.
+                if (closeButton != null && mSchemeApplied) {
+                    closeButton.setColorFilter(mSchemeTextColor, android.graphics.PorterDuff.Mode.SRC_ATOP);
+                }
+                // Strike through for finished sessions.
+                SessionAppearanceUtils.applyFinishedSessionStyling(titleView, sessionRunning,
+                        exitStatus,
+                        androidx.core.content.ContextCompat.getColor(mActivity, com.termux.shared.R.color.terminal_tab_text_error),
+                        mSchemeTextColor);
             }
-
-            // Close-icon colour from the scheme.
-            if (closeButton != null && mSchemeApplied) {
-                closeButton.setColorFilter(mSchemeTextColor, android.graphics.PorterDuff.Mode.SRC_ATOP);
-            }
-
-            // Translucent background matching the signal panel.
-            if (mSchemeApplied) {
-                setTabBackground(tabView, isSelected ? mSchemeBgActive : mSchemeBg);
-            }
-
-            // Strike through for finished sessions.
-            SessionAppearanceUtils.applyFinishedSessionStyling(titleView, sessionRunning,
-                    terminalSession.getExitStatus(),
-                    androidx.core.content.ContextCompat.getColor(mActivity, com.termux.shared.R.color.terminal_tab_text_error),
-                    mSchemeTextColor);
         }
 
-        // Selection state and close button visibility.
-        tabView.setSelected(isSelected);
+        // Selection state: apply only on change (setSelected invalidates + re-renders).
+        if (state.selected != isSelected) {
+            state.selected = isSelected;
+            tabView.setSelected(isSelected);
+        }
+        // Close button visibility: the diff reads the VIEW state (not the cache), so it
+        // self-corrects against the mid-swipe toggling done by onPageScrolled().
         if (closeButton != null) {
-            closeButton.setVisibility(isSelected ? View.VISIBLE : View.INVISIBLE);
+            int desiredVisibility = isSelected ? View.VISIBLE : View.INVISIBLE;
+            if (closeButton.getVisibility() != desiredVisibility)
+                closeButton.setVisibility(desiredVisibility);
+        }
+
+        // Translucent background matching the signal panel: apply only when the target colour
+        // differs from the cached one (setBackground allocates a new drawable every call).
+        // Skipped mid-page-switch so the blend painted by onPageScrolled() is not snapped back
+        // to a solid colour during the swipe (resetPageSelection re-asserts the clean state).
+        if (mSchemeApplied && !mActivity.isTerminalPageSwitchInProgress()) {
+            int desiredBg = isSelected ? mSchemeBgActive : mSchemeBg;
+            if (!state.bgValid || state.bgColor != desiredBg) {
+                setTabBackground(tabView, desiredBg);
+                state.bgColor = desiredBg;
+                state.bgValid = true;
+            }
         }
     }
 
@@ -859,6 +1018,10 @@ public class TermuxSessionTabsController {
         // Give the (+) add button (last child, excluded from the loop above) its scheme
         // background while preserving the press/swipe active-state visual.
         applyAddButtonSchemeBackground();
+
+        // The populateTabView diff cache holds colours applied under the previous scheme;
+        // drop it so the next refresh re-applies every attribute with the new colours.
+        invalidateRenderStateCache();
     }
 
     /** Tell the controller whether the trailing placeholder page is present, so an in-progress
