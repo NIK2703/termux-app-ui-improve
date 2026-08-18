@@ -64,6 +64,21 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
     /** Fallback runnable that scrolls to the end even if the shell never sets a title. */
     private java.lang.Runnable mEndScrollFallback;
 
+    /**
+     * One-shot coalescing flag for cosmetic tab-strip refreshes driven by OSC title changes.
+     * A CLI animating its title (spinner/progress) fires OSC 0/2 at 10-30 Hz; the flag folds
+     * every title event of a frame into a single posted refresh, so at most one refresh runs
+     * per frame. The refresh reads the LATEST titles straight from the sessions, so the final
+     * state is always applied and several sessions changing inside one frame are all covered.
+     */
+    private boolean mTitleRefreshPending = false;
+    private final java.lang.Runnable mTitleRefreshRunnable = new java.lang.Runnable() {
+        @Override public void run() { runTitleRefresh(); }
+    };
+
+    /** Last resolved session name handed to the extra-keys controller (hot-path guard). */
+    private String mLastExtraKeysSessionName;
+
     private SoundPool mBellSoundPool;
 
     private int mBellSoundId;
@@ -132,6 +147,10 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
      * Should be called when mActivity.onStop() is called
      */
     public void onStop() {
+        // Drop any pending coalesced title refresh so it does not run while stopped.
+        mMainHandler.removeCallbacks(mTitleRefreshRunnable);
+        mTitleRefreshPending = false;
+
         // Store current session in shared preferences so that it can be restored later in
         // {@link #onStart} if needed.
         setCurrentStoredSession();
@@ -174,7 +193,9 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
 
         // If this is the session we just added by a right-swipe, its label is now real — scroll
         // the tab strip to the right end (revealing the (+) button) ONLY now, after the label is
-        // actually set. Clear the pending ref + cancel the fallback timer.
+        // actually set. This fires exactly once per added tab — keep it fully synchronous so the
+        // markPendingEndScrollSession/scrollStripToEnd contract and the 250 ms fallback behave
+        // exactly as before.
         if (mPendingEndScrollSession == updatedSession) {
             mPendingEndScrollSession = null;
             mMainHandler.removeCallbacks(mEndScrollFallback);
@@ -185,16 +206,44 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
             return;
         }
 
-        termuxSessionListNotifyUpdated();
-
-        // A title change can alter the session-name prefix match (e.g. a shell/CLI sets an
-        // OSC title once it starts). Re-evaluate the extra-keys profile for the active session
-        // so the panel switches without a manual tab change. applySessionExtraKeys is a no-op
-        // via isSameLayout when the profile (or default) is already shown.
-        if (mActivity.getCurrentSession() == updatedSession) {
-            applySessionExtraKeys(updatedSession);
-        }
+        // Hot path (animated titles): never rebuild the tabs per event. Coalesce into a single
+        // throttled COSMETIC refresh. The refresh reads the LATEST titles straight from the
+        // sessions, so intermediate frames may be dropped but the final state never is, and
+        // several sessions changing inside one window are all covered.
+        scheduleTitleRefresh();
         });
+    }
+
+    /**
+     * Coalesce the cosmetic title refresh: at most one posted execution per frame, with the
+     * final change always scheduled (trailing edge).
+     */
+    private void scheduleTitleRefresh() {
+        if (mTitleRefreshPending) return;
+        mTitleRefreshPending = true;
+        mMainHandler.post(mTitleRefreshRunnable);
+    }
+
+    /**
+     * The coalesced title refresh. Cosmetic only: refreshes tab labels via a pure diff and
+     * clamps the active tab into view. Deliberately does NOT run the structural
+     * {@link #termuxSessionListNotifyUpdated()} — a title change cannot alter the session
+     * list, so no pager resync, no session snapshot, no end-scroll bookkeeping. Skipping the
+     * pager resync is also what kills the per-frame ViewPager2 rebuild that used to happen
+     * while the trailing placeholder page was active (user on the last tab).
+     */
+    private void runTitleRefresh() {
+        mTitleRefreshPending = false;
+        if (mActivity.isFinishing()) return;
+        TermuxService service = mActivity.getTermuxService();
+        if (service == null) return;
+        TermuxSessionTabsController tabs = mActivity.getTermuxSessionTabsController();
+        if (tabs != null) tabs.refreshTabAppearance(service.getTermuxSessions());
+        // For unnamed sessions the (animated) title doubles as the session name for the
+        // extra-keys profile match; the reloadMap=false variant never touches disk and is a
+        // cheap no-op while the resolved name stays the same.
+        TerminalSession current = mActivity.getCurrentSession();
+        if (current != null) applySessionExtraKeys(current, false);
     }
 
     /**
@@ -567,22 +616,36 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
     /**
      * Notify the extra-keys controller of the active session's name so a session-name based
      * layout profile (property "extra-keys-session") can be applied. Priority vs the
-     * process-based context is handled inside the controller.
+     * process-based context is handled inside the controller. Re-reads the property map from
+     * disk (navigation events: tab switch, rename).
      */
     private void applySessionExtraKeys(@NonNull TerminalSession session) {
+        applySessionExtraKeys(session, true);
+    }
+
+    /**
+     * Notify the extra-keys controller of the active session's name so a session-name based
+     * layout profile (property "extra-keys-session") can be applied. Priority vs the
+     * process-based context is handled inside the controller.
+     *
+     * @param reloadMap when true (navigation events: tab switch, rename) the property is
+     *                  re-read from disk first — recovering profiles saved while this
+     *                  activity was stopped and missed the reload broadcast. When false
+     *                  (high-frequency title path) only the in-memory match runs, and the
+     *                  whole call is skipped while the resolved name is unchanged.
+     */
+    private void applySessionExtraKeys(@NonNull TerminalSession session, boolean reloadMap) {
         // mSessionName is null for unnamed sessions, so prefer it, then the emulator
         // title (what the tab shows). Both null -> no profile match -> default layout.
         String sessionName = session.mSessionName;
         if (TextUtils.isEmpty(sessionName)) sessionName = session.getTitle();
         if (TextUtils.isEmpty(sessionName)) sessionName = null;
-
+        if (!reloadMap && TextUtils.equals(sessionName, mLastExtraKeysSessionName)) return;
+        mLastExtraKeysSessionName = sessionName;
         TermuxTerminalExtraKeys extraKeys = mActivity.getTermuxTerminalExtraKeys();
-        if (extraKeys != null) {
-            // Profiles may have been saved while this activity was stopped (broadcast missed),
-            // so re-read them before resolving the session name.
-            extraKeys.reloadSessionMap();
-            extraKeys.onSessionNameChanged(sessionName);
-        }
+        if (extraKeys == null) return;
+        if (reloadMap) extraKeys.reloadSessionMap();
+        extraKeys.onSessionNameChanged(sessionName);
     }
 
     /**

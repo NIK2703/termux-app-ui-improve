@@ -16,6 +16,7 @@ app/src/main/cpp/bootstrap-*.zip
 .idea/
 *.iml
 .gradle/
+.gradle-home/
 build/
 local.properties
 *.log
