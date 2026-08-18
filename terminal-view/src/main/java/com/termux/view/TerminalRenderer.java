@@ -2,6 +2,7 @@ package com.termux.view;
 
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.graphics.Path;
 import android.graphics.PorterDuff;
 import android.graphics.Typeface;
 import android.util.SparseArray;
@@ -46,8 +47,8 @@ public final class TerminalRenderer {
      * Reusable per-frame run list. The renderer splits each row into "runs" of equal style; instead
      * of drawing every run immediately (which issues a separate background {@link Paint#drawRect}
      * per run), runs are collected into these arrays once per row and drawn in two passes: all
-     * background rectangles, then all text. This avoids per-run allocation and collapses adjacent
-     * same-color backgrounds into a single {@link Paint#drawRect} call.
+     * background rectangles batched per color, then all text. This avoids per-run allocation and
+     * collapses adjacent same-color backgrounds into a single {@link Path} draw.
      */
     private int[] mRunStartColumn;
     private int[] mRunWidthColumns;
@@ -60,8 +61,7 @@ public final class TerminalRenderer {
     private boolean[] mRunReverseVideo;
     private boolean[] mRunFontWidthMismatch;
     private int mRunCount;
-    /** Paint for the background rectangles - never carries text attributes. */
-    private final Paint mBgPaint = new Paint();
+    private final SparseArray<Path> mBgBatches = new SparseArray<>();
     private final int[] mColorOut = new int[2];
 
     public TerminalRenderer(int textSize, Typeface typeface) {
@@ -71,8 +71,6 @@ public final class TerminalRenderer {
         mTextPaint.setTypeface(typeface);
         mTextPaint.setAntiAlias(true);
         mTextPaint.setTextSize(textSize);
-
-        mBgPaint.setStyle(Paint.Style.FILL);
 
         mFontLineSpacing = (int) Math.ceil(mTextPaint.getFontSpacing());
         mFontAscent = (int) Math.ceil(mTextPaint.ascent());
@@ -232,32 +230,22 @@ public final class TerminalRenderer {
             addRun(lastRunStartColumn, columnWidthSinceLastRun, lastRunStartIndex, charsSinceLastRun, measuredWidthForRun,
                 lastRunStyle, cursorColor, cursorShape, reverseVideo || invertCursorTextColor || lastRunInsideSelection, lastRunFontWidthMismatch);
 
-            // Pass A: background rectangles, grouped per consecutive same-color runs and drawn
-            // immediately with drawRect(). Mismatch runs (scaled glyphs) are skipped here and
-            // drawn in pass B with their scale. Note: no Path batching - drawPath() records the
-            // path into the display list and replays it after onDraw() returns, which is fragile
-            // (e.g. rewinding or reusing the path too early yields garbage primitives on some
-            // GPU drivers), so plain drawRect() calls are used instead.
+            // Pass A: background rectangles, batched per color into a single Path draw each.
+            // Mismatch runs (scaled glyphs) are skipped here and drawn in pass B with their scale.
             for (int i = 0; i < mRunCount; i++) {
                 if (mRunFontWidthMismatch[i]) continue;
                 resolveRunColors(mRunStyle[i], mRunReverseVideo[i], palette, mColorOut);
                 final int backColor = mColorOut[1];
                 if (backColor == palette[TextStyle.COLOR_INDEX_BACKGROUND]) continue;
-
-                // Extend the group to the right while the background color stays the same.
-                int endRun = i + 1;
-                while (endRun < mRunCount && !mRunFontWidthMismatch[endRun]) {
-                    resolveRunColors(mRunStyle[endRun], mRunReverseVideo[endRun], palette, mColorOut);
-                    if (mColorOut[1] != backColor) break;
-                    endRun++;
-                }
-
                 final float left = mRunStartColumn[i] * mFontWidth;
-                final float right = (mRunStartColumn[endRun - 1] + mRunWidthColumns[endRun - 1]) * mFontWidth;
-                mBgPaint.setColor(backColor);
-                canvas.drawRect(left, heightOffset - mFontLineSpacingAndAscent + mFontAscent, right, heightOffset, mBgPaint);
-
-                i = endRun - 1;  // skip the runs already covered by this rectangle
+                final float right = left + mRunWidthColumns[i] * mFontWidth;
+                addBgRect(backColor, left, heightOffset - mFontLineSpacingAndAscent + mFontAscent, right, heightOffset);
+            }
+            for (int i = 0; i < mBgBatches.size(); i++) {
+                final Path p = mBgBatches.valueAt(i);
+                mTextPaint.setColor(mBgBatches.keyAt(i));
+                canvas.drawPath(p, mTextPaint);
+                p.rewind();
             }
 
             // Pass B: text (and cursor, and any scaled background) drawn on top of the backgrounds.
@@ -300,6 +288,15 @@ public final class TerminalRenderer {
         mRunReverseVideo[mRunCount] = reverseVideo;
         mRunFontWidthMismatch[mRunCount] = fontWidthMismatch;
         mRunCount++;
+    }
+
+    private void addBgRect(int color, float left, float top, float right, float bottom) {
+        Path p = mBgBatches.get(color);
+        if (p == null) {
+            p = new Path();
+            mBgBatches.put(color, p);
+        }
+        p.addRect(left, top, right, bottom, Path.Direction.CW);
     }
 
     /** Resolve a run's style into foreground/background colors (with bold + reverse-video handling). */
