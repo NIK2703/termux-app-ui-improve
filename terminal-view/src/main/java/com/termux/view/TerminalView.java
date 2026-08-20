@@ -604,6 +604,15 @@ public final class TerminalView extends View {
 
         if (mTopRow == 0) {
             skipScrolling = true;
+        } else if (mScrollbarDragging) {
+            // While the user holds the scrollbar thumb, do NOT anchor the view to
+            // incoming output: the auto-scroll-disabled branch below would shift
+            // mTopRow by the scroll counter and slide the thumb out from under the
+            // finger (drift). Keep mTopRow locked to the finger position so the thumb
+            // stays put and new lines simply scroll under it.
+            skipScrolling = true;
+            mTopRow = fingerYtoTopRowCentered(mScrollbarDragStartRawY);
+            mEmulator.setAutoScrollDisabled(mTopRow != 0);
         } else if (isSelectingText() || mEmulator.isAutoScrollDisabled()) {
 
             int rowShift = mEmulator.getScrollCounter();
@@ -1120,29 +1129,24 @@ public final class TerminalView extends View {
     }
 
     /**
-     * Map a finger Y coordinate to the corresponding {@link #mTopRow} value,
-     * clamped within the valid range [-getScrollbarRange(), 0].
+     * Map a finger Y coordinate to the {@link #mTopRow} value, keeping the thumb
+     * CENTRE glued under the finger (the user grabs the thumb by its centre, so the
+     * centre — not the thumb's top edge — tracks the finger). Clamped to
+     * [-getScrollbarRange(), 0].
      */
-    private int fingerYtoTopRow(float fingerY) {
+    private int fingerYtoTopRowCentered(float fingerY) {
         int range = getScrollbarRange();
         if (range <= 0) return 0;
 
         float viewH = getHeight();
-        float thumbH = visibleRowsPerThumbHeight(range);
-        float maxOffset = viewH - thumbH;
-        if (maxOffset < 1f) return 0; // thumb fills view → no scrolling needed
-
-        float clampedY = Math.max(0, Math.min(fingerY, viewH));
-        float scrollFraction = clampedY / maxOffset;
-        // Clamp to [0, 1] — finger past bottom of track stays at bottom
+        float thumbH = Math.min(mScrollbarThumbSizePx, viewH);
+        float maxOffset = Math.max(viewH - thumbH, 1f);
+        // Centre the thumb under the finger so grabbing it does not jump.
+        float center = fingerY - thumbH / 2f;
+        float scrollFraction = center / maxOffset;
         if (scrollFraction < 0f) scrollFraction = 0f;
         if (scrollFraction > 1f) scrollFraction = 1f;
         return (int) (scrollFraction * range - range);
-    }
-
-    /** Height of the thumb (duplicated from computeThumbRect for drag calculations). */
-    private float visibleRowsPerThumbHeight(int range) {
-        return Math.min(mScrollbarThumbSizePx, getHeight());
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -1178,23 +1182,18 @@ public final class TerminalView extends View {
                     case MotionEvent.ACTION_MOVE: {
                         int range = getScrollbarRange();
                         if (range > 0) {
-                            float viewH = getHeight();
-                            float thumbH = visibleRowsPerThumbHeight(range);
-                            float maxOffset = Math.max(viewH - thumbH, 1f);
-                            float rowsPerPx = (float) range / maxOffset;
-                            // Incremental delta: apply on top of the current
-                            // mTopRow so the content-stable shift done by
-                            // onScreenUpdated() for new output is preserved
-                            // instead of being reverted to the drag baseline.
-                            float deltaY = event.getY() - mScrollbarDragStartRawY;
-                            int deltaRows = Math.round(deltaY * rowsPerPx);
-                            mTopRow = Math.max(-range, Math.min(0, mTopRow + deltaRows));
+                            // Absolute mapping: lock the thumb centre to the current
+                            // finger position. Identical to the old incremental delta
+                            // while the range is stable, but also stays glued to the
+                            // finger when the transcript grows under us — onScreenUpdated()
+                            // recomputes mTopRow the same way for held, stationary drags.
                             mScrollbarDragStartRawY = event.getY();
-                            // Same rule as scrollUp(): scrolled away from the
-                            // bottom disables follow-to-bottom; reaching the
-                            // bottom again re-enables it. Without this the
-                            // emulator still thinks auto-scroll is on and new
-                            // lines snap the view back to the bottom mid-drag.
+                            mTopRow = fingerYtoTopRowCentered(mScrollbarDragStartRawY);
+                            // Same rule as scrollUp(): scrolled away from the bottom
+                            // disables follow-to-bottom; reaching the bottom again
+                            // re-enables it. Without this the emulator still thinks
+                            // auto-scroll is on and new lines snap the view back to
+                            // the bottom mid-drag.
                             mEmulator.setAutoScrollDisabled(mTopRow != 0);
                             invalidate();
                         }
@@ -1211,9 +1210,8 @@ public final class TerminalView extends View {
                 stopFlingAndClear();
                 if (getParent() != null) getParent().requestDisallowInterceptTouchEvent(true);
                 mScrollbarDragging = true;
-                // Don't jump the thumb — anchor the finger; each MOVE applies an
-                // incremental delta so the thumb stays under the finger and the
-                // content-stable shift for new output isn't reverted.
+                // Don't jump the thumb: grab the centre and map it straight to mTopRow,
+                // so the thumb stays under the finger and new output doesn't slide it.
                 mScrollbarDragStartRawY = event.getY();
                 invalidate();
                 return true;
