@@ -220,6 +220,18 @@
     <string name="text_input_show_summary_off">文本输入框已隐藏</string>
     <string name="text_input_hide_on_send_title">发送后隐藏输入面板</string>
     <string name="text_input_hide_on_send_summary">启用后，发送后输入面板会关闭并将焦点移到终端。禁用可保持面板打开以便连续输入命令。</string>
+    <string name="text_input_action_on_send_title">发送操作</string>
+    <string name="text_input_action_on_send_summary">从输入框发送文本后发生的行为：不执行操作、隐藏输入面板，或隐藏输入面板和键盘。</string>
+    <string-array name="text_input_action_on_send_entries">
+        <item>不执行操作</item>
+        <item>隐藏输入面板</item>
+        <item>隐藏输入面板和键盘</item>
+    </string-array>
+    <string-array name="text_input_action_on_send_values">
+        <item>none</item>
+        <item>hide_panel</item>
+        <item>hide_keyboard</item>
+    </string-array>
     <string name="text_input_insert_at_cursor_title">历史消息恢复行为</string>
     <string name="text_input_insert_at_cursor_summary">点击选择：在光标处插入或替换整个输入框内容</string>
     <string name="text_input_insert_at_cursor_dialog_title">历史恢复模式</string>

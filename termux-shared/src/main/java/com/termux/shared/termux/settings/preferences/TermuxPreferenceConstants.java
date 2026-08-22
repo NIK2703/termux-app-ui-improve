@@ -111,13 +111,24 @@ public final class TermuxPreferenceConstants {
         public static final boolean DEFAULT_VALUE_TEXT_INPUT_APPEND_ENTER = true;
 
         /**
-         * Defines the key for whether the text input panel should hide after sending
-         * a message from it. When {@code true} (default), the panel closes and focus
-         * moves to the terminal. When {@code false}, the panel stays open and focus
-         * remains in the input field for consecutive commands.
+         * Defines the key for what should happen after sending a message from the text
+         * input field (e.g. by pressing Enter on the keyboard). It is a single choice
+         * that replaces the previously separate "hide input panel" and "hide keyboard"
+         * toggles.
+         * Allowed values are the {@code TEXT_INPUT_ACTION_ON_SEND_*} constants:
+         * <ul>
+         *   <li>{@code "none"} — do nothing, keep the panel and keyboard as-is.</li>
+         *   <li>{@code "hide_panel"} — hide the input panel and move focus to the terminal.</li>
+         *   <li>{@code "hide_keyboard"} — hide the soft keyboard; the input panel is
+         *       hidden automatically as part of this.</li>
+         * </ul>
          */
-        public static final String KEY_TEXT_INPUT_HIDE_ON_SEND = "text_input_hide_on_send";
-        public static final boolean DEFAULT_VALUE_TEXT_INPUT_HIDE_ON_SEND = true;
+        public static final String KEY_TEXT_INPUT_ACTION_ON_SEND = "text_input_action_on_send";
+        public static final String DEFAULT_VALUE_TEXT_INPUT_ACTION_ON_SEND = TERMUX_APP.TEXT_INPUT_ACTION_ON_SEND_HIDE_KEYBOARD;
+
+        public static final String TEXT_INPUT_ACTION_ON_SEND_NONE = "none";
+        public static final String TEXT_INPUT_ACTION_ON_SEND_HIDE_PANEL = "hide_panel";
+        public static final String TEXT_INPUT_ACTION_ON_SEND_HIDE_KEYBOARD = "hide_keyboard";
 
         /**
          * Defines the key for whether picking a message from the history popup should

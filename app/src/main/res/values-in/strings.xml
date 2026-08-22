@@ -214,7 +214,19 @@
 <string name="text_input_show_summary_on">Kolom input teks terlihat di atas tombol tambahan</string>
 <string name="text_input_show_title">Tampilkan Input Teks</string>
 <string name="text_input_hide_on_send_title">Sembunyikan panel input setelah kirim</string>
-<string name="text_input_hide_on_send_summary">Jika diaktifkan, panel input tertutup dan fokus beralih ke terminal setelah mengirim. Nonaktifkan untuk membiarkan panel tetap terbuka guna perintah berturut-turut.</string>
+    <string name="text_input_hide_on_send_summary">Jika diaktifkan, panel input tertutup dan fokus beralih ke terminal setelah mengirim. Nonaktifkan untuk membiarkan panel tetap terbuka guna perintah berturut-turut.</string>
+    <string name="text_input_action_on_send_title">Tindakan saat kirim</string>
+    <string name="text_input_action_on_send_summary">Apa yang terjadi setelah mengirim teks dari kolom input: tidak melakukan apa pun, sembunyikan panel input, atau sembunyikan panel input dan keyboard.</string>
+    <string-array name="text_input_action_on_send_entries">
+        <item>Tidak melakukan apa pun</item>
+        <item>Sembunyikan panel input</item>
+        <item>Sembunyikan panel input dan keyboard</item>
+    </string-array>
+    <string-array name="text_input_action_on_send_values">
+        <item>none</item>
+        <item>hide_panel</item>
+        <item>hide_keyboard</item>
+    </string-array>
 <string name="text_input_title">Input Teks</string>
 <string name="text_input_insert_at_cursor_title">Perilaku pemulihan pesan riwayat</string>
 <string name="text_input_insert_at_cursor_summary">Ketuk untuk memilih: sisipkan di kursor atau ganti seluruh kolom input</string>

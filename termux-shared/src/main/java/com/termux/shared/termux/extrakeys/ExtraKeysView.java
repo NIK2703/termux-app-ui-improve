@@ -226,9 +226,10 @@ public final class ExtraKeysView extends GridLayout implements SpecialButtonStat
     /** Defines the default fallback value for {@link #mButtonActiveBackgroundColor} if {@link #ATTR_BUTTON_ACTIVE_BACKGROUND_COLOR} is undefined. */
     public static final int DEFAULT_BUTTON_ACTIVE_BACKGROUND_COLOR = 0xFF424242;
 
-    /** Button horizontal margin in dp (distance between buttons will be 2x margin). */
+    /** Button margin in dp. Only the trailing side of each button carries the margin, so the
+     *  visual distance between adjacent buttons equals the margin (1x) on both axes. */
     public static final int BUTTON_MARGIN_HORIZONTAL_DP = 2;
-    /** Button vertical margin in dp (distance between buttons will be 2x margin). */
+    /** Button vertical margin in dp (see {@link #BUTTON_MARGIN_HORIZONTAL_DP}). */
     public static final int BUTTON_MARGIN_VERTICAL_DP = 2;
     /** Default button corner radius in dp. */
     public static final int BUTTON_CORNER_RADIUS_DP = 12;
@@ -698,6 +699,31 @@ public final class ExtraKeysView extends GridLayout implements SpecialButtonStat
         requestLayout();
     }
 
+    /**
+     * Apply asymmetric (collapsing) margins so the gap between adjacent buttons is the
+     * configured margin on BOTH axes and the panel stays flush with its container edges.
+     * <p>
+     * Unlike symmetric per-side margins (which double the gap because GridLayout adds the
+     * facing margins of neighbouring views), only the <em>trailing</em> side of each button
+     * carries the margin; the leading side is left at zero. The first row keeps its top margin
+     * only when top-margin mode is enabled (e.g. session tabs sit above the panel).
+     *
+     * @param param  the {@link GridLayout.LayoutParams} of the button being laid out
+     * @param row    zero-based row index of the button
+     * @param col    zero-based column index of the button
+     * @param rows   total number of rows
+     * @param cols   total number of columns
+     */
+    private void applyButtonMargins(GridLayout.LayoutParams param, int row, int col, int rows, int cols) {
+        int marginHorizontalPx = (int) (mButtonMarginHorizontalDp * mDensity);
+        int marginVerticalPx = (int) (mButtonMarginVerticalDp * mDensity);
+        int left = 0;
+        int right = (col == cols - 1) ? 0 : marginHorizontalPx;
+        int top = (row == 0 && mTopMarginEnabled) ? marginVerticalPx : 0;
+        int bottom = (row == rows - 1) ? 0 : marginVerticalPx;
+        param.setMargins(left, top, right, bottom);
+    }
+
     public void requestDynamicFontUpdate() {
         post(this::applyDynamicFontAfterLayout);
     }
@@ -848,7 +874,7 @@ public final class ExtraKeysView extends GridLayout implements SpecialButtonStat
 
                     // Calculate max lines from available height using the actual initial font size
                     int vMarginPx = (int) (mButtonMarginVerticalDp * mDensity);
-                    int buttonH = (int) (heightPx + 0.5f) - 2 * vMarginPx;
+                    int buttonH = (int) (heightPx + 0.5f) - vMarginPx;
                     int textAreaH = buttonH;
 
                     mMeasPaint.setTypeface(button.getPaint().getTypeface());
@@ -1036,11 +1062,7 @@ public final class ExtraKeysView extends GridLayout implements SpecialButtonStat
                 LayoutParams param = new GridLayout.LayoutParams();
                 param.width = 0;
                 param.height = 0;
-                int marginHorizontalPx = (int) (mButtonMarginHorizontalDp * mDensity);
-                int marginVerticalPx = (int) (mButtonMarginVerticalDp * mDensity);
-                int marginTop = (row == 0 && mTopMarginEnabled) ? marginVerticalPx : 0;
-                int marginBottom = (row == buttons.length - 1) ? 0 : marginVerticalPx;
-                param.setMargins(marginHorizontalPx, marginTop, marginHorizontalPx, marginBottom);
+                applyButtonMargins(param, row, col, buttons.length, maxCols);
                 param.columnSpec = GridLayout.spec(col, GridLayout.FILL, 1.f);
                 param.rowSpec = GridLayout.spec(row, GridLayout.FILL, 1.f);
                 button.setLayoutParams(param);
@@ -1441,7 +1463,8 @@ public final class ExtraKeysView extends GridLayout implements SpecialButtonStat
 
         int cellW = getWidth() / getColumnCount();
         int marginHPx = (int) (mButtonMarginHorizontalDp * mDensity);
-        int buttonW = cellW - 2 * marginHPx;
+        // Each non-trailing button loses one (trailing) margin; the narrowest cell is cellW - margin.
+        int buttonW = cellW - marginHPx;
         if (buttonW <= 0) {
             applyMacroTruncationAfterLayout();
             return;
@@ -1471,7 +1494,7 @@ public final class ExtraKeysView extends GridLayout implements SpecialButtonStat
         // Button height for maxLines recalculation
         int cellH = getRowCount() > 0 ? getHeight() / getRowCount() : 0;
         int marginVPx = (int) (mButtonMarginVerticalDp * mDensity);
-        int buttonH = cellH - 2 * marginVPx;
+        int buttonH = cellH - marginVPx;
         if (buttonH < 1) buttonH = 1;
 
         for (int i = 0; i < getChildCount(); i++) {
@@ -1520,7 +1543,7 @@ public final class ExtraKeysView extends GridLayout implements SpecialButtonStat
         if (getWidth() <= 0 || getColumnCount() <= 0) return;
         int cellW = getWidth() / getColumnCount();
         int marginHPx = (int) (mButtonMarginHorizontalDp * mDensity);
-        int buttonW = cellW - 2 * marginHPx;
+        int buttonW = cellW - marginHPx;
         if (buttonW <= 0) return;
 
         for (int i = 0; i < getChildCount(); i++) {

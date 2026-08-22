@@ -693,18 +693,15 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
                     // Terminal got focus (not the panel): remember input goes to terminal.
                     if (hasFocus && !textInputViewHasFocus) {
                         mActivity.setFocusOnInputForCurrentSession(false);
-                        // Auto-hide the text input panel when focus transfers from
-                        // input field to terminal — the user is done typing there.
-                        // Skip during page switch to avoid flicker: the incoming
-                        // page's own visibility state is applied by
-                        // applyTextInputVisibilityForSession() after onPageSelected.
-                        // Also skip when "Hide input panel after send" is disabled:
-                        // the user wants the panel to stay open for consecutive
-                        // commands, so a focus hand-off must not close it (and must
-                        // not record a per-session "hidden" flag that would then be
-                        // replayed on every tab switch for this and other tabs).
-                        if (mActivity.getPreferences().shouldTextInputHideOnSend()
-                                && !mActivity.isTerminalPageSwitchInProgress()) {
+                        // When the input panel is open and focus moves to the terminal
+                        // (e.g. a tap or a long-press to start text selection), switch to
+                        // the extra keys panel. This is driven by the user interacting with
+                        // the terminal, independent of the "Action on send" preference
+                        // (which only governs what happens right when text is sent).
+                        // Skip during page switch to avoid flicker: the incoming page's own
+                        // visibility state is applied by applyTextInputVisibilityForSession()
+                        // after onPageSelected.
+                        if (!mActivity.isTerminalPageSwitchInProgress()) {
                             View container = mActivity.findViewById(
                                     com.termux.R.id.terminal_toolbar_text_input_container);
                             if (container != null
@@ -752,6 +749,23 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
             };
         }
         return mShowSoftKeyboardRunnable;
+    }
+
+    /**
+     * Dismiss the soft keyboard after text was sent from the input field.
+     *
+     * This is independent of whether the input panel itself stays open. When the
+     * "Hide input panel after send" option is also enabled, focus hands off to the
+     * terminal which (via the focus-change listener) schedules a delayed keyboard
+     * show (~500ms). We cancel that pending show so our hide actually sticks, then
+     * hide immediately. If the panel stays open (focus remains in the input field)
+     * no show was scheduled, so we just hide right away.
+     */
+    public void hideSoftKeyboardAfterSend() {
+        TerminalView terminalView = mActivity.getTerminalView();
+        if (terminalView == null) return;
+        terminalView.removeCallbacks(getShowSoftKeyboardRunnable());
+        KeyboardUtils.hideSoftKeyboard(mActivity, terminalView);
     }
 
 

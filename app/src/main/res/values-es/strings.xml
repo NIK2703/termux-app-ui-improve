@@ -209,6 +209,18 @@
     <string name="text_input_show_summary_off">El campo de entrada de texto está oculto</string>
     <string name="text_input_hide_on_send_title">Ocultar panel de entrada tras enviar</string>
     <string name="text_input_hide_on_send_summary">Cuando está activado, el panel de entrada se cierra y el foco pasa a la terminal después de enviar. Desactívelo para mantener el panel abierto para comandos consecutivos.</string>
+    <string name="text_input_action_on_send_title">Acción al enviar</string>
+    <string name="text_input_action_on_send_summary">Qué sucede después de enviar texto desde el campo de entrada: no hacer nada, ocultar el panel de entrada, u ocultar el panel de entrada y el teclado.</string>
+    <string-array name="text_input_action_on_send_entries">
+        <item>Nada</item>
+        <item>Ocultar panel de entrada</item>
+        <item>Ocultar panel de entrada y teclado</item>
+    </string-array>
+    <string-array name="text_input_action_on_send_values">
+        <item>none</item>
+        <item>hide_panel</item>
+        <item>hide_keyboard</item>
+    </string-array>
     <string name="text_input_insert_at_cursor_title">Comportamiento al recuperar historial</string>
     <string name="text_input_insert_at_cursor_summary">Toque para elegir: insertar en el cursor o reemplazar todo el campo de entrada</string>
     <string name="text_input_insert_at_cursor_dialog_title">Modo de recuperación de historial</string>

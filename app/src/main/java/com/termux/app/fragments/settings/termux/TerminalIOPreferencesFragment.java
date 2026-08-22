@@ -137,9 +137,6 @@ class TerminalIOPreferencesDataStore extends PreferenceDataStore {
             case "text_input_append_enter":
                 if (mPreferences != null) mPreferences.setTextInputAppendEnter(value);
                 break;
-            case "text_input_hide_on_send":
-                if (mPreferences != null) mPreferences.setTextInputHideOnSend(value);
-                break;
             case "text_input_insert_at_cursor":
                 if (mPreferences != null) mPreferences.setInsertAtCursorOnHistoryPick(value);
                 break;
@@ -186,8 +183,6 @@ class TerminalIOPreferencesDataStore extends PreferenceDataStore {
                 return getTermuxPrefs().getBoolean("text_input_enabled", true);
             case "text_input_append_enter":
                 return mPreferences != null && mPreferences.shouldTextInputAppendEnter();
-            case "text_input_hide_on_send":
-                return mPreferences != null && mPreferences.shouldTextInputHideOnSend();
             case "text_input_insert_at_cursor":
                 return mPreferences != null && mPreferences.shouldInsertAtCursorOnHistoryPick();
             case "per_directory_message_history":
@@ -230,6 +225,8 @@ class TerminalIOPreferencesDataStore extends PreferenceDataStore {
                 if (mPreferences == null) return "keyboard";
                 if (!mPreferences.shouldShowTerminalToolbar()) return "never";
                 return mPreferences.shouldHideExtraKeysWithKeyboard() ? "keyboard" : "always";
+            case "text_input_action_on_send":
+                return mPreferences != null ? mPreferences.getTextInputActionOnSend() : "hide_keyboard";
             default:
                 return defValue;
         }
@@ -263,6 +260,9 @@ class TerminalIOPreferencesDataStore extends PreferenceDataStore {
                     mPreferences.setHideExtraKeysWithKeyboard(false);
                 }
                 TermuxActivity.updateTermuxActivityStyling(mContext, true);
+                break;
+            case "text_input_action_on_send":
+                if (mPreferences != null) mPreferences.setTextInputActionOnSend(String.valueOf(value));
                 break;
             default:
                 break;

@@ -1054,13 +1054,28 @@ if (!TermuxInstaller.isBootstrapInstalled(this)) {
                     editText.getText().clear();
                     mTextInputState.clearInput(session.mHandle);
 
-                    // Return to the extra keys panel after sending only if the user
-                    // enabled "Hide input panel after send". The "send" key replaces
-                    // the newline key on the soft keyboard (textMultiLine removed), so
-                    // this fires on every committed send.
-                    if (mPreferences.shouldTextInputHideOnSend()) {
+                    // What to do after sending depends on the single "Action on send"
+                    // preference: do nothing, hide the input panel, or hide the keyboard
+                    // (which also hides the input panel).
+                    boolean hidePanel = mPreferences.shouldTextInputHideOnSend();
+                    boolean hideKeyboard = mPreferences.shouldTextInputHideKeyboardOnSend();
+
+                    if (hidePanel) {
                         setTextInputVisible(false);
+                        // When the keyboard is also being hidden and the extra keys panel
+                        // is tied to the keyboard ("hide extra keys when keyboard hidden"),
+                        // collapse the extra keys panel directly so we don't briefly flash
+                        // them on screen before the IME-visibility signal catches up. The
+                        // panel and keyboard are dismissed in one go.
+                        if (hideKeyboard && mPreferences.shouldHideExtraKeysWithKeyboard()
+                                && mExtraKeysView != null) {
+                            mExtraKeysView.setVisibility(View.GONE);
+                        }
                         updateToggleTextInputButtonIcon();
+                    }
+
+                    if (hideKeyboard) {
+                        mTermuxTerminalViewClient.hideSoftKeyboardAfterSend();
                     }
                 } else {
                     mTermuxTerminalSessionActivityClient.removeFinishedSession(session);

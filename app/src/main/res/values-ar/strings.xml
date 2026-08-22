@@ -18,7 +18,7 @@
     <string name="action_autofill_username">تعبئة اسم المستخدم تلقائيًا</string>
     <string name="action_create_named_session_confirm">إنشاء</string>
     <string name="action_file_received_edit">تحرير</string>
-    <string name="action_file_received_open_directory">فتح المجلد</string>
+    <string name="action_file_received_open_directory">فتح الدليل</string>
     <string name="action_font_terminal">الخط</string>
     <string name="action_kill_process">إنهاء العملية (%d)</string>
     <string name="action_new_session">جلسة جديدة</string>
@@ -137,8 +137,8 @@
     <string name="message_history_clear_all_btn">الكل</string>
     <string name="message_history_clear_all_question">سيؤدي هذا إلى إزالة جميع الرسائل المخزنة بشكل دائم.</string>
     <string name="message_history_clear_confirm_all">مسح سجل الرسائل بالكامل؟ لا يمكن التراجع عن هذا.</string>
-    <string name="message_history_clear_confirm_current">مسح جميع الرسائل المخزنة للمجلد الحالي؟ لا يمكن التراجع عن هذا.</string>
-    <string name="message_history_clear_current_only_question">مسح السجل للمجلد الحالي فقط؟</string>
+    <string name="message_history_clear_confirm_current">مسح جميع الرسائل المخزنة للدليل الحالي؟ لا يمكن التراجع عن هذا.</string>
+    <string name="message_history_clear_current_only_question">مسح السجل للدليل الحالي فقط؟</string>
     <string name="message_history_clear_dialog_title">مسح سجل الرسائل</string>
     <string name="message_history_clear_ok">حسناً</string>
     <string name="message_history_clear_question">مسح سجل الرسائل؟</string>
@@ -177,8 +177,8 @@
     </plurals>
     <string name="notification_wake_lock_held"> (قفل الاستيقاظ مفعّل)</string>
     <string name="panel_transparency_title">شفافية اللوحة</string>
-    <string name="per_directory_message_history_summary">الاحتفاظ بسجل رسائل منفصل لكل مجلد عمل. عند الإيقاف، تشارك جميع الجلسات سجلاً واحداً عاماً.</string>
-    <string name="per_directory_message_history_title">سجل الرسائل حسب المجلد</string>
+    <string name="per_directory_message_history_summary">الاحتفاظ بسجل رسائل منفصل لكل دليل عمل. عند الإيقاف، تشارك جميع الجلسات سجلاً واحداً عاماً.</string>
+    <string name="per_directory_message_history_title">سجل الرسائل حسب الدليل</string>
     <string name="permission_run_command_description">تنفيذ أوامر عشوائية داخل بيئة Termux والوصول إلى الملفات</string>
     <string name="permission_run_command_label">تشغيل الأوامر في بيئة Termux</string>
     <string name="restore_preference_summary">استعادة دليل بيانات Termux من ملف نسخ احتياطي tar.gz</string>
@@ -251,6 +251,18 @@
     <string name="text_input_title">إدخال النص</string>
     <string name="text_input_hide_on_send_title">إخفاء لوحة الإدخال بعد الإرسال</string>
     <string name="text_input_hide_on_send_summary">عند التفعيل، تُغلق لوحة الإدخال وينتقل التركيز إلى الطرفية بعد الإرسال. عطّل ذلك لإبقاء اللوحة مفتوحة لإدخال أوامر متتابعة.</string>
+    <string name="text_input_action_on_send_title">الإجراء عند الإرسال</string>
+    <string name="text_input_action_on_send_summary">ماذا يحدث بعد إرسال النص من حقل الإدخال: لا شيء، إخفاء لوحة الإدخال، أو إخفاء لوحة الإدخال ولوحة المفاتيح.</string>
+    <string-array name="text_input_action_on_send_entries">
+        <item>لا شيء</item>
+        <item>إخفاء لوحة الإدخال</item>
+        <item>إخفاء لوحة الإدخال ولوحة المفاتيح</item>
+    </string-array>
+    <string-array name="text_input_action_on_send_values">
+        <item>none</item>
+        <item>hide_panel</item>
+        <item>hide_keyboard</item>
+    </string-array>
     <string name="text_input_insert_at_cursor_title">سلوك إدراج رسائل السجل</string>
     <string name="text_input_insert_at_cursor_summary">اضغط للاختيار: إدراج عند المؤشر أو استبدال حقل الإدخال بالكامل</string>
     <string name="text_input_insert_at_cursor_dialog_title">وضع استعادة السجل</string>

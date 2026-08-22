@@ -113,7 +113,7 @@
     
     <string name="title_file_received">Сохранить файл в ~/downloads/</string>
     <string name="action_file_received_edit">Редактировать</string>
-    <string name="action_file_received_open_directory">Открыть папку</string>
+    <string name="action_file_received_open_directory">Открыть директорию</string>
 
     
     <string name="error_termux_service_start_failed_general">Не удалось запустить TermuxService. Проверьте logcat на наличие сообщения об исключении.</string>
@@ -225,8 +225,8 @@
     
     <string name="message_history_title">История сообщений</string>
     <string name="message_history_max_title">Максимум сохранённых сообщений</string>
-    <string name="per_directory_message_history_title">История сообщений по папкам</string>
-    <string name="per_directory_message_history_summary">Вести отдельную историю сообщений для каждой рабочей папки. При выключении все сеансы используют одну общую историю.</string>
+    <string name="per_directory_message_history_title">История сообщений по директориям</string>
+    <string name="per_directory_message_history_summary">Вести отдельную историю сообщений для каждой рабочей директории. При выключении все сеансы используют одну общую историю.</string>
 
     
     <string name="input_panel_title">Панель ввода</string>
@@ -235,6 +235,18 @@
 
     <string name="text_input_hide_on_send_title">Скрывать панель ввода после отправки</string>
     <string name="text_input_hide_on_send_summary">При включении панель ввода закрывается и фокус переходит в терминал после отправки. Отключите, чтобы панель оставалась открытой для последовательных команд.</string>
+    <string name="text_input_action_on_send_title">Действие при отправке</string>
+    <string name="text_input_action_on_send_summary">Что происходит после отправки текста из поля ввода: ничего не делать, скрыть панель ввода или скрыть панель ввода и клавиатуру.</string>
+    <string-array name="text_input_action_on_send_entries">
+        <item>Ничего не делать</item>
+        <item>Скрыть панель ввода</item>
+        <item>Скрыть панель ввода и клавиатуру</item>
+    </string-array>
+    <string-array name="text_input_action_on_send_values">
+        <item>none</item>
+        <item>hide_panel</item>
+        <item>hide_keyboard</item>
+    </string-array>
     <string name="text_input_insert_at_cursor_title">Поведение при восстановлении сообщения из истории</string>
     <string name="text_input_insert_at_cursor_summary">Нажмите, чтобы выбрать: вставить в позицию курсора или заменить всё поле ввода</string>
     <string name="text_input_insert_at_cursor_dialog_title">Режим восстановления из истории</string>
@@ -243,11 +255,11 @@
 
     
     <string name="directory_history_title">История папок</string>
-    <string name="directory_history_max_title">Максимум сохранённых папок</string>
+    <string name="directory_history_max_title">Максимум сохранённых директорий</string>
 
     
     <string name="restore_sessions_title">Восстанавливать вкладки при запуске</string>
-    <string name="restore_sessions_summary">Повторно открывать все вкладки и их папки при запуске приложения</string>
+    <string name="restore_sessions_summary">Повторно открывать все вкладки и их директории при запуске приложения</string>
 
     
     <string name="screen_orientation_title">Ориентация экрана</string>
@@ -331,11 +343,11 @@
     
     <string name="message_history_clear_dialog_title">Очистить историю сообщений</string>
     <string name="message_history_clear_question">Очистить историю сообщений?</string>
-    <string name="message_history_clear_confirm_current">Очистить все сохранённые сообщения для текущей папки? Это действие необратимо.</string>
+    <string name="message_history_clear_confirm_current">Очистить все сохранённые сообщения для текущей директории? Это действие необратимо.</string>
     <string name="message_history_clear_confirm_all">Очистить всю историю сообщений? Это действие необратимо.</string>
     <string name="message_history_clear_ok">ОК</string>
     <string name="message_history_clear_all_btn">Все</string>
-    <string name="message_history_clear_current_only_question">Очистить историю только для текущей папки?</string>
+    <string name="message_history_clear_current_only_question">Очистить историю только для текущей директории?</string>
     <string name="message_history_clear_all_question">Это навсегда удалит все сохранённые сообщения.</string>
     <string name="message_history_cleared">История сообщений очищена</string>
 

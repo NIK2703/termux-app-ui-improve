@@ -323,6 +323,20 @@
 
     <string name="text_input_hide_on_send_title">Hide input panel after send</string>
     <string name="text_input_hide_on_send_summary">When enabled, the input panel closes and focus goes to the terminal after sending. Disable to keep the panel open for consecutive commands.</string>
+    <string name="text_input_hide_keyboard_on_send_title">Hide keyboard after send</string>
+    <string name="text_input_hide_keyboard_on_send_summary">When enabled, the soft keyboard is dismissed after sending text from the input field (e.g. on Enter). The input panel and keyboard are controlled independently.</string>
+    <string name="text_input_action_on_send_title">Action on send</string>
+    <string name="text_input_action_on_send_summary">What happens after sending text from the input field: do nothing, hide the input panel, or hide the input panel and keyboard.</string>
+    <string-array name="text_input_action_on_send_entries">
+        <item>Nothing</item>
+        <item>Hide input panel</item>
+        <item>Hide input panel and keyboard</item>
+    </string-array>
+    <string-array name="text_input_action_on_send_values">
+        <item>none</item>
+        <item>hide_panel</item>
+        <item>hide_keyboard</item>
+    </string-array>
 
     <string name="text_input_insert_at_cursor_title">History message restore behavior</string>
     <string name="text_input_insert_at_cursor_summary">Tap to choose: insert at cursor or replace the entire input field</string>

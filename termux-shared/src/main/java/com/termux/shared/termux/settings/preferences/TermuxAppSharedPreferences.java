@@ -121,11 +121,31 @@ public class TermuxAppSharedPreferences extends AppSharedPreferences {
 
 
     public boolean shouldTextInputHideOnSend() {
-        return SharedPreferenceUtils.getBoolean(mSharedPreferences, TERMUX_APP.KEY_TEXT_INPUT_HIDE_ON_SEND, TERMUX_APP.DEFAULT_VALUE_TEXT_INPUT_HIDE_ON_SEND);
+        String action = getTextInputActionOnSend();
+        return action.equals(TERMUX_APP.TEXT_INPUT_ACTION_ON_SEND_HIDE_PANEL)
+            || action.equals(TERMUX_APP.TEXT_INPUT_ACTION_ON_SEND_HIDE_KEYBOARD);
     }
 
-    public void setTextInputHideOnSend(boolean value) {
-        SharedPreferenceUtils.setBoolean(mSharedPreferences, TERMUX_APP.KEY_TEXT_INPUT_HIDE_ON_SEND, value, false);
+    public boolean shouldTextInputHideKeyboardOnSend() {
+        return getTextInputActionOnSend().equals(TERMUX_APP.TEXT_INPUT_ACTION_ON_SEND_HIDE_KEYBOARD);
+    }
+
+    @NonNull
+    public String getTextInputActionOnSend() {
+        String value = SharedPreferenceUtils.getString(mSharedPreferences, TERMUX_APP.KEY_TEXT_INPUT_ACTION_ON_SEND, TERMUX_APP.DEFAULT_VALUE_TEXT_INPUT_ACTION_ON_SEND, false);
+        if (value == null) value = TERMUX_APP.DEFAULT_VALUE_TEXT_INPUT_ACTION_ON_SEND;
+        switch (value) {
+            case TERMUX_APP.TEXT_INPUT_ACTION_ON_SEND_NONE:
+            case TERMUX_APP.TEXT_INPUT_ACTION_ON_SEND_HIDE_PANEL:
+            case TERMUX_APP.TEXT_INPUT_ACTION_ON_SEND_HIDE_KEYBOARD:
+                return value;
+            default:
+                return TERMUX_APP.DEFAULT_VALUE_TEXT_INPUT_ACTION_ON_SEND;
+        }
+    }
+
+    public void setTextInputActionOnSend(@NonNull String value) {
+        SharedPreferenceUtils.setString(mSharedPreferences, TERMUX_APP.KEY_TEXT_INPUT_ACTION_ON_SEND, value, false);
     }
 
     public boolean shouldInsertAtCursorOnHistoryPick() {
