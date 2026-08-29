@@ -35,7 +35,7 @@ import android.view.autofill.AutofillValue;
 import android.view.inputmethod.BaseInputConnection;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
-import android.widget.Scroller;
+import android.widget.OverScroller;
 
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
@@ -105,7 +105,7 @@ public final class TerminalView extends View {
     /** Keep track of the time when a touch event leading to sending mouse scroll events started. */
     private long mMouseStartDownTime = -1;
 
-    final Scroller mScroller;
+    final OverScroller mScroller;
 
     /** What was left in from scrolling movement. */
     float mScrollRemainder;
@@ -372,7 +372,9 @@ public final class TerminalView extends View {
                 if (getParent() != null) getParent().requestDisallowInterceptTouchEvent(false);
             }
         });
-        mScroller = new Scroller(context);
+        mScroller = new OverScroller(context);
+        // No overscroll "bounce"/edge-glow: scrolling decelerates via spline and stops hard at the edges.
+        setOverScrollMode(View.OVER_SCROLL_NEVER);
         AccessibilityManager am = (AccessibilityManager) context.getSystemService(Context.ACCESSIBILITY_SERVICE);
         mAccessibilityEnabled = am.isEnabled();
         ViewConfiguration vc = ViewConfiguration.get(context);
