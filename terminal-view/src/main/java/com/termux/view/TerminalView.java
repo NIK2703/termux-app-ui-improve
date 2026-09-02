@@ -126,11 +126,13 @@ public final class TerminalView extends View {
     /** MotionEvent copy used during fling (for mouse wheel coordinates). */
     private MotionEvent mFlingEvent;
 
-    /** True when fling should send relative deltas (mouse tracking mode). */
+    /**
+     * True when the fling streams RELATIVE rows to the application instead of moving
+     * {@code mTopRow}: mouse tracking (wheel events) and the alternate buffer (arrow keys).
+     * In both cases the application owns the scroll position, so the fling runs on a delta
+     * axis whose absolute position is meaningless — only frame-to-frame deltas are emitted.
+     */
     private boolean mFlingDeltaMode;
-
-    /** Mouse tracking state captured at fling start. */
-    private boolean mFlingMouseTrackingAtStart;
 
     /** Last fling position in whole rows (px axis / row height), used in delta mode. */
     private int mFlingLastRowPx;
@@ -206,6 +208,17 @@ public final class TerminalView extends View {
 
     /** Max synthetic wheel/key rows emitted per animation frame in delta (mouse tracking) mode. */
     private static final int FLING_DELTA_MAX_ROWS_PER_FRAME = 8;
+
+    /**
+     * Half-range of the px axis a delta (app-scrolled) fling runs on. There is no content edge
+     * to clamp to, so this is only a guard against overflow, not a scroll limit: the physical
+     * fling distance tops out near 30k px (at the maximum fling velocity on a xxxhdpi screen),
+     * i.e. ~3% of this value. It must NEVER be lowered into the reach of the physics: hitting
+     * the range makes OverScroller clamp the end position *and* shorten the duration to match
+     * (SplineOverScroller#adjustDuration), so the harder the flick, the shorter the glide —
+     * which reads as "the fling stopped the instant I lifted my finger".
+     */
+    private static final int FLING_DELTA_AXIS_LIMIT_PX = 1_000_000;
 
     /** Draw an overscroll edge glow instead of a purely hard stop. OFF by default: commit
      *  0fab152e deliberately chose a hard decelerated stop without overscroll bounce/glow. */
@@ -975,7 +988,6 @@ public final class TerminalView extends View {
         mScroller.forceFinished(true);
         mFlingRawVelocity = 0f;
         mFlingDeltaMode = false;
-        mFlingMouseTrackingAtStart = false;
         mFlingLastRowPx = 0;
         mFlingEndsAtEdge = false;
         mFlingAbsorbedAtEdge = false;
@@ -1117,12 +1129,16 @@ public final class TerminalView extends View {
         // derived only when frames are applied in runFlingFrame(). Distances therefore match
         // system scrolling and are independent of the font size.
         boolean mouseTracking = mEmulator.isMouseTrackingActive();
+        // Mouse tracking AND the alternate buffer both mean the application owns the scroll
+        // position: there is no transcript row to map the fling onto, the view can only stream
+        // relative rows to it (wheel events with mouse tracking, arrow keys otherwise). Both
+        // therefore run on the delta axis; doScroll() picks the right channel per row.
+        final boolean appScrolled = mouseTracking || mEmulator.isAlternateBufferActive();
         int startPx, minPx, maxPx;
-        if (mouseTracking) {
+        if (appScrolled) {
             startPx = 0;
-            int rangePx = Math.max(1, mEmulator.mRows / 2) * rowHeight;
-            minPx = -rangePx;
-            maxPx = rangePx;
+            minPx = -FLING_DELTA_AXIS_LIMIT_PX;
+            maxPx = FLING_DELTA_AXIS_LIMIT_PX;
         } else {
             int transcriptRows = mEmulator.getScreen().getActiveTranscriptRows();
             if (transcriptRows <= 0) {
@@ -1133,8 +1149,7 @@ public final class TerminalView extends View {
             minPx = -transcriptRows * rowHeight;
             maxPx = 0;
         }
-        mFlingMouseTrackingAtStart = mouseTracking;
-        mFlingDeltaMode = mouseTracking;
+        mFlingDeltaMode = appScrolled;
         mFlingLastRowPx = pxToRows(startPx, rowHeight);
         mFlingRawVelocity = rawVelocity;
         mFlingEvent = newFlingEvent;
@@ -1157,7 +1172,12 @@ public final class TerminalView extends View {
             stopFlingAnimation();
             return;
         }
-        if (mEmulator.isMouseTrackingActive() != mFlingMouseTrackingAtStart) {
+        // The delivery channel must not change mid-flight: a fling that started streaming
+        // relative rows to the application cannot continue once the application turns mouse
+        // tracking off or leaves the alternate buffer, because its rows would suddenly start
+        // moving mTopRow instead of being forwarded to it.
+        boolean appScrolled = mEmulator.isMouseTrackingActive() || mEmulator.isAlternateBufferActive();
+        if (appScrolled != mFlingDeltaMode) {
             stopFlingAnimation();
             return;
         }

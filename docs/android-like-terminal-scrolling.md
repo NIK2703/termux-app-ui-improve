@@ -184,11 +184,15 @@ private boolean startFling(MotionEvent e, float velocityX, float velocityY) {
 
     final int rowHeight = mRenderer.mFontLineSpacing;          // px на строку
     boolean mouseTracking = mEmulator.isMouseTrackingActive();
+    // Mouse tracking И alt-buffer — одинаково «приложение владеет позицией»: строки fling
+    // стримятся ему относительными дельтами (wheel при mouse tracking, DPAD иначе).
+    boolean appScrolled = mouseTracking || mEmulator.isAlternateBufferActive();
     int startPx, minPx, maxPx;
-    if (mouseTracking) {
+    if (appScrolled) {
         startPx = 0;
-        int rangePx = Math.max(1, mEmulator.mRows / 2) * rowHeight;
-        minPx = -rangePx; maxPx = rangePx;                     // delta-режим, как сейчас
+        // Диапазон НЕ ограничивает прокрутку — это только страховка от переполнения.
+        // См. §5.2.1: любой достижимый предел укорачивает fling.
+        minPx = -FLING_DELTA_AXIS_LIMIT_PX; maxPx = FLING_DELTA_AXIS_LIMIT_PX;
     } else {
         int transcriptRows = mEmulator.getScreen().getActiveTranscriptRows();
         if (transcriptRows <= 0) { newFlingEvent.recycle(); return true; }
@@ -196,8 +200,7 @@ private boolean startFling(MotionEvent e, float velocityX, float velocityY) {
         minPx = -transcriptRows * rowHeight; maxPx = 0;
     }
 
-    mFlingMouseTrackingAtStart = mouseTracking;
-    mFlingDeltaMode = mouseTracking;
+        mFlingDeltaMode = appScrolled;
     mFlingLastRowPx  = pxToRows(startPx, rowHeight);
     mFlingRawVelocity = rawVelocity;                            // px/s, БЕЗ scale
     mFlingEvent = newFlingEvent;
@@ -252,6 +255,39 @@ private void runFlingFrame() {
 - `doScroll` не трогаем — он уже принимает строки и умеет все три режима.
 - Удаляется `FLING_VELOCITY_SCALE` (`:145`) и вся конвертация; `mFlingRawVelocity` теперь честные px/s — это упрощает и `captureCurrentFlingVelocity` (`:883`: сейчас делит на scale — убрать деление).
 - **Старт позиции fling из `mTopRow * rowHeight`**: суб-строковый остаток drag'а (`mScrollRemainder`) теряется на старте fling — ровно как сейчас, несущественно (≤ 1 строки, визуально ноль, т.к. остаток никогда не рендерился).
+
+### 5.2.1. Ловушка: любой предел диапазона укорачивает fling (корень бага TUI-прокрутки)
+
+`SplineOverScroller.fling()` при выходе `mFinal` за `[min, max]` делает **две** вещи:
+
+```java
+if (mFinal > max) { adjustDuration(mStart, mFinal, max); mFinal = max; }
+```
+
+`adjustDuration` срезает не только дистанцию, но и **длительность** — ровно до момента, когда
+та же кривая скорости доедет до усечённой точки. Кривая расстояния вогнутая (скорость максимальна
+в начале и падает), поэтому 43 % дистанции набираются уже за ~17 % времени. Итог:
+
+| v жеста | естеств. дистанция | диапазон ±mRows/2 (=20 строк) | длительность | что видит пользователь |
+|---|---|---|---|---|
+| 2500 px/s | 9 строк | не достигнут | 417 мс (полная кривая) | ✅ нормальный импульс |
+| 4000 px/s | 22 строки | срезан до 19 | 731 → **388 мс** | заметно резче |
+| 6000 px/s | 45 строк | срезан до 19 | 986 → **167 мс** | «остановился сразу» |
+| 9000 px/s | 92 строки | срезан до 19 | 1329 → **102 мс** | «остановился сразу» |
+| 22 000 px/s (предел) | 439 строк | срезан до 16 | 2566 → **40 мс** | импульс умер за 2–3 кадра |
+
+Чем сильнее свайп, тем **короче** анимация — инверсия системного ощущения. Именно это
+наблюдалось в TUI (opencode): спокойный свайп (дистанция < ±20 строк) не касался стенки и крутил
+полную кривую, резкий — выплёвывал весь импульс за 50–180 мс и замолкал.
+
+Диапазон ±mRows/2 исторически появился как «на всякий случай ограничить число wheel-событий», но
+в delta-режиме абсолютная позиция не имеет смысла — ограничивать нечего. Ось сделана
+практически неограниченной (`FLING_DELTA_AXIS_LIMIT_PX`), реальные пределы — сама физика
+(≤ ~30k px при максимальной скорости жеста) и `FLING_DELTA_MAX_ROWS_PER_FRAME` (8 строк/кадр,
+который в симуляции не достигается ни при одной реальной скорости).
+
+**Инвариант:** в абсолютном (mTopRow) режиме границы — это реальные края истории, и усечение
+там корректно (это и есть «притормозить у края»). В delta-режиме границ нет, и усечение — баг.
 
 ### 5.3. Подхват скорости между жестами — сохранить механику, сменить единицы
 
@@ -338,8 +374,8 @@ public boolean onGenericMotionEvent(MotionEvent event) {
 
 ### 5.9. Режимы mouseTracking / alt-buffer
 
-- **mouseTracking** (vim с мышью): fling должен слать wheel-события с той же динамикой. deltaMode сохраняем, но ось — в px (диапазон `±(mRows/2)·rowHeight`), квантование — `pxToRows(diff)` как в §5.2. Ощущение скорости унифицируется с обычной прокруткой. Сброс при смене режима уже есть (`:1006-1008`).
-- **alt-buffer → DPAD_UP/DOWN** (`doScroll`, `:1052-1055`): каждая «строка» fling превращается в нажатие. При px-оси темп повторов будет системным (быстрый fling ≈ до ~50 строк/с → до 50 key/с). Приемлемо (less справляется), но рекомендую кламп `diff` в `runFlingFrame` для alt-buffer до разумного максимума за кадр (например, 8), иначе на слабом устройстве один кадр сгенерирует пачку key events. Отдельный микро-пункт в плане.
+- **mouseTracking** (vim с мышью): fling должен слать wheel-события с той же динамикой. deltaMode сохраняем, но ось — в px и **без диапазона** (§5.2.1); квантование — `pxToRows(diff)` как в §5.2. Ощущение скорости унифицируется с обычной прокруткой. Сброс при смене режима уже есть (`:1006-1008`).
+- **alt-buffer → DPAD_UP/DOWN** (`doScroll`, `:1052-1055`): каждая «строка» fling превращается в нажатие. Раньше такой fling **не запускался вовсе** — `startFling` требовал `transcriptRows > 0`, а в alt-буфере истории нет (0) → `less`/vim без мыши не получали инерции вообще. Теперь alt-buffer идёт по тому же delta-пути, что и mouse tracking (`appScrolled`), и получает системную физику. Кламп `FLING_DELTA_MAX_ROWS_PER_FRAME` (8 строк/кадр) ограничивает пачку key events; на реальных скоростях он не срабатывает (≤ ~3 строки/кадр).
 - Обычный буфер: без изменений.
 
 ### 5.10. Nested scrolling / ViewPager2
