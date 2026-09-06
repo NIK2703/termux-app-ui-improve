@@ -377,9 +377,6 @@ public final class TermuxActivity extends AppCompatActivity implements TextInput
     /** Pref key (in termux_prefs) persisting the per-directory message history map (JSON object). */
     private static final String PREF_MESSAGE_HISTORY_PER_DIR = "message_history_per_dir";
 
-    /** True once the empty-history Toast has been shown during the current gesture. */
-    private boolean mHistoryEmptyHintShown = false;
-
     /** Listens for message-history settings changes from the Settings activity. */
     private final SharedPreferences.OnSharedPreferenceChangeListener mPerDirPrefListener =
             (prefs, key) -> {
@@ -1441,7 +1438,6 @@ if (!TermuxInstaller.isBootstrapInstalled(this)) {
             toggleTextInputButton.setOnTouchListener((v, event) -> {
                 switch (event.getActionMasked()) {
                     case MotionEvent.ACTION_DOWN:
-                        mHistoryEmptyHintShown = false;
                         downXY[0] = event.getRawX();
                         downXY[1] = event.getRawY();
                         panelOpenAtDown[0] = isTextInputVisible();

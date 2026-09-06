@@ -14,7 +14,6 @@ import android.view.Gravity;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Toast;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.PopupWindow;
@@ -132,33 +131,34 @@ public final class TermuxActivityPopupController {
             }
         }
 
-        // Early-exit: no history and no typed text → show an empty-state hint.
+        // Empty state detection: no history and no typed text.
         boolean hasHistory = mMessageHistoryCtrl != null && !mMessageHistoryCtrl.getHistoryList().isEmpty();
-        String currInputText = "";
         EditText inputFieldRO = ((Activity) mContext).findViewById(R.id.terminal_toolbar_text_input);
-        if (inputFieldRO != null) {
-            CharSequence cs = inputFieldRO.getText();
-            if (cs != null) currInputText = cs.toString();
-        }
-        boolean hasInput = !TextUtils.isEmpty(currInputText);
-        if (!hasHistory && !hasInput) {
-            // Show a one-shot Toast for the empty state. A guard flag prevents
-            // re-triggering on every ACTION_MOVE pixel while the finger drags.
-            if (!mHistoryEmptyHintShown) {
-                mHistoryEmptyHintShown = true;
-                Toast bottomToast = Toast.makeText(mContext, mContext.getString(R.string.message_history_empty), Toast.LENGTH_SHORT);
-                bottomToast.setGravity(Gravity.BOTTOM, 0, TermuxActivityUtils.dpToPx(mContext, 48));
-                bottomToast.show();
-            }
-            return;
-        }
-
+        String currInputText = inputFieldRO != null && inputFieldRO.getText() != null
+                ? inputFieldRO.getText().toString() : "";
+        boolean emptyState = !hasHistory && TextUtils.isEmpty(currInputText);
         LinearLayout content = new LinearLayout(mContext);
         content.setOrientation(LinearLayout.VERTICAL);
         content.setBackgroundColor(Color.TRANSPARENT);
 
         int padH = TermuxActivityUtils.dpToPx(mContext, 14);
         int padV = TermuxActivityUtils.dpToPx(mContext, 10);
+
+        // Empty state: no history and no typed text → render the hint inside the same
+        // scheme-styled popup. Previously this was a system Toast, which is drawn by
+        // SystemUI's own theme: it ignores the app's color scheme entirely and came
+        // out white-on-white in light mode on some ROMs.
+        if (emptyState) {
+            TextView hint = new TextView(mContext);
+            hint.setText(mContext.getString(R.string.message_history_empty));
+            hint.setGravity(Gravity.CENTER);
+            hint.setTextColor(mColorSchemeManager.getHistoryTextColor());
+            hint.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
+            hint.setPadding(padH, padV, padH, padV);
+            content.addView(hint, new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT));
+        }
 
         // Synthetic "CLEAR HISTORY…" row pinned at the TOP of the popup.
         // Selecting it opens a confirmation dialog; confirming wipes all history.
