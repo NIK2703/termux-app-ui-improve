@@ -1101,12 +1101,6 @@ public final class AutoCompleteController implements AutoCompleteDataProvider {
             } finally {
                 mSuppressAutoComplete = false;
             }
-            // Promote the selected item to the front of history (index 0 = newest),
-            // so in the reversed rendering it appears at the very bottom. Skipped
-            // when the "keep restored position in history" preference is disabled.
-            if (mMessageHistoryCtrl.isPromoteRestoredToTop()) {
-                addToMessageHistory(finalSuggestion);
-            }
             invalidateHistoryVersion();
             dismissAutoCompleteSuggestions();
             mMessageHistoryDismissListener.run();

@@ -157,8 +157,6 @@
     <string name="notification_wake_lock_held"> (wakelock ativo)</string>
     <string name="panel_transparency_title">Transparência do painel</string>
     <string name="per_directory_message_history_summary">Manter um histórico de mensagens separado para cada diretório de trabalho. Quando desativado, todas as sessões compartilham um histórico global.</string>
-    <string name="promote_restored_to_top_title">Recentes no topo</string>
-    <string name="promote_restored_to_top_summary">Mover mensagens restauradas e enviadas para o topo do histórico.</string>
     <string name="save_cleared_to_history_title">Limpos no histórico</string>
     <string name="save_cleared_to_history_summary">Salvar no histórico as mensagens limpas do campo de entrada.</string>
     <string name="per_directory_message_history_title">Histórico de Mensagens por Diretório</string>

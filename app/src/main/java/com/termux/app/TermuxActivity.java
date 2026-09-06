@@ -391,9 +391,6 @@ public final class TermuxActivity extends AppCompatActivity implements TextInput
                     mMessageHistoryCtrl.save();
                     mMessageHistoryCtrl.setPerDirectoryEnabled(newValue);
                     loadMessageHistory();
-                } else if ("promote_restored_to_top".equals(key)) {
-                    mMessageHistoryCtrl.setPromoteRestoredToTop(
-                            prefs.getBoolean("promote_restored_to_top", true));
                 } else if ("save_cleared_to_history".equals(key)) {
                     mMessageHistoryCtrl.setSaveClearedToHistory(
                             prefs.getBoolean("save_cleared_to_history", true));
@@ -1409,13 +1406,12 @@ if (!TermuxInstaller.isBootstrapInstalled(this)) {
                     .getInt("message_history_max", MESSAGE_HISTORY_MAX_DEFAULT));
             mMessageHistoryCtrl.setPerDirectoryEnabled(getSharedPreferences("termux_prefs", MODE_PRIVATE)
                     .getBoolean("per_directory_message_history", false));
-            mMessageHistoryCtrl.setPromoteRestoredToTop(getSharedPreferences("termux_prefs", MODE_PRIVATE)
-                    .getBoolean("promote_restored_to_top", true));
             mMessageHistoryCtrl.setSaveClearedToHistory(getSharedPreferences("termux_prefs", MODE_PRIVATE)
                     .getBoolean("save_cleared_to_history", true));
             loadMessageHistory();
-            // Hot-reload: when the user toggles per-directory history in Settings
-            // and returns to the terminal, the mode switches immediately.
+
+            // Hot-reload: when the user toggles per-directory history in Settings,
+            // the mode switches immediately.
             getSharedPreferences("termux_prefs", MODE_PRIVATE)
                     .registerOnSharedPreferenceChangeListener(mPerDirPrefListener);
 
@@ -1710,6 +1706,17 @@ if (!TermuxInstaller.isBootstrapInstalled(this)) {
     }
 
     /**
+     * Passively record a message (cleared input / text replaced by a history
+     * pick): a brand-new message goes to the TOP, an already-present one keeps
+     * its position. See {@link MessageHistoryController#addNewOnTop}.
+     */
+    public void addNewOnTop(@NonNull String message) {
+        if (TextUtils.isEmpty(message)) return;
+        String cwd = getCurrentCwdForHistory();
+        mMessageHistoryCtrl.addNewOnTop(message, cwd);
+    }
+
+    /**
      * Returns the current working directory to use as a per-directory history key,
      * or a fallback if unavailable.
      */
@@ -1827,9 +1834,9 @@ if (!TermuxInstaller.isBootstrapInstalled(this)) {
     private void clearInputToHistory() {
         final EditText editText = findViewById(R.id.terminal_toolbar_text_input);
         if (editText == null) return;
-
-        // Open the panel FIRST if closed, so a previously typed (unsent) text is
-        // restored into the field and thus not lost before we snapshot it.
+        // "Clear" (save cleared text): a brand-new message goes to the TOP of the
+        // history (pre-promote-switch behaviour); a message already in the history
+        // KEEPS its position. See MessageHistoryController.addNewOnTop().
         if (!isTextInputVisible()) {
             setTextInputVisible(true);
             updateToggleTextInputButtonIcon();
@@ -1837,7 +1844,7 @@ if (!TermuxInstaller.isBootstrapInstalled(this)) {
 
         String existing = editText.getText().toString();
         if (!TextUtils.isEmpty(existing) && mMessageHistoryCtrl.isSaveClearedToHistory()) {
-            addToMessageHistory(existing);
+            addNewOnTop(existing);
         }
 
         editText.setText("");
@@ -1889,18 +1896,11 @@ if (!TermuxInstaller.isBootstrapInstalled(this)) {
             String existing = editText.getText().toString();
             if (!TextUtils.isEmpty(existing) && !existing.equals(message)
                     && mMessageHistoryCtrl.isSaveClearedToHistory()) {
-                addToMessageHistory(existing);
+                addNewOnTop(existing);
             }
             editText.setText(message);
             editText.setSelection(message.length());
         }
-        // Promote the picked message to the front of history (index 0 = newest)
-        // so it appears at the bottom of the history popup on next open. Skipped
-        // when the "keep restored position in history" preference is disabled.
-        if (mMessageHistoryCtrl.isPromoteRestoredToTop()) {
-            addToMessageHistory(message);
-        }
-
         setFocusOnInputForCurrentSession(true);
         saveTextInputForCurrentSession();
 

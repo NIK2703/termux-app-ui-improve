@@ -143,9 +143,6 @@ class TerminalIOPreferencesDataStore extends PreferenceDataStore {
             case "per_directory_message_history":
                 getTermuxPrefs().edit().putBoolean("per_directory_message_history", value).apply();
                 break;
-            case "promote_restored_to_top":
-                getTermuxPrefs().edit().putBoolean("promote_restored_to_top", value).apply();
-                break;
             case "save_cleared_to_history":
                 getTermuxPrefs().edit().putBoolean("save_cleared_to_history", value).apply();
                 break;
@@ -193,8 +190,6 @@ class TerminalIOPreferencesDataStore extends PreferenceDataStore {
                 return mPreferences != null && mPreferences.shouldInsertAtCursorOnHistoryPick();
             case "per_directory_message_history":
                 return getTermuxPrefs().getBoolean("per_directory_message_history", false);
-            case "promote_restored_to_top":
-                return getTermuxPrefs().getBoolean("promote_restored_to_top", true);
             case "save_cleared_to_history":
                 return getTermuxPrefs().getBoolean("save_cleared_to_history", true);
             default:

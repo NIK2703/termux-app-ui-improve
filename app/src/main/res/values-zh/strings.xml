@@ -155,8 +155,6 @@
     <string name="message_history_max_title">历史消息最大数量</string>
     <string name="per_directory_message_history_title">按目录的消息历史</string>
     <string name="per_directory_message_history_summary">为每个工作目录保留单独的消息历史。关闭后，所有会话共享一个全局历史。</string>
-    <string name="promote_restored_to_top_title">最近使用的在顶部</string>
-    <string name="promote_restored_to_top_summary">将恢复和发送的消息移动到历史顶部。</string>
     <string name="save_cleared_to_history_title">清除项入历史</string>
     <string name="save_cleared_to_history_summary">将从输入栏清除的消息保存到历史。</string>
     <string name="text_input_title">文本输入</string>

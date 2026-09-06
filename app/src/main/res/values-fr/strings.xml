@@ -138,8 +138,6 @@
     <string name="message_history_max_title">Messages retenus max</string>
     <string name="per_directory_message_history_title">Historique par répertoire</string>
     <string name="per_directory_message_history_summary">Conserver un historique séparé pour chaque répertoire de travail. Lorsque désactivé, toutes les sessions partagent un historique global.</string>
-    <string name="promote_restored_to_top_title">Récents en haut</string>
-    <string name="promote_restored_to_top_summary">Placer en haut de l\'historique les messages restaurés et envoyés.</string>
     <string name="save_cleared_to_history_title">Effacés dans l\'historique</string>
     <string name="save_cleared_to_history_summary">Enregistrer dans l\'historique les messages effacés du champ de saisie.</string>
     <string name="text_input_title">Saisie de texte</string>

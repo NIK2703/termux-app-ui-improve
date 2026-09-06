@@ -72,8 +72,6 @@ public final class MessageHistoryController {
         return mPerDirectoryMessageHistory;
     }
 
-    /** Whether picking/restoring a message promotes it to the top (newest) of history. */
-    private boolean mPromoteRestoredToTop = true;
 
     /** Whether clearing the input field remembers its text in the history first. */
     private boolean mSaveClearedToHistory = true;
@@ -84,13 +82,6 @@ public final class MessageHistoryController {
 
     public int getMaxSize() {
         return mMessageHistoryMax;
-    }
-    public void setPromoteRestoredToTop(boolean enabled) {
-        mPromoteRestoredToTop = enabled;
-    }
-
-    public boolean isPromoteRestoredToTop() {
-        return mPromoteRestoredToTop;
     }
 
     public void setSaveClearedToHistory(boolean enabled) {
@@ -228,15 +219,36 @@ public final class MessageHistoryController {
             mHistoryCurrentDirectory = cwd;
         }
 
-        if (mPromoteRestoredToTop) {
-            mMessageHistory.remove(message);      // dedup
-            mMessageHistory.add(0, message);      // newest first
-        } else if (mMessageHistory.indexOf(message) < 0) {
-            // "Recently used on top" disabled: never promote. A brand-new
-            // message is appended as the oldest; an existing one keeps its
-            // exact position.
-            mMessageHistory.add(message);
+        mMessageHistory.remove(message);      // dedup
+        mMessageHistory.add(0, message);      // newest first
+        while (mMessageHistory.size() > mMessageHistoryMax) {
+            mMessageHistory.remove(mMessageHistory.size() - 1);
         }
+        save();
+        mHistoryVersion++;
+    }
+
+    /**
+     * Record a passively saved message (cleared from the input field, or the
+     * text replaced by a history pick). A brand-new message is inserted at the
+     * TOP (newest — the pre-promote-switch behaviour); a message already in the
+     * history keeps its exact position. Only messages actually SENT from the
+     * input field are promoted to the top.
+     */
+    public void addNewOnTop(@NonNull String message, @Nullable String cwd) {
+        if (TextUtils.isEmpty(message)) return;
+
+        if (mPerDirectoryMessageHistory && mHistoryCurrentDirectory != null
+                && cwd != null && !cwd.equals(mHistoryCurrentDirectory)) {
+            mMessageHistoryPerDirectory.put(mHistoryCurrentDirectory, new ArrayList<>(mMessageHistory));
+            mMessageHistory.clear();
+            mHistoryVersion++;
+            mHistoryCurrentDirectory = cwd;
+        }
+
+        if (mMessageHistory.indexOf(message) >= 0) return; // already present: keep position
+
+        mMessageHistory.add(0, message);      // newest first
         while (mMessageHistory.size() > mMessageHistoryMax) {
             mMessageHistory.remove(mMessageHistory.size() - 1);
         }

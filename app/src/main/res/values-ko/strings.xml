@@ -178,8 +178,6 @@ $HOME/bin/termux-url-opener
     </plurals>
     <string name="panel_transparency_title">패널 투명도</string>
     <string name="per_directory_message_history_summary">각 디렉터리마다 개별적인 메시지 기록을 유지합니다. 비활성화하면 모든 세션이 하나의 전역 기록을 공유합니다.</string>
-    <string name="promote_restored_to_top_title">최근 사용 항목 위로</string>
-    <string name="promote_restored_to_top_summary">복원·전송된 메시지를 기록 맨 위로 이동합니다.</string>
     <string name="save_cleared_to_history_title">지운 항목 기록 저장</string>
     <string name="save_cleared_to_history_summary">입력란에서 지운 메시지를 기록에 저장합니다.</string>
     <string name="per_directory_message_history_title">디렉터리별 메시지 기록</string>

@@ -227,8 +227,6 @@
     <string name="message_history_max_title">Максимум сохранённых сообщений</string>
     <string name="per_directory_message_history_title">История сообщений по директориям</string>
     <string name="per_directory_message_history_summary">Вести отдельную историю сообщений для каждой рабочей директории. При выключении все сеансы используют одну общую историю.</string>
-    <string name="promote_restored_to_top_title">Последние используемые наверху</string>
-    <string name="promote_restored_to_top_summary">Переносить на верх истории восстанавливаемые и отправляемые сообщения.</string>
     <string name="save_cleared_to_history_title">Очищаемые в истории</string>
     <string name="save_cleared_to_history_summary">Сохранять в историю очищаемые из поля ввода сообщения.</string>
 

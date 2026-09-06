@@ -131,8 +131,6 @@
 <string name="message_history_max_title">最大記憶メッセージ数</string>
 <string name="per_directory_message_history_title">ディレクトリごとのメッセージ履歴</string>
 <string name="per_directory_message_history_summary">作業ディレクトリごとに個別のメッセージ履歴を保持します。無効にすると、すべてのセッションで1つのグローバル履歴を共有します。</string>
-<string name="promote_restored_to_top_title">最近使用したものを上へ</string>
-<string name="promote_restored_to_top_summary">復元・送信されたメッセージを履歴の先頭へ移動します。</string>
 <string name="save_cleared_to_history_title">クリア項目を履歴へ</string>
 <string name="save_cleared_to_history_summary">入力欄からクリアしたメッセージを履歴に保存します。</string>
 <string name="text_input_title">テキスト入力</string>

@@ -136,8 +136,6 @@
     <string name="message_history_max_title">Máx. de mensajes guardados</string>
     <string name="per_directory_message_history_title">Historial de mensajes por directorio</string>
     <string name="per_directory_message_history_summary">Mantener un historial de mensajes separado para cada directorio de trabajo. Cuando está desactivado, todas las sesiones comparten un historial global.</string>
-    <string name="promote_restored_to_top_title">Usados recientemente arriba</string>
-    <string name="promote_restored_to_top_summary">Mover los mensajes restaurados y enviados al principio del historial.</string>
     <string name="save_cleared_to_history_title">Borrados al historial</string>
     <string name="save_cleared_to_history_summary">Guardar en el historial los mensajes borrados del campo de entrada.</string>
     <string name="text_input_title">Entrada de texto</string>
