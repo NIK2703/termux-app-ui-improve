@@ -72,12 +72,33 @@ public final class MessageHistoryController {
         return mPerDirectoryMessageHistory;
     }
 
+    /** Whether picking/restoring a message promotes it to the top (newest) of history. */
+    private boolean mPromoteRestoredToTop = true;
+
+    /** Whether clearing the input field remembers its text in the history first. */
+    private boolean mSaveClearedToHistory = true;
+
     public void setMaxSize(int max) {
         mMessageHistoryMax = max;
     }
 
     public int getMaxSize() {
         return mMessageHistoryMax;
+    }
+    public void setPromoteRestoredToTop(boolean enabled) {
+        mPromoteRestoredToTop = enabled;
+    }
+
+    public boolean isPromoteRestoredToTop() {
+        return mPromoteRestoredToTop;
+    }
+
+    public void setSaveClearedToHistory(boolean enabled) {
+        mSaveClearedToHistory = enabled;
+    }
+
+    public boolean isSaveClearedToHistory() {
+        return mSaveClearedToHistory;
     }
 
     // ── Observers ──
@@ -207,8 +228,15 @@ public final class MessageHistoryController {
             mHistoryCurrentDirectory = cwd;
         }
 
-        mMessageHistory.remove(message);          // dedup by content
-        mMessageHistory.add(0, message);          // newest first
+        if (mPromoteRestoredToTop) {
+            mMessageHistory.remove(message);      // dedup
+            mMessageHistory.add(0, message);      // newest first
+        } else if (mMessageHistory.indexOf(message) < 0) {
+            // "Recently used on top" disabled: never promote. A brand-new
+            // message is appended as the oldest; an existing one keeps its
+            // exact position.
+            mMessageHistory.add(message);
+        }
         while (mMessageHistory.size() > mMessageHistoryMax) {
             mMessageHistory.remove(mMessageHistory.size() - 1);
         }

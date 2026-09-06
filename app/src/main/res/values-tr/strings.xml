@@ -151,6 +151,10 @@
 <string name="message_history_max_title">Maks. hatırlanan mesaj sayısı</string>
 <string name="per_directory_message_history_title">Dizin başına mesaj geçmişi</string>
 <string name="per_directory_message_history_summary">Her çalışma dizini için ayrı bir mesaj geçmişi tutun. Kapalıyken tüm oturumlar ortak bir geçmiş kullanır.</string>
+<string name="promote_restored_to_top_title">Son kullanılanlar üstte</string>
+<string name="promote_restored_to_top_summary">Geri yüklenen ve gönderilen mesajları geçmişin en üstüne taşı.</string>
+<string name="save_cleared_to_history_title">Silinenler geçmişte</string>
+<string name="save_cleared_to_history_summary">Giriş alanından silinen mesajları geçmişe kaydet.</string>
 <string name="text_input_title">Metin Girdisi</string>
 <string name="text_input_append_enter_title">Gönderirken Enter ekle</string>
 <string name="text_input_append_enter_summary">Girdi alanından gönderirken satırı da gönderin (Enter\'a basın). Sondaki yeni satır karakteri olmadan ham metin göndermek için devre dışı bırakın.</string>

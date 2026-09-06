@@ -234,6 +234,17 @@ public final class TermuxActivity extends AppCompatActivity implements TextInput
      */
     private boolean mIsOnResumeAfterOnCreate = false;
 
+    /** Static handle of the live activity, used only by debug-build automation hooks (src/debug). */
+    private static volatile TermuxActivity sInstance;
+
+    /** True while the onResume focus/panel-visibility restore path is executing. */
+    private boolean mResumeFocusRestore = false;
+
+    /** Whether the onResume focus/panel-visibility restore path is executing (debug hook). */
+    public boolean isResumeFocusRestore() {
+        return mResumeFocusRestore;
+    }
+
     /**
      * If activity was restarted like due to call to {@link #recreate()} after receiving
      * {@link TERMUX_ACTIVITY#ACTION_RELOAD_STYLE}, system dark night mode was changed or activity
@@ -293,6 +304,11 @@ public final class TermuxActivity extends AppCompatActivity implements TextInput
      * for the landed page and clears this flag. See scenario #InputPanel6.
      */
     private boolean mTerminalPageSwitchInProgress = false;
+
+    /** Returns the live activity for debug-build automation hooks, or null when none exists. */
+    public static TermuxActivity getInstance() {
+        return sInstance;
+    }
 
     public void setTerminalPageSwitchInProgress(boolean inProgress) {
         mTerminalPageSwitchInProgress = inProgress;
@@ -364,17 +380,24 @@ public final class TermuxActivity extends AppCompatActivity implements TextInput
     /** True once the empty-history Toast has been shown during the current gesture. */
     private boolean mHistoryEmptyHintShown = false;
 
-    /** Listens for per-directory history settings change from Settings activity. */
+    /** Listens for message-history settings changes from the Settings activity. */
     private final SharedPreferences.OnSharedPreferenceChangeListener mPerDirPrefListener =
             (prefs, key) -> {
-                if (!"per_directory_message_history".equals(key)) return;
-                boolean newValue = prefs.getBoolean("per_directory_message_history", false);
-                if (newValue == mMessageHistoryCtrl.isPerDirectoryEnabled()) return;
+                if ("per_directory_message_history".equals(key)) {
+                    boolean newValue = prefs.getBoolean("per_directory_message_history", false);
+                    if (newValue == mMessageHistoryCtrl.isPerDirectoryEnabled()) return;
 
-                // Persist history under the current (old) mode before switching.
-                mMessageHistoryCtrl.save();
-                mMessageHistoryCtrl.setPerDirectoryEnabled(newValue);
-                loadMessageHistory();
+                    // Persist history under the current (old) mode before switching.
+                    mMessageHistoryCtrl.save();
+                    mMessageHistoryCtrl.setPerDirectoryEnabled(newValue);
+                    loadMessageHistory();
+                } else if ("promote_restored_to_top".equals(key)) {
+                    mMessageHistoryCtrl.setPromoteRestoredToTop(
+                            prefs.getBoolean("promote_restored_to_top", true));
+                } else if ("save_cleared_to_history".equals(key)) {
+                    mMessageHistoryCtrl.setSaveClearedToHistory(
+                            prefs.getBoolean("save_cleared_to_history", true));
+                }
             };
 
     private static final String LOG_TAG = "TermuxActivity";
@@ -390,6 +413,8 @@ public final class TermuxActivity extends AppCompatActivity implements TextInput
     @Override
     public void onCreate(Bundle savedInstanceState) {
         Logger.logDebug(LOG_TAG, "onCreate");
+
+        sInstance = this;
         mIsOnResumeAfterOnCreate = true;
 
         if (savedInstanceState != null)
@@ -645,10 +670,15 @@ if (!TermuxInstaller.isBootstrapInstalled(this)) {
         // onResume after recreate applies the focus/IME state restored from the
         // saved-instance Bundle even though mIsOnResumeAfterOnCreate is true.
         TerminalSession currentSession = getCurrentSession();
-        if (!mIsOnResumeAfterOnCreate || mIsActivityRecreated) {
-            // Restore the pre-background focus target clobbered by the client above.
-            setFocusOnInputForCurrentSession(resumeFocusWasOnInput);
-            applyTextInputVisibilityForSession(currentSession, true);
+        mResumeFocusRestore = true;
+        try {
+            if (!mIsOnResumeAfterOnCreate || mIsActivityRecreated) {
+                // Restore the pre-background focus target clobbered by the client above.
+                setFocusOnInputForCurrentSession(resumeFocusWasOnInput);
+                applyTextInputVisibilityForSession(currentSession, true);
+            }
+        } finally {
+            mResumeFocusRestore = false;
         }
 
         mIsOnResumeAfterOnCreate = false;
@@ -710,6 +740,8 @@ if (!TermuxInstaller.isBootstrapInstalled(this)) {
         super.onDestroy();
 
         Logger.logDebug(LOG_TAG, "onDestroy");
+
+        sInstance = null;
 
         if (mIsInvalidState) return;
 
@@ -1377,8 +1409,11 @@ if (!TermuxInstaller.isBootstrapInstalled(this)) {
                     .getInt("message_history_max", MESSAGE_HISTORY_MAX_DEFAULT));
             mMessageHistoryCtrl.setPerDirectoryEnabled(getSharedPreferences("termux_prefs", MODE_PRIVATE)
                     .getBoolean("per_directory_message_history", false));
+            mMessageHistoryCtrl.setPromoteRestoredToTop(getSharedPreferences("termux_prefs", MODE_PRIVATE)
+                    .getBoolean("promote_restored_to_top", true));
+            mMessageHistoryCtrl.setSaveClearedToHistory(getSharedPreferences("termux_prefs", MODE_PRIVATE)
+                    .getBoolean("save_cleared_to_history", true));
             loadMessageHistory();
-
             // Hot-reload: when the user toggles per-directory history in Settings
             // and returns to the terminal, the mode switches immediately.
             getSharedPreferences("termux_prefs", MODE_PRIVATE)
@@ -1801,7 +1836,7 @@ if (!TermuxInstaller.isBootstrapInstalled(this)) {
         }
 
         String existing = editText.getText().toString();
-        if (!TextUtils.isEmpty(existing)) {
+        if (!TextUtils.isEmpty(existing) && mMessageHistoryCtrl.isSaveClearedToHistory()) {
             addToMessageHistory(existing);
         }
 
@@ -1852,16 +1887,19 @@ if (!TermuxInstaller.isBootstrapInstalled(this)) {
         } else {
             // LEGACY behaviour: replace the entire field, saving existing text to history.
             String existing = editText.getText().toString();
-            if (!TextUtils.isEmpty(existing) && !existing.equals(message)) {
+            if (!TextUtils.isEmpty(existing) && !existing.equals(message)
+                    && mMessageHistoryCtrl.isSaveClearedToHistory()) {
                 addToMessageHistory(existing);
             }
             editText.setText(message);
             editText.setSelection(message.length());
         }
-
         // Promote the picked message to the front of history (index 0 = newest)
-        // so it appears at the bottom of the history popup on next open.
-        addToMessageHistory(message);
+        // so it appears at the bottom of the history popup on next open. Skipped
+        // when the "keep restored position in history" preference is disabled.
+        if (mMessageHistoryCtrl.isPromoteRestoredToTop()) {
+            addToMessageHistory(message);
+        }
 
         setFocusOnInputForCurrentSession(true);
         saveTextInputForCurrentSession();

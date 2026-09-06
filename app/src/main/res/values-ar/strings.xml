@@ -178,6 +178,10 @@
     <string name="notification_wake_lock_held"> (قفل الاستيقاظ مفعّل)</string>
     <string name="panel_transparency_title">شفافية اللوحة</string>
     <string name="per_directory_message_history_summary">الاحتفاظ بسجل رسائل منفصل لكل دليل عمل. عند الإيقاف، تشارك جميع الجلسات سجلاً واحداً عاماً.</string>
+    <string name="promote_restored_to_top_title">الأحدث المستخدم في الأعلى</string>
+    <string name="promote_restored_to_top_summary">نقل الرسائل المستعادة والمرسلة إلى أعلى السجل.</string>
+    <string name="save_cleared_to_history_title">المحذوفة في السجل</string>
+    <string name="save_cleared_to_history_summary">حفظ الرسائل المحذوفة من حقل الإدخال في السجل.</string>
     <string name="per_directory_message_history_title">سجل الرسائل حسب الدليل</string>
     <string name="permission_run_command_description">تنفيذ أوامر عشوائية داخل بيئة Termux والوصول إلى الملفات</string>
     <string name="permission_run_command_label">تشغيل الأوامر في بيئة Termux</string>

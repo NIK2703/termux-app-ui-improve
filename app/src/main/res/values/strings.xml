@@ -315,6 +315,10 @@
     <string name="message_history_max_title">Max remembered messages</string>
     <string name="per_directory_message_history_title">Per-directory message history</string>
     <string name="per_directory_message_history_summary">Keep a separate message history for each working directory. When off, all sessions share one global history.</string>
+    <string name="promote_restored_to_top_title">Recently used on top</string>
+    <string name="promote_restored_to_top_summary">Move restored and sent messages to the top of the history.</string>
+    <string name="save_cleared_to_history_title">Cleared to history</string>
+    <string name="save_cleared_to_history_summary">Save messages cleared from the input field to the history.</string>
 
     <!-- Text input preferences -->
     <string name="input_panel_title">Input Panel</string>

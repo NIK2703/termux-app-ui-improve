@@ -83,6 +83,20 @@
             app:defaultValue="false"
             app:iconSpaceReserved="false" />
 
+        <SwitchPreferenceCompat
+            app:key="promote_restored_to_top"
+            app:title="@string/promote_restored_to_top_title"
+            app:summary="@string/promote_restored_to_top_summary"
+            app:defaultValue="true"
+            app:iconSpaceReserved="false" />
+
+        <SwitchPreferenceCompat
+            app:key="save_cleared_to_history"
+            app:title="@string/save_cleared_to_history_title"
+            app:summary="@string/save_cleared_to_history_summary"
+            app:defaultValue="true"
+            app:iconSpaceReserved="false" />
+
         <SeekBarPreference
             app:key="message_history_max"
             app:title="@string/message_history_max_title"

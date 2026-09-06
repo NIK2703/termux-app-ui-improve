@@ -151,6 +151,10 @@
 <string name="notification_wake_lock_held"> (wakelock ditahan)</string>
 <string name="panel_transparency_title">Transparansi Panel</string>
 <string name="per_directory_message_history_summary">Menyimpan riwayat pesan terpisah untuk setiap direktori kerja. Jika dinonaktifkan, semua sesi berbagi riwayat global.</string>
+<string name="promote_restored_to_top_title">Terakhir digunakan di atas</string>
+<string name="promote_restored_to_top_summary">Pindahkan pesan yang dipulihkan dan dikirim ke bagian atas riwayat.</string>
+<string name="save_cleared_to_history_title">Dihapus ke riwayat</string>
+<string name="save_cleared_to_history_summary">Simpan pesan yang dihapus dari kolom input ke riwayat.</string>
 <string name="per_directory_message_history_title">Riwayat Pesan per Direktori</string>
 <string name="permission_run_command_description">jalankan perintah sembarang di lingkungan Termux dan akses file</string>
 <string name="permission_run_command_label">jalankan perintah di lingkungan Termux</string>

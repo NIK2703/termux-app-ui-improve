@@ -155,6 +155,10 @@
     <string name="notification_wake_lock_held">(वेक लॉक रखा गया)</string>
     <string name="panel_transparency_title">पैनल पारदर्शिता</string>
     <string name="per_directory_message_history_summary">प्रत्येक कार्य निर्देशिका के लिए अलग संदेश इतिहास रखें। बंद होने पर, सभी सत्र एक साझा वैश्विक इतिहास का उपयोग करते हैं।</string>
+    <string name="promote_restored_to_top_title">हाल में उपयोग किए गए ऊपर</string>
+    <string name="promote_restored_to_top_summary">पुनर्स्थापित और भेजे गए संदेशों को इतिहास में सबसे ऊपर ले जाएँ।</string>
+    <string name="save_cleared_to_history_title">साफ़ किए गए इतिहास में</string>
+    <string name="save_cleared_to_history_summary">इनपुट फ़ील्ड से साफ़ किए गए संदेशों को इतिहास में सहेजें।</string>
     <string name="per_directory_message_history_title">निर्देशिका-वार संदेश इतिहास</string>
     <string name="permission_run_command_description">Termux वातावरण में कोई भी कमांड चलाएँ और फ़ाइलों तक पहुँचें</string>
     <string name="permission_run_command_label">Termux वातावरण में कमांड चलाएँ</string>

@@ -151,6 +151,10 @@
     <string name="notification_wake_lock_held"> (Wake-Lock gehalten)</string>
     <string name="panel_transparency_title">Panel-Transparenz</string>
     <string name="per_directory_message_history_summary">Für jedes Arbeitsverzeichnis einen separaten Nachrichtenverlauf führen. Wenn deaktiviert, teilen sich alle Sitzungen einen globalen Verlauf.</string>
+    <string name="promote_restored_to_top_title">Zuletzt verwendet oben</string>
+    <string name="promote_restored_to_top_summary">Wiederhergestellte und gesendete Nachrichten an den Anfang des Verlaufs verschieben.</string>
+    <string name="save_cleared_to_history_title">Gelöschte in den Verlauf</string>
+    <string name="save_cleared_to_history_summary">Aus dem Eingabefeld gelöschte Nachrichten im Verlauf speichern.</string>
     <string name="per_directory_message_history_title">Nachrichtenverlauf pro Verzeichnis</string>
     <string name="permission_run_command_description">beliebige Befehle in der Termux-Umgebung ausführen und auf Dateien zugreifen</string>
     <string name="permission_run_command_label">Befehle in der Termux-Umgebung ausführen</string>
